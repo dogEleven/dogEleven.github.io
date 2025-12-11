@@ -14,6 +14,84 @@
             /* Space Background: Black to Deep Galaxy Blue */
             background: linear-gradient(to top, #000000 0%, #191970 100%);
         }
+
+
+        /* Mobile Controls */
+        .control-btn {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            color: white;
+            font-family: sans-serif;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .d-pad-left {
+            left: 40px;
+            bottom: 40px;
+            width: 160px;
+            height: 160px;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .d-pad-right {
+            right: 40px;
+            bottom: 40px;
+            width: 120px;
+            height: 180px;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        #btn-left {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 70px;
+            height: 70px;
+            pointer-events: auto;
+        }
+
+        #btn-right {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 70px;
+            height: 70px;
+            pointer-events: auto;
+        }
+
+        #btn-fwd {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            pointer-events: auto;
+        }
+
+        #btn-back {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            pointer-events: auto;
+        }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -30,6 +108,15 @@
 </head>
 
 <body>
+    <!-- Mobile Controls Containers -->
+    <div class="d-pad-left">
+        <div id="btn-left" class="control-btn">←</div>
+        <div id="btn-right" class="control-btn">→</div>
+    </div>
+    <div class="d-pad-right">
+        <div id="btn-fwd" class="control-btn">↑</div>
+        <div id="btn-back" class="control-btn">↓</div>
+    </div>
 
     <script>
         // --- 1. Noise Implementation ---
@@ -827,6 +914,29 @@
             ;
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
+
+        // --- Mobile Controls Logic ---
+        const addTouchHandler = (id, key) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+
+            const setKey = (val) => {
+                if (keys.hasOwnProperty(key)) keys[key] = val;
+            };
+
+            // Touch Events
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); setKey(true); }, { passive: false });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); setKey(false); }, { passive: false });
+            // Mouse Events for testing on desktop
+            btn.addEventListener('mousedown', (e) => { setKey(true); });
+            btn.addEventListener('mouseup', (e) => { setKey(false); });
+            btn.addEventListener('mouseleave', (e) => { setKey(false); });
+        };
+
+        addTouchHandler('btn-left', 'a');
+        addTouchHandler('btn-right', 'd');
+        addTouchHandler('btn-fwd', 'w');
+        addTouchHandler('btn-back', 's');
 
 
 
