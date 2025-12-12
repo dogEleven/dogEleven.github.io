@@ -28,7 +28,6 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: var(--font-main);
-            /* Mobile viewport height fix */
             height: 100vh;
             height: 100dvh;
             display: flex;
@@ -36,7 +35,46 @@
             overflow: hidden;
         }
 
-        /* ... (Background Elements unchanged) ... */
+        /* Glassmorphism Background Elements */
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            z-index: -1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--primary-color);
+            top: -100px;
+            left: -100px;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: var(--message-other);
+            bottom: -150px;
+            right: -150px;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            50% {
+                transform: translate(50px, 50px);
+            }
+
+            100% {
+                transform: translate(0, 0);
+            }
+        }
 
         /* Header */
         header {
@@ -62,7 +100,6 @@
 
             .input-area {
                 padding: 0.75rem !important;
-                /* Override desktop padding */
             }
 
             textarea {
@@ -74,7 +111,177 @@
             }
         }
 
-        /* ... (Rest of CSS) ... */
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand span {
+            color: var(--primary-color);
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            background: var(--input-bg);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            color: var(--sub-text);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ef4565;
+            box-shadow: 0 0 10px #ef4565;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .status-dot.connected {
+            background-color: #2cb67d;
+            box-shadow: 0 0 10px #2cb67d;
+        }
+
+        /* Main Chat Area */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            scroll-behavior: smooth;
+        }
+
+        #chat-window::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chat-window::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chat-window::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        /* Messages */
+        .message-row {
+            display: flex;
+            gap: 1rem;
+            animation: slideIn 0.3s ease-out;
+            max-width: 80%;
+        }
+
+        .message-row.self {
+            flex-direction: row-reverse;
+            align-self: flex-end;
+        }
+
+        .message-row.system {
+            align-self: center;
+            max-width: 100%;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7f5af0, #2cb67d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1rem;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .msg-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .sender-name {
+            font-size: 0.75rem;
+            color: var(--sub-text);
+        }
+
+        .self .sender-name {
+            text-align: right;
+        }
+
+        .bubble {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            background: var(--input-bg);
+            line-height: 1.5;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .self .bubble {
+            background: var(--message-self);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .other .bubble {
+            background: var(--input-bg);
+            border-bottom-left-radius: 2px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .system .bubble {
+            background: transparent;
+            color: var(--system-msg);
+            font-size: 0.85rem;
+            padding: 0;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .system .bubble::before,
+        .system .bubble::after {
+            content: '';
+            height: 1px;
+            width: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            display: block;
+        }
 
         /* Input Area */
         .input-area {
@@ -82,7 +289,6 @@
             background: rgba(17, 17, 20, 0.8);
             backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.05);
-            /* Ensure it stays above virtual keyboard if possible (though flex handles this usually) */
             z-index: 20;
         }
 
@@ -100,7 +306,6 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 12px;
             padding: 1rem 3.5rem 1rem 1rem;
-            /* Space for emoji/send buttons */
             color: white;
             font-family: var(--font-main);
             font-size: 1rem;
@@ -147,7 +352,6 @@
             cursor: not-allowed;
         }
 
-        /* Empty State */
         .empty-state {
             display: flex;
             flex-direction: column;
@@ -163,14 +367,11 @@
 </head>
 
 <body>
-    <!-- Background Elements -->
     <div class="bg-orb orb-1"></div>
     <div class="bg-orb orb-2"></div>
 
     <header>
-        <div class="brand">
-            Void<span>Chat</span>
-        </div>
+        <div class="brand">Void<span>Chat</span></div>
         <div class="status-pill">
             <div id="status-dot" class="status-dot"></div>
             <span id="peers-count">Connecting...</span>
@@ -183,7 +384,7 @@
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
-                <p>Waiting for peers to enter the void...</p>
+                <p>Waiting for network sync...</p>
             </div>
         </div>
     </main>
@@ -201,62 +402,25 @@
         </form>
     </div>
 
-    <!-- On-screen Log for debugging -->
-    <div id="debug-log"
-        style="position:fixed; bottom:0; left:0; width:100%; height:150px; background:rgba(0,0,0,0.8); color:#0f0; font-family:monospace; font-size:12px; overflow-y:scroll; pointer-events:none; z-index:9999; display:none; padding:10px; box-sizing:border-box;">
-    </div>
+    <!-- Gun.js (Decentralized Database) -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
 
-    <!-- Trystero Logic -->
-    <script type="module">
-        // Using Trystero via esm.sh
-        // unique-slug for room ID to avoid collisions
-        import { joinRoom } from 'https://esm.sh/trystero@0.16.0/torrent';
-
+    <script>
         // --- Config ---
-        const config = {
-            appId: 'dog-eleven-void-chat-v2',
-            trackerUrls: [
-                'wss://tracker.btorrent.xyz',
-                'wss://tracker.webtorrent.dev',
-                'wss://tracker.openwebtorrent.com',
-                'wss://tracker.files.fm:7073/announce',
-                'wss://tracker.fastcast.nz',
-                'wss://opentracker.i2p.rocks/v1/ws/announce',
-                'wss://tracker.webtorrent.io' // Backup
-            ]
-        };
-        const roomId = 'void_lobby_001';
+        // Using public Gun relays consistently improves reliability over raw WebRTC
+        const gun = Gun([
+            'https://gun-manhattan.herokuapp.com/gun',
+            'https://gun-ams.herokuapp.com/gun',
+            'https://peer.wallie.io/gun'
+        ]);
 
-        // --- Debug Logger ---
-        const logBox = document.getElementById('debug-log');
-        function log(msg, type = 'info') {
-            console.log(`[${type.toUpperCase()}] ${msg}`);
-            // Uncomment to see logs on screen if needed
-            // logBox.style.display = 'block';
-            // const line = document.createElement('div');
-            // line.textContent = `> ${msg}`;
-            // line.style.color = type === 'error' ? '#ff5555' : '#50fa7b';
-            // logBox.appendChild(line);
-            // logBox.scrollTop = logBox.scrollHeight;
-        }
-
-        // --- Protocol Check ---
-        if (window.location.protocol === 'file:') {
-            alert("⚠️ ERROR: You are opening this file directly (file://).\n\nWebRTC/P2P features WILL NOT WORK.\n\nPlease serve this file using a local server (e.g., VS Code Live Server, python -m http.server, etc.) and open it via http://localhost...");
-        }
+        const roomName = 'dog-eleven-void-chat-v2';
+        const chatRoom = gun.get(roomName);
 
         // --- State ---
-        let room;
-        let selfId;
-        const peers = {}; // id -> { name }
-        const peerCursor = {};
-
-        // Generate a random simple name
-        const adjectives = ['Cyber', 'Neon', 'Dark', 'Ghost', 'Void', 'Neural', 'Quantum', 'Binary'];
-        const nouns = ['Punk', 'Wolf', 'Glitch', 'Node', 'Runner', 'Spectre', 'Core', 'Flux'];
-        const randomName = () => `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]} #${Math.floor(Math.random() * 100)}`;
-        const myName = localStorage.getItem('void_chat_name') || randomName();
-        localStorage.setItem('void_chat_name', myName); // Persist name
+        const myName = localStorage.getItem('void_chat_name') || `User-${Math.floor(Math.random() * 1000)}`;
+        localStorage.setItem('void_chat_name', myName);
 
         // --- DOM Elements ---
         const chatWindow = document.getElementById('chat-window');
@@ -266,164 +430,107 @@
         const statusDot = document.getElementById('status-dot');
         const peersCountLabel = document.getElementById('peers-count');
 
-        // --- Helper Functions ---
-        function updatePeerCount() {
-            const count = Object.keys(peers).length;
-            if (count === 0) {
-                peersCountLabel.textContent = `Flying Solo`;
-                statusDot.classList.remove('connected');
-                statusDot.style.backgroundColor = '#ef4565'; // Red
-            } else {
-                peersCountLabel.textContent = `${count} Peer${count > 1 ? 's' : ''} Online`;
-                statusDot.classList.add('connected');
-                statusDot.style.backgroundColor = '#2cb67d'; // Green
-            }
-        }
+        // --- UI Logic ---
+        statusDot.style.backgroundColor = '#2cb67d'; // Gun is "always connected" via relays
+        statusDot.classList.add('connected');
+        peersCountLabel.textContent = 'Relay Connected';
 
         function createAvatar(name) {
             const div = document.createElement('div');
             div.className = 'avatar';
-            div.textContent = name.charAt(0).toUpperCase();
-            // Simple string hash color
+            div.textContent = (name || 'U').charAt(0).toUpperCase();
             let hash = 0;
-            for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            const str = name || 'User';
+            for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
             const c1 = `hsl(${hash % 360}, 70%, 60%)`;
             const c2 = `hsl(${(hash + 40) % 360}, 70%, 50%)`;
             div.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
             return div;
         }
 
-        function appendMessage(text, senderName, isSelf, type = 'user') {
+        const seenMsgIds = new Set();
+
+        function appendMessage(data, id) {
+            if (seenMsgIds.has(id)) return;
+            seenMsgIds.add(id);
+
             if (emptyState.style.display !== 'none') emptyState.style.display = 'none';
 
+            const isSelf = data.sender === myName;
             const row = document.createElement('div');
+            row.className = `message-row ${isSelf ? 'self' : 'other'}`;
 
-            if (type === 'system') {
-                row.className = 'message-row system';
-                row.innerHTML = `<div class="bubble">${text}</div>`;
-            } else {
-                row.className = `message-row ${isSelf ? 'self' : 'other'}`;
+            const avatar = createAvatar(data.sender);
 
-                const avatar = createAvatar(senderName);
+            const content = document.createElement('div');
+            content.className = 'msg-content';
 
-                const content = document.createElement('div');
-                content.className = 'msg-content';
+            const nameLabel = document.createElement('div');
+            nameLabel.className = 'sender-name';
+            nameLabel.textContent = data.sender + (isSelf ? ' (You)' : '');
 
-                const nameLabel = document.createElement('div');
-                nameLabel.className = 'sender-name';
-                nameLabel.textContent = senderName + (isSelf ? ' (You)' : '');
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = data.text;
 
-                const bubble = document.createElement('div');
-                bubble.className = 'bubble';
-                bubble.textContent = text;
+            content.appendChild(nameLabel);
+            content.appendChild(bubble);
 
-                content.appendChild(nameLabel);
-                content.appendChild(bubble);
-
-                row.appendChild(avatar);
-                row.appendChild(content);
-            }
+            row.appendChild(avatar);
+            row.appendChild(content);
 
             chatWindow.appendChild(row);
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        // --- Initialization ---
-        async function init() {
-            try {
-                log('Initializing Trystero (Torrent Strategy)...');
-
-                // Explicit RTC Config with Google STUN
-                const rtcConfig = {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
-                };
-
-                room = joinRoom(config, roomId);
-                selfId = room.selfId;
-
-                log(`Joined room: ${roomId}`);
-                log(`My ID: ${selfId}`);
-
-                // --- Actions ---
-                const [sendName, getName] = room.makeAction('name');
-                const [sendMessage, getMessage] = room.makeAction('message');
-
-                // --- Events ---
-                room.onPeerJoin(peerId => {
-                    log(`Peer joined: ${peerId}`);
-                    peers[peerId] = { name: 'Unknown' };
-                    sendName(myName, peerId); // Handshake Name
-                    updatePeerCount();
-                    appendMessage(`A connection shimmered into existence.`, '', false, 'system');
-                });
-
-                room.onPeerLeave(peerId => {
-                    log(`Peer left: ${peerId}`);
-                    const pName = peers[peerId]?.name || 'Unknown';
-                    delete peers[peerId];
-                    updatePeerCount();
-                    appendMessage(`${pName} faded into the void.`, '', false, 'system');
-                });
-
-                // Receive Name
-                getName((name, peerId) => {
-                    log(`Received name from ${peerId}: ${name}`);
-                    if (peers[peerId]) {
-                        peers[peerId].name = name;
-                    }
-                });
-
-                // Receive Message
-                getMessage((data, peerId) => {
-                    log(`Received msg from ${peerId}`);
-                    const senderName = peers[peerId]?.name || 'Unknown';
-                    appendMessage(data.text, senderName, false);
-                });
-
-                // Send Message Logic
-                chatForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    const text = messageInput.value.trim();
-                    if (!text) return;
-
-                    // Send to all peers
-                    sendMessage({ text, timestamp: Date.now() });
-
-                    // Show locally
-                    appendMessage(text, myName, true);
-
-                    messageInput.value = '';
-                    messageInput.style.height = 'auto';
-                    messageInput.focus();
-                });
-
-                // Auto-expand and Enter to send
-                messageInput.addEventListener('input', function () {
-                    this.style.height = 'auto';
-                    this.style.height = (this.scrollHeight) + 'px';
-                });
-
-                messageInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        chatForm.dispatchEvent(new Event('submit'));
-                    }
-                });
-
-                updatePeerCount();
-
-            } catch (err) {
-                console.error("Trystero init failed:", err);
-                log(err.toString(), 'error');
-                appendMessage("Failed to initialize connection. Check if you are on HTTPS/Localhost.", "", false, 'system');
+        // --- Sync Messages ---
+        // Fetch last 50 nodes? Gun graph logic is broad, we just listen to stream.
+        chatRoom.map().once((data, id) => {
+            if (!data || !data.text) return;
+            // Filter old messages if needed? 
+            // For this demo we show all history loaded.
+            // Check timestamp? 
+            const now = Date.now();
+            if (data.timestamp && now - data.timestamp < 24 * 60 * 60 * 1000) { // Only last 24h
+                appendMessage(data, id);
             }
-        }
+        });
 
-        init();
+        // --- Send Message ---
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (!text) return;
 
+            const msgData = {
+                sender: myName,
+                text: text,
+                timestamp: Date.now()
+            };
+
+            // Write to Gun graph
+            chatRoom.set(msgData);
+
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            messageInput.focus();
+        });
+
+        // Debug
+        console.log("Gun.js initialized against public relays.");
+
+        // Auto-expand
+        messageInput.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
     </script>
 </body>
 
