@@ -469,13 +469,16 @@
                 console.log("Client connected:", conn.peer);
                 clientConnections.add(conn);
 
+                // --- Detailed Connection Debugging ---
                 conn.on('open', () => {
-                    appendSystemMessage(`$ {
-                                    conn.peer
-                                }
-
-                                joined the void.`);
-                    // Send welcome message or history could go here
+                    appendSystemMessage(`${conn.peer} joined.`);
+                    // Hook into the underlying WebRTC connection for detailed stats
+                    if (conn.peerConnection) {
+                        appendSystemMessage(`[WebRTC] ICE: ${conn.peerConnection.iceConnectionState}`);
+                        conn.peerConnection.oniceconnectionstatechange = () => {
+                            appendSystemMessage(`[WebRTC] ICE State: ${conn.peerConnection.iceConnectionState}`);
+                        };
+                    }
                 });
 
                 conn.on('data', (data) => {
@@ -489,12 +492,12 @@
 
                 conn.on('close', () => {
                     clientConnections.delete(conn);
+                    appendSystemMessage(`${conn.peer} disconnected.`);
+                });
 
-                    appendSystemMessage(`$ {
-                                    conn.peer
-                                }
-
-                                disconnected.`);
+                // Monitor errors
+                conn.on('error', (err) => {
+                    appendSystemMessage(`[Conn Error] ${err}`);
                 });
             });
         }
