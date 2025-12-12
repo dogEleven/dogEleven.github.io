@@ -93,6 +93,19 @@
             pointer-events: auto;
         }
 
+        #debug-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: lime;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 3000;
+        }
+
         /* --- Chat UI --- */
         #chat-overlay {
             position: absolute;
@@ -177,6 +190,14 @@
     <div class="d-pad-right">
         <div id="btn-fwd" class="control-btn">↑</div>
         <div id="btn-back" class="control-btn">↓</div>
+    </div>
+
+    <div id="debug-panel">
+        <div>ID: <span id="dbg-id">...</span></div>
+        <div>Role: <span id="dbg-role">Init...</span></div>
+        <div>Peers: <span id="dbg-peers">0</span></div>
+        <div>In: <span id="dbg-in">0</span> | Out: <span id="dbg-out">0</span></div>
+        <div>Err: <span id="dbg-err">-</span></div>
     </div>
 
     <div id="chat-overlay">
@@ -1018,17 +1039,33 @@
 
         const statusLabel = document.getElementById('chat-status');
 
+        // Debug Elements
+        const dbgId = document.getElementById('dbg-id');
+        const dbgRole = document.getElementById('dbg-role');
+        const dbgPeers = document.getElementById('dbg-peers');
+        const dbgIn = document.getElementById('dbg-in');
+        const dbgOut = document.getElementById('dbg-out');
+        const dbgErr = document.getElementById('dbg-err');
+        let pkgIn = 0, pkgOut = 0;
+
         function initMultiplayer() {
+            // Randomize Host ID slightly to avoid Zombie Hosts during dev
+            // const HOST_ID = `dog-eleven-planet-host-${ROOM_ID_VERSION}`;
+
             const hostCandidate = new Peer(HOST_ID, { debug: 1 });
             hostCandidate.on('open', (id) => {
                 isHost = true;
                 myId = id;
                 peer = hostCandidate;
+                dbgRole.textContent = "HOST";
+                dbgId.textContent = id;
                 setupHost();
             });
             hostCandidate.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
                     initClient();
+                } else {
+                    dbgErr.textContent = err.type;
                 }
             });
         }
@@ -1036,16 +1073,23 @@
         function initClient() {
             myId = 'User-' + Math.floor(Math.random() * 10000);
             peer = new Peer(myId, { debug: 1 });
-            peer.on('open', () => connectToHost());
+            peer.on('open', (id) => {
+                dbgId.textContent = id;
+                dbgRole.textContent = "CLIENT";
+                connectToHost();
+            });
         }
 
         function setupHost() {
             statusLabel.textContent = "Host (Room Open)";
             peer.on('connection', (conn) => {
                 clientConnections.add(conn);
+                dbgPeers.textContent = clientConnections.size;
+
                 conn.on('data', (data) => handleData(data, conn.peer));
                 conn.on('close', () => {
                     clientConnections.delete(conn);
+                    dbgPeers.textContent = clientConnections.size;
                     removeRemoteCar(conn.peer);
                 });
             });
@@ -1056,18 +1100,22 @@
             hostConnection = peer.connect(HOST_ID);
             hostConnection.on('open', () => {
                 statusLabel.textContent = "Connected to Room";
+                dbgPeers.textContent = "1 (Host)";
             });
             hostConnection.on('data', (data) => handleData(data, 'Host'));
             hostConnection.on('close', () => {
                 statusLabel.textContent = "Disconnected";
+                dbgPeers.textContent = "0";
             });
         }
 
         function handleData(data, senderId) {
+            pkgIn++;
+            dbgIn.textContent = pkgIn;
+
             // Data types: 'move', 'chat'
             if (data.type === 'move') {
                 updateRemoteCar(data.id, data.pos, data.quat);
-                // If Host, relay to others
                 if (isHost) broadcast(data, senderId);
             } else if (data.type === 'chat') {
                 createChatBubble(data.text, data.id);
@@ -1076,6 +1124,8 @@
         }
 
         function broadcast(data, excludeId) {
+            pkgOut++;
+            dbgOut.textContent = pkgOut;
             for (let client of clientConnections) {
                 if (client.peer !== excludeId && client.open) {
                     client.send(data);
@@ -1413,7 +1463,11 @@
                         quat: carGroup.quaternion // Three.js quat is standard object
                     };
                     if (isHost) broadcast(data, myId);
-                    else if (hostConnection && hostConnection.open) hostConnection.send(data);
+                    else if (hostConnection && hostConnection.open) {
+                        pkgOut++;
+                        dbgOut.textContent = pkgOut;
+                        hostConnection.send(data);
+                    }
                 }
             }
 
