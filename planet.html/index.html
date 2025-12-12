@@ -184,12 +184,12 @@
 <body>
     <!-- Mobile Controls Containers -->
     <div class="d-pad-left">
-        <div id="btn-left" class="control-btn">‚Üê</div>
-        <div id="btn-right" class="control-btn">‚Üí</div>
+        <div id="btn-left" class="control-btn">‚Ü?/div>
+        <div id="btn-right" class="control-btn">‚Ü?/div>
     </div>
     <div class="d-pad-right">
-        <div id="btn-fwd" class="control-btn">‚Üë</div>
-        <div id="btn-back" class="control-btn">‚Üì</div>
+        <div id="btn-fwd" class="control-btn">‚Ü?/div>
+        <div id="btn-back" class="control-btn">‚Ü?/div>
     </div>
 
     <div id="debug-panel">
@@ -1165,6 +1165,13 @@
                 // Create Ghost Car
                 const ghost = carGroup.clone();
 
+                // 1. Generate Unique Color based on ID
+                let hash = 0;
+                for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+                const hue = Math.abs(hash % 360);
+                const colorBody = new THREE.Color(`hsl(${hue}, 80%, 60%)`); // Bright
+                const colorTop = new THREE.Color(`hsl(${hue}, 80%, 30%)`);  // Darker top
+
                 // Make it look different (Ghostly)
                 ghost.traverse((child) => {
                     if (child.isMesh) {
@@ -1172,17 +1179,17 @@
                             // Handle Multi-Material (Cabin)
                             child.material = child.material.map(m => {
                                 const mc = m.clone();
-                                mc.transparent = true;
-                                mc.opacity = 0.5;
-                                if (mc.color) mc.color.setHex(0x00FFFF); // Cyan tint
+                                mc.transparent = false;
+                                mc.opacity = 1.0;
+                                if (mc.color) mc.color.copy(colorTop); // Darker
                                 return mc;
                             });
                         } else {
                             // Handle Single Material
                             child.material = child.material.clone();
-                            child.material.transparent = true;
-                            child.material.opacity = 0.5;
-                            if (child.material.color) child.material.color.setHex(0x00FFFF);
+                            child.material.transparent = false;
+                            child.material.opacity = 1.0;
+                            child.material.color.copy(colorBody); // Bright
                         }
                     }
                 });
@@ -1509,11 +1516,30 @@
                 }
             }
 
-            // 2. Update Remote Cars (Lerp)
+            // 2. Update Remote Cars (Smooth Lerp + Ground Clamping)
             for (let id in remoteCars) {
                 const rCar = remoteCars[id];
-                rCar.mesh.position.lerp(rCar.targetPos, 0.2); // Smooth lerp
-                rCar.mesh.quaternion.slerp(rCar.targetQuat, 0.2);
+
+                // A. Smooth Interpolation (Time-based, tunable)
+                const lerpSpeed = 5.0 * dt;
+                rCar.mesh.position.lerp(rCar.targetPos, lerpSpeed);
+                rCar.mesh.quaternion.slerp(rCar.targetQuat, lerpSpeed);
+
+                // B. Ground Clamping (Prevent underground)
+                // Calculate terrain height at car's current position
+                const currentPos = rCar.mesh.position.clone();
+                const carDir = currentPos.clone().normalize();
+
+                // Re-use Noise Logic (Same as Terrain Generation)
+                let nVal = noise(carDir.x * 1.5, carDir.y * 1.5, carDir.z * 1.5);
+                nVal += 0.5 * noise(carDir.x * 5, carDir.y * 5, carDir.z * 5);
+                const terrainHeight = nVal * 10.0; // Must match planet heightScale
+                const minRadius = planetRadius + terrainHeight + 0.5; // +0.5 offset for wheels
+
+                if (currentPos.length() < minRadius) {
+                    // Force push out to surface
+                    rCar.mesh.position.normalize().multiplyScalar(minRadius);
+                }
             }
 
             // 3. Update Chat Bubbles (Project to 2D)
