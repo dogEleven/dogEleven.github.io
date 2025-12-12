@@ -1138,31 +1138,6 @@
 
             if (!remoteCars[id]) {
                 // Create Ghost Car
-                const ghost = carGroup.clone(); // Clone local car
-
-                // Make it look different (Ghostly)
-                ghost.traverse((child) => {
-                    if (child.isMesh) {
-                        child.material = child.material.clone();
-                        child.material.transparent = true;
-                        child.material.opacity = 0.6;
-                        if (child.material.color) child.material.color.setHex(0x00FFFF); // Cyan Ghost
-                    }
-                });
-
-                scene.add(ghost);
-                remoteCars[id] = { mesh: ghost, targetPos: new THREE.Vector3(), targetQuat: new THREE.Quaternion() };
-            }
-
-            const car = remoteCars[id];
-            // LERP Targets
-            car.targetPos.set(pos.x, pos.y, pos.z);
-            car.targetQuat.set(quat._x, quat._y, quat._z, quat._w);
-        }
-
-        function removeRemoteCar(id) {
-            if (remoteCars[id]) {
-                scene.remove(remoteCars[id].mesh);
                 delete remoteCars[id];
             }
         }
@@ -1460,7 +1435,7 @@
                         type: 'move',
                         id: myId,
                         pos: { x: carGroup.position.x, y: carGroup.position.y, z: carGroup.position.z },
-                        quat: carGroup.quaternion // Three.js quat is standard object
+                        quat: { x: carGroup.quaternion.x, y: carGroup.quaternion.y, z: carGroup.quaternion.z, w: carGroup.quaternion.w }
                     };
                     if (isHost) broadcast(data, myId);
                     else if (hostConnection && hostConnection.open) {
