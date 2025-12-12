@@ -383,21 +383,55 @@
         </form>
     </div>
 
+    <!-- On-screen Log for debugging -->
+    <div id="debug-log"
+        style="position:fixed; bottom:0; left:0; width:100%; height:150px; background:rgba(0,0,0,0.8); color:#0f0; font-family:monospace; font-size:12px; overflow-y:scroll; pointer-events:none; z-index:9999; display:none; padding:10px; box-sizing:border-box;">
+    </div>
+
     <!-- Trystero Logic -->
     <script type="module">
-        // Using Trystero via esm.sh for no-build simplicity
-        // Switch to 'mqtt' strategy for faster local demo signaling (avoids tracker issues)
-        import { joinRoom } from 'https://esm.sh/trystero@0.16.0/mqtt';
+        // Using Trystero via esm.sh
+        // unique-slug for room ID to avoid collisions
+        import { joinRoom } from 'https://esm.sh/trystero@0.16.0/torrent';
 
         // --- Config ---
-        const config = { appId: 'dog-eleven-void-chat-v1' };
-        const roomId = 'public-lobby';
+        const config = {
+            appId: 'dog-eleven-void-chat-v2',
+            trackerUrls: [
+                'wss://tracker.btorrent.xyz',
+                'wss://tracker.webtorrent.dev',
+                'wss://tracker.openwebtorrent.com',
+                'wss://tracker.files.fm:7073/announce',
+                'wss://tracker.fastcast.nz',
+                'wss://opentracker.i2p.rocks/v1/ws/announce',
+                'wss://tracker.webtorrent.io' // Backup
+            ]
+        };
+        const roomId = 'void_lobby_001';
+
+        // --- Debug Logger ---
+        const logBox = document.getElementById('debug-log');
+        function log(msg, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${msg}`);
+            // Uncomment to see logs on screen if needed
+            // logBox.style.display = 'block';
+            // const line = document.createElement('div');
+            // line.textContent = `> ${msg}`;
+            // line.style.color = type === 'error' ? '#ff5555' : '#50fa7b';
+            // logBox.appendChild(line);
+            // logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // --- Protocol Check ---
+        if (window.location.protocol === 'file:') {
+            alert("⚠️ ERROR: You are opening this file directly (file://).\n\nWebRTC/P2P features WILL NOT WORK.\n\nPlease serve this file using a local server (e.g., VS Code Live Server, python -m http.server, etc.) and open it via http://localhost...");
+        }
 
         // --- State ---
         let room;
         let selfId;
         const peers = {}; // id -> { name }
-        const peerCursor = {}; // Extra: could add typing indicators later
+        const peerCursor = {};
 
         // Generate a random simple name
         const adjectives = ['Cyber', 'Neon', 'Dark', 'Ghost', 'Void', 'Neural', 'Quantum', 'Binary'];
@@ -463,25 +497,37 @@
 
                 const bubble = document.createElement('div');
                 bubble.className = 'bubble';
-                bubble.textContent = text; // TextContent prevents HTML injection
+                bubble.textContent = text;
 
                 content.appendChild(nameLabel);
-                content.appendChild(bubble); // Append text node safely
+                content.appendChild(bubble);
 
                 row.appendChild(avatar);
                 row.appendChild(content);
             }
 
             chatWindow.appendChild(row);
-            // Auto scroll to bottom
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
         // --- Initialization ---
         async function init() {
             try {
+                log('Initializing Trystero (Torrent Strategy)...');
+
+                // Explicit RTC Config with Google STUN
+                const rtcConfig = {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                };
+
                 room = joinRoom(config, roomId);
                 selfId = room.selfId;
+
+                log(`Joined room: ${roomId}`);
+                log(`My ID: ${selfId}`);
 
                 // --- Actions ---
                 const [sendName, getName] = room.makeAction('name');
@@ -489,14 +535,15 @@
 
                 // --- Events ---
                 room.onPeerJoin(peerId => {
-                    console.log('Peer joined:', peerId);
-                    peers[peerId] = { name: 'Unknown' }; // Placeholder
-                    sendName(myName, peerId); // Introduce self
+                    log(`Peer joined: ${peerId}`);
+                    peers[peerId] = { name: 'Unknown' };
+                    sendName(myName, peerId); // Handshake Name
                     updatePeerCount();
                     appendMessage(`A connection shimmered into existence.`, '', false, 'system');
                 });
 
                 room.onPeerLeave(peerId => {
+                    log(`Peer left: ${peerId}`);
                     const pName = peers[peerId]?.name || 'Unknown';
                     delete peers[peerId];
                     updatePeerCount();
@@ -505,14 +552,15 @@
 
                 // Receive Name
                 getName((name, peerId) => {
+                    log(`Received name from ${peerId}: ${name}`);
                     if (peers[peerId]) {
                         peers[peerId].name = name;
-                        // Optional: update UI if we had a "User List"
                     }
                 });
 
                 // Receive Message
                 getMessage((data, peerId) => {
+                    log(`Received msg from ${peerId}`);
                     const senderName = peers[peerId]?.name || 'Unknown';
                     appendMessage(data.text, senderName, false);
                 });
@@ -530,7 +578,7 @@
                     appendMessage(text, myName, true);
 
                     messageInput.value = '';
-                    messageInput.style.height = 'auto'; // Reset height
+                    messageInput.style.height = 'auto';
                     messageInput.focus();
                 });
 
@@ -547,12 +595,12 @@
                     }
                 });
 
-                console.log('Joined room:', roomId);
-                updatePeerCount(); // Init state
+                updatePeerCount();
 
             } catch (err) {
                 console.error("Trystero init failed:", err);
-                appendMessage("Failed to initialize connection link. Check console.", "", false, 'system');
+                log(err.toString(), 'error');
+                appendMessage("Failed to initialize connection. Check if you are on HTTPS/Localhost.", "", false, 'system');
             }
         }
 
