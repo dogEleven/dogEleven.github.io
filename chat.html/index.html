@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Void Chat | Decentralized</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0c;
+            --sidebar-bg: #111114;
+            --chat-bg: #16161a;
+            --primary-color: #7f5af0;
+            --primary-hover: #6641db;
+            --text-color: #fffffe;
+            --sub-text: #94a1b2;
+            --input-bg: #242629;
+            --message-self: #7f5af0;
+            --message-other: #2cb67d;
+            --system-msg: #94a1b2;
+            --blur-bg: rgba(22, 22, 26, 0.8);
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Glassmorphism Background Elements */
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            z-index: -1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--primary-color);
+            top: -100px;
+            left: -100px;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: var(--message-other);
+            bottom: -150px;
+            right: -150px;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            50% {
+                transform: translate(50px, 50px);
+            }
+
+            100% {
+                transform: translate(0, 0);
+            }
+        }
+
+        /* Header */
+        header {
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(17, 17, 20, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand span {
+            color: var(--primary-color);
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            background: var(--input-bg);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            color: var(--sub-text);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ef4565;
+            box-shadow: 0 0 10px #ef4565;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .status-dot.connected {
+            background-color: #2cb67d;
+            box-shadow: 0 0 10px #2cb67d;
+        }
+
+        /* Main Chat Area */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            scroll-behavior: smooth;
+        }
+
+        /* Scrollbar */
+        #chat-window::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chat-window::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #chat-window::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        /* Messages */
+        .message-row {
+            display: flex;
+            gap: 1rem;
+            animation: slideIn 0.3s ease-out;
+            max-width: 80%;
+        }
+
+        .message-row.self {
+            flex-direction: row-reverse;
+            align-self: flex-end;
+        }
+
+        .message-row.system {
+            align-self: center;
+            max-width: 100%;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7f5af0, #2cb67d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1rem;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .msg-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .sender-name {
+            font-size: 0.75rem;
+            color: var(--sub-text);
+        }
+
+        .self .sender-name {
+            text-align: right;
+        }
+
+        .bubble {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            background: var(--input-bg);
+            line-height: 1.5;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .self .bubble {
+            background: var(--message-self);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .other .bubble {
+            background: var(--input-bg);
+            border-bottom-left-radius: 2px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .system .bubble {
+            background: transparent;
+            color: var(--system-msg);
+            font-size: 0.85rem;
+            padding: 0;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .system .bubble::before,
+        .system .bubble::after {
+            content: '';
+            height: 1px;
+            width: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            display: block;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 1.5rem;
+            background: rgba(17, 17, 20, 0.8);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        textarea {
+            flex: 1;
+            background: var(--input-bg);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1rem 3.5rem 1rem 1rem;
+            /* Space for emoji/send buttons */
+            color: white;
+            font-family: var(--font-main);
+            font-size: 1rem;
+            resize: none;
+            height: 24px;
+            outline: none;
+            transition: border-color 0.2s, min-height 0.2s;
+            overflow: hidden;
+            line-height: 24px;
+        }
+
+        textarea:focus {
+            border-color: var(--primary-color);
+        }
+
+        button.send-btn {
+            position: absolute;
+            right: 0.5rem;
+            bottom: 0.5rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--primary-color);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button.send-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        button.send-btn:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background: transparent;
+            color: var(--sub-text);
+            cursor: not-allowed;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--sub-text);
+            gap: 1rem;
+            opacity: 0.5;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Background Elements -->
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <header>
+        <div class="brand">
+            Void<span>Chat</span>
+        </div>
+        <div class="status-pill">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="peers-count">Connecting...</span>
+        </div>
+    </header>
+
+    <main>
+        <div id="chat-window">
+            <div class="empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <p>Waiting for peers to enter the void...</p>
+            </div>
+        </div>
+    </main>
+
+    <div class="input-area">
+        <form class="input-container" id="chat-form">
+            <textarea id="message-input" placeholder="Broadcast to the void..." rows="1"></textarea>
+            <button type="submit" class="send-btn" id="send-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- Trystero Logic -->
+    <script type="module">
+        // Using Trystero via esm.sh for no-build simplicity
+        // Using 'torrent' strategy for true p2p (requires no server setup, just public trackers)
+        import { joinRoom } from 'https://esm.sh/trystero@0.16.0/torrent';
+
+        // --- Config ---
+        const config = { appId: 'dog-eleven-void-chat-v1' };
+        const roomId = 'public-lobby';
+
+        // --- State ---
+        let room;
+        let selfId;
+        const peers = {}; // id -> { name }
+        const peerCursor = {}; // Extra: could add typing indicators later
+
+        // Generate a random simple name
+        const adjectives = ['Cyber', 'Neon', 'Dark', 'Ghost', 'Void', 'Neural', 'Quantum', 'Binary'];
+        const nouns = ['Punk', 'Wolf', 'Glitch', 'Node', 'Runner', 'Spectre', 'Core', 'Flux'];
+        const randomName = () => `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]} #${Math.floor(Math.random() * 100)}`;
+        const myName = localStorage.getItem('void_chat_name') || randomName();
+        localStorage.setItem('void_chat_name', myName); // Persist name
+
+        // --- DOM Elements ---
+        const chatWindow = document.getElementById('chat-window');
+        const emptyState = document.querySelector('.empty-state');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const statusDot = document.getElementById('status-dot');
+        const peersCountLabel = document.getElementById('peers-count');
+
+        // --- Helper Functions ---
+        function updatePeerCount() {
+            const count = Object.keys(peers).length;
+            if (count === 0) {
+                peersCountLabel.textContent = `Flying Solo`;
+                statusDot.classList.remove('connected');
+                statusDot.style.backgroundColor = '#ef4565'; // Red
+            } else {
+                peersCountLabel.textContent = `${count} Peer${count > 1 ? 's' : ''} Online`;
+                statusDot.classList.add('connected');
+                statusDot.style.backgroundColor = '#2cb67d'; // Green
+            }
+        }
+
+        function createAvatar(name) {
+            const div = document.createElement('div');
+            div.className = 'avatar';
+            div.textContent = name.charAt(0).toUpperCase();
+            // Simple string hash color
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            const c1 = `hsl(${hash % 360}, 70%, 60%)`;
+            const c2 = `hsl(${(hash + 40) % 360}, 70%, 50%)`;
+            div.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
+            return div;
+        }
+
+        function appendMessage(text, senderName, isSelf, type = 'user') {
+            if (emptyState.style.display !== 'none') emptyState.style.display = 'none';
+
+            const row = document.createElement('div');
+
+            if (type === 'system') {
+                row.className = 'message-row system';
+                row.innerHTML = `<div class="bubble">${text}</div>`;
+            } else {
+                row.className = `message-row ${isSelf ? 'self' : 'other'}`;
+
+                const avatar = createAvatar(senderName);
+
+                const content = document.createElement('div');
+                content.className = 'msg-content';
+
+                const nameLabel = document.createElement('div');
+                nameLabel.className = 'sender-name';
+                nameLabel.textContent = senderName + (isSelf ? ' (You)' : '');
+
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.textContent = text; // TextContent prevents HTML injection
+
+                content.appendChild(nameLabel);
+                content.appendChild(bubble); // Append text node safely
+
+                row.appendChild(avatar);
+                row.appendChild(content);
+            }
+
+            chatWindow.appendChild(row);
+            // Auto scroll to bottom
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // --- Initialization ---
+        async function init() {
+            try {
+                room = joinRoom(config, roomId);
+                selfId = room.selfId;
+
+                // --- Actions ---
+                const [sendName, getName] = room.makeAction('name');
+                const [sendMessage, getMessage] = room.makeAction('message');
+
+                // --- Events ---
+                room.onPeerJoin(peerId => {
+                    console.log('Peer joined:', peerId);
+                    peers[peerId] = { name: 'Unknown' }; // Placeholder
+                    sendName(myName, peerId); // Introduce self
+                    updatePeerCount();
+                    appendMessage(`A connection shimmered into existence.`, '', false, 'system');
+                });
+
+                room.onPeerLeave(peerId => {
+                    const pName = peers[peerId]?.name || 'Unknown';
+                    delete peers[peerId];
+                    updatePeerCount();
+                    appendMessage(`${pName} faded into the void.`, '', false, 'system');
+                });
+
+                // Receive Name
+                getName((name, peerId) => {
+                    if (peers[peerId]) {
+                        peers[peerId].name = name;
+                        // Optional: update UI if we had a "User List"
+                    }
+                });
+
+                // Receive Message
+                getMessage((data, peerId) => {
+                    const senderName = peers[peerId]?.name || 'Unknown';
+                    appendMessage(data.text, senderName, false);
+                });
+
+                // Send Message Logic
+                chatForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const text = messageInput.value.trim();
+                    if (!text) return;
+
+                    // Send to all peers
+                    sendMessage({ text, timestamp: Date.now() });
+
+                    // Show locally
+                    appendMessage(text, myName, true);
+
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto'; // Reset height
+                    messageInput.focus();
+                });
+
+                // Auto-expand and Enter to send
+                messageInput.addEventListener('input', function () {
+                    this.style.height = 'auto';
+                    this.style.height = (this.scrollHeight) + 'px';
+                });
+
+                messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        chatForm.dispatchEvent(new Event('submit'));
+                    }
+                });
+
+                console.log('Joined room:', roomId);
+                updatePeerCount(); // Init state
+
+            } catch (err) {
+                console.error("Trystero init failed:", err);
+                appendMessage("Failed to initialize connection link. Check console.", "", false, 'system');
+            }
+        }
+
+        init();
+
+    </script>
+</body>
+
+</html>
