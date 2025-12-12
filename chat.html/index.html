@@ -408,12 +408,24 @@
 
     <script>
         // --- Config ---
-        // Using public Gun relays consistently improves reliability over raw WebRTC
-        const gun = Gun([
+        // Expanded peer list to increase connection chances
+        const maxPeers = 5; // Try multiple peers
+        const peers = [
             'https://gun-manhattan.herokuapp.com/gun',
             'https://gun-ams.herokuapp.com/gun',
-            'https://peer.wallie.io/gun'
-        ]);
+            'https://peer.wallie.io/gun',
+            'https://plato.design/gun',
+            'https://gunjs.herokuapp.com/gun',
+            'https://gun-us.herokuapp.com/gun',
+            'https://gun-eu.herokuapp.com/gun'
+        ];
+
+        // Initialize Gun with more resilience options
+        const gun = Gun({
+            peers: peers,
+            localStorage: true,
+            radisk: true // Local persistence
+        });
 
         const roomName = 'dog-eleven-void-chat-v2';
         const chatRoom = gun.get(roomName);
@@ -430,10 +442,42 @@
         const statusDot = document.getElementById('status-dot');
         const peersCountLabel = document.getElementById('peers-count');
 
-        // --- UI Logic ---
-        statusDot.style.backgroundColor = '#2cb67d'; // Gun is "always connected" via relays
-        statusDot.classList.add('connected');
-        peersCountLabel.textContent = 'Relay Connected';
+        // --- Connection Monitoring ---
+        let connectedPeers = 0;
+        
+        // Gun.js doesn't have a simple "on connect" event for the whole mesh, 
+        // so we hook into the internal opt.mesh to track peer status if possible,
+        // or just use a simple heuristic: if we get data from a peer, we are connected.
+        
+        // Simple UI Update function
+        function updateStatus() {
+            if (connectedPeers > 0) {
+                statusDot.style.backgroundColor = '#2cb67d'; // Green
+                statusDot.classList.add('connected');
+                peersCountLabel.textContent = `${connectedPeers} Relay(s) Active`;
+            } else {
+                statusDot.style.backgroundColor = '#ef4565'; // Red
+                statusDot.classList.remove('connected');
+                peersCountLabel.textContent = 'Offline Mode (Local Only)';
+            }
+        }
+
+        // Hook into Gun's wire to detect connection/disconnection (Advanced)
+        // Gun exposes 'hi' and 'bye' events on the mesh
+        gun.on('hi', (peer) => {
+            connectedPeers++;
+            updateStatus();
+            console.log('Connected to peer:', peer.url);
+        });
+
+        gun.on('bye', (peer) => {
+            if(connectedPeers > 0) connectedPeers--;
+            updateStatus();
+            console.log('Disconnected from peer:', peer.url);
+        });
+        
+        // Initial Status
+        updateStatus();
 
         function createAvatar(name) {
             const div = document.createElement('div');
@@ -484,12 +528,9 @@
         }
 
         // --- Sync Messages ---
-        // Fetch last 50 nodes? Gun graph logic is broad, we just listen to stream.
         chatRoom.map().once((data, id) => {
             if (!data || !data.text) return;
-            // Filter old messages if needed? 
-            // For this demo we show all history loaded.
-            // Check timestamp? 
+            // Check timestamp
             const now = Date.now();
             if (data.timestamp && now - data.timestamp < 24 * 60 * 60 * 1000) { // Only last 24h
                 appendMessage(data, id);
@@ -511,13 +552,20 @@
             // Write to Gun graph
             chatRoom.set(msgData);
 
+            // Optimistic UI update for "Offline Mode" feeling immediately responsive
+            // (The .map() listener usually catches this, but in offline mode 
+            // relying solely on the loopback can sometimes be slow depending on Gun's internal storage)
+            // However, with Gun + localStorage, the map() listener *should* fire.
+            // If it doesn't, we might need manual append here. 
+            // Let's rely on gun's map() for now as it confirms 'write' to at least local node.
+
             messageInput.value = '';
             messageInput.style.height = 'auto';
             messageInput.focus();
         });
 
         // Debug
-        console.log("Gun.js initialized against public relays.");
+        console.log("Gun.js initialized by Antigravity.");
 
         // Auto-expand
         messageInput.addEventListener('input', function () {
