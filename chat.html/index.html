@@ -480,6 +480,10 @@
             }
         }
 
+        // Retry State
+        let retryCount = 0;
+        const maxRetries = 5;
+
         // --- Client Logic ---
         function initClient() {
             // Generate random ID for client
@@ -517,13 +521,30 @@
                 statusDot.className = 'status-dot';
                 statusText.textContent = 'Disconnected';
                 appendSystemMessage('Lost connection to Host.');
-                // Optional: Retry logic could go here
+                attemptRetry();
             });
 
             hostConnection.on('error', (err) => {
                 statusText.textContent = 'Host Unreachable';
-                appendSystemMessage('Could not find the Host. Is anyone there?');
+                // Don't spam system message on every retry fail, only on final fail
+                if (retryCount >= maxRetries) {
+                    appendSystemMessage('Could not find the Host. Is anyone there?');
+                } else {
+                    attemptRetry();
+                }
             });
+        }
+
+        function attemptRetry() {
+            if (retryCount < maxRetries) {
+                retryCount++;
+                const delay = 2000; // 2 seconds
+                statusText.textContent = `Retrying (${retryCount}/${maxRetries})...`;
+                setTimeout(connectToHost, delay);
+            } else {
+                statusText.textContent = "Connection Failed";
+                appendSystemMessage("Failed to connect after multiple attempts. Try refreshing.");
+            }
         }
 
         // --- UI & Message Handling ---
