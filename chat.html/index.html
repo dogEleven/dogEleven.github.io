@@ -362,6 +362,18 @@
             gap: 1rem;
             opacity: 0.5;
         }
+
+        .version-tag {
+            position: fixed;
+            bottom: 5px;
+            left: 10px;
+            font-size: 0.7rem;
+            color: var(--sub-text);
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: 100;
+            user-select: none;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -444,11 +456,11 @@
 
         // --- Connection Monitoring ---
         let connectedPeers = 0;
-        
+
         // Gun.js doesn't have a simple "on connect" event for the whole mesh, 
         // so we hook into the internal opt.mesh to track peer status if possible,
         // or just use a simple heuristic: if we get data from a peer, we are connected.
-        
+
         // Simple UI Update function
         function updateStatus() {
             if (connectedPeers > 0) {
@@ -471,11 +483,11 @@
         });
 
         gun.on('bye', (peer) => {
-            if(connectedPeers > 0) connectedPeers--;
+            if (connectedPeers > 0) connectedPeers--;
             updateStatus();
             console.log('Disconnected from peer:', peer.url);
         });
-        
+
         // Initial Status
         updateStatus();
 
@@ -580,6 +592,7 @@
             }
         });
     </script>
+    <div class="version-tag">v2.1.0</div>
 </body>
 
 </html>
