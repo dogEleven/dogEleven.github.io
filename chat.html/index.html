@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Void Chat | Decentralized</title>
+    <title>Void Chat | P2P Direct</title>
     <style>
         :root {
             --bg-color: #0a0a0c;
@@ -88,26 +88,89 @@
             z-index: 10;
         }
 
+        /* Connection Bar (New) */
+        .connection-bar {
+            padding: 1rem;
+            background: rgba(127, 90, 240, 0.1);
+            border-bottom: 1px solid rgba(127, 90, 240, 0.2);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+            z-index: 9;
+        }
+
+        .id-display {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .id-value {
+            font-family: monospace;
+            color: var(--primary-color);
+            font-weight: bold;
+            user-select: all;
+        }
+
+        .connect-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .connect-input {
+            background: var(--input-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.5rem;
+            border-radius: 6px;
+            width: 150px;
+        }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-copy {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             header {
                 padding: 0.75rem 1rem;
             }
 
-            .brand {
-                font-size: 1.25rem;
+            .connection-bar {
+                flex-direction: column;
+                align-items: stretch;
             }
 
-            .input-area {
-                padding: 0.75rem !important;
+            .connect-form {
+                width: 100%;
             }
 
-            textarea {
-                padding: 0.75rem 3rem 0.75rem 0.75rem !important;
-            }
-
-            .message-row {
-                max-width: 90% !important;
+            .connect-input {
+                flex: 1;
             }
         }
 
@@ -169,6 +232,7 @@
             scroll-behavior: smooth;
         }
 
+        /* Scrollbar */
         #chat-window::-webkit-scrollbar {
             width: 6px;
         }
@@ -198,6 +262,7 @@
         .message-row.system {
             align-self: center;
             max-width: 100%;
+            justify-content: center;
         }
 
         @keyframes slideIn {
@@ -264,23 +329,15 @@
         }
 
         .system .bubble {
-            background: transparent;
+            background: rgba(148, 161, 178, 0.1);
             color: var(--system-msg);
             font-size: 0.85rem;
-            padding: 0;
+            padding: 0.5rem 1rem;
+            border-radius: 99px;
             border: none;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-        }
-
-        .system .bubble::before,
-        .system .bubble::after {
-            content: '';
-            height: 1px;
-            width: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            display: block;
         }
 
         /* Input Area */
@@ -342,16 +399,6 @@
             background: var(--primary-hover);
         }
 
-        button.send-btn:active {
-            transform: scale(0.95);
-        }
-
-        button:disabled {
-            background: transparent;
-            color: var(--sub-text);
-            cursor: not-allowed;
-        }
-
         .empty-state {
             display: flex;
             flex-direction: column;
@@ -386,9 +433,21 @@
         <div class="brand">Void<span>Chat</span></div>
         <div class="status-pill">
             <div id="status-dot" class="status-dot"></div>
-            <span id="peers-count">Connecting...</span>
+            <span id="status-text">Connecting to Server...</span>
         </div>
     </header>
+
+    <div class="connection-bar">
+        <div class="id-display">
+            <span>My ID:</span>
+            <span id="my-id" class="id-value">Generating...</span>
+            <button class="btn btn-copy" onclick="copyId()">Copy</button>
+        </div>
+        <div class="connect-form">
+            <input type="text" id="target-id" class="connect-input" placeholder="Enter Friend's ID">
+            <button class="btn" onclick="connectToPeer()">Connect</button>
+        </div>
+    </div>
 
     <main>
         <div id="chat-window">
@@ -396,14 +455,14 @@
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
-                <p>Waiting for network sync...</p>
+                <p>Share your ID to start chatting!</p>
             </div>
         </div>
     </main>
 
     <div class="input-area">
         <form class="input-container" id="chat-form">
-            <textarea id="message-input" placeholder="Broadcast to the void..." rows="1"></textarea>
+            <textarea id="message-input" placeholder="Type a message..." rows="1"></textarea>
             <button type="submit" class="send-btn" id="send-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -414,134 +473,134 @@
         </form>
     </div>
 
-    <!-- Gun.js (Decentralized Database) -->
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+    <!-- PeerJS (P2P Connectivity) -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
     <script>
-        // --- Config ---
-        // --- Config ---
-        // Massive list of community peers to try and bypass availability issues
-        const peers = [
-            // Heroku (Often unstable but worth trying)
-            'https://gun-manhattan.herokuapp.com/gun',
-            'https://gun-ams.herokuapp.com/gun',
-            'https://gun-us.herokuapp.com/gun',
-            'https://gun-eu.herokuapp.com/gun',
-            'https://gunjs.herokuapp.com/gun',
+        // --- PeerJS Config ---
+        // Generates a short random ID for usability
+        const generateId = () => 'User-' + Math.floor(Math.random() * 9000 + 1000);
+        const myPeerId = generateId();
 
-            // Community Hosted
-            'https://peer.wallie.io/gun',
-            'https://plato.design/gun',
-            'https://www.raygun.live/gun',
-
-            // Glitch / Replit / Others (Experimental)
-            'https://gun-server.glitch.me/gun',
-            'https://ferret-gun.glitch.me/gun',
-            'https://gun-test.glitch.me/gun',
-
-            // Fallback (older knowns)
-            'https://dletta.rig.io/gun',
-            'https://mg-gun-proxy.herokuapp.com/gun'
-        ];
-
-        // Initialize Gun with more resilience options
-        const gun = Gun({
-            peers: peers,
-            localStorage: true,
-            radisk: true, // Local persistence
-            retry: 1000 // Aggressive retry
+        // Initialize Peer
+        // Uses public PeerJS server (0.peerjs.com) which we verified is ACCESSIBLE (200 OK)
+        const peer = new Peer(myPeerId, {
+            debug: 2
         });
-
-        const roomName = 'dog-eleven-void-chat-v2';
-        const chatRoom = gun.get(roomName);
 
         // --- State ---
-        const myName = localStorage.getItem('void_chat_name') || `User-${Math.floor(Math.random() * 1000)}`;
-        localStorage.setItem('void_chat_name', myName);
-
-        // --- DOM Elements ---
+        let conn = null; // Active connection
         const chatWindow = document.getElementById('chat-window');
         const emptyState = document.querySelector('.empty-state');
-        const chatForm = document.getElementById('chat-form');
-        const messageInput = document.getElementById('message-input');
         const statusDot = document.getElementById('status-dot');
-        const peersCountLabel = document.getElementById('peers-count');
+        const statusText = document.getElementById('status-text');
+        const myIdLabel = document.getElementById('my-id');
 
-        // --- Connection Monitoring ---
-        let connectedPeers = 0;
+        // --- Peer Events ---
+        peer.on('open', (id) => {
+            console.log('My ID is: ' + id);
+            myIdLabel.textContent = id;
+            statusDot.style.backgroundColor = '#f1c40f'; // Yellow (Ready, waiting for connection)
+            statusDot.classList.remove('connected');
+            statusText.textContent = 'Online (Waiting for Friend)';
+        });
 
-        // Gun.js doesn't have a simple "on connect" event for the whole mesh, 
-        // so we hook into the internal opt.mesh to track peer status if possible,
-        // or just use a simple heuristic: if we get data from a peer, we are connected.
+        peer.on('connection', (c) => {
+            // Incoming connection
+            console.log("Incoming connection from:", c.peer);
+            handleConnection(c);
+        });
 
-        // Simple UI Update function
-        function updateStatus() {
-            if (connectedPeers > 0) {
+        peer.on('error', (err) => {
+            console.error(err);
+            statusDot.style.backgroundColor = '#ef4565';
+            statusText.textContent = 'Error: ' + err.type;
+            appendSystemMessage('System Error: ' + err.type);
+        });
+
+        function handleConnection(c) {
+            // Close existing connection if any (1-on-1 mode)
+            if (conn) {
+                conn.close();
+            }
+
+            conn = c;
+
+            conn.on('open', () => {
+                console.log("Connected to: " + conn.peer);
                 statusDot.style.backgroundColor = '#2cb67d'; // Green
                 statusDot.classList.add('connected');
-                peersCountLabel.textContent = `${connectedPeers} Relay(s) Active`;
-            } else {
-                statusDot.style.backgroundColor = '#ef4565'; // Red
-                statusDot.classList.remove('connected');
-                peersCountLabel.textContent = 'Offline Mode (Local Only)';
-            }
+                statusText.textContent = 'Connected to ' + conn.peer;
+                appendSystemMessage('Connected to ' + conn.peer);
+
+                // Hide empty state
+                emptyState.style.display = 'none';
+            });
+
+            conn.on('data', (data) => {
+                // Received data
+                appendMessage(data.text, 'other', data.sender);
+            });
+
+            conn.on('close', () => {
+                statusDot.style.backgroundColor = '#f1c40f';
+                statusText.textContent = 'Disconnected';
+                appendSystemMessage('Peer disconnected');
+                conn = null;
+            });
         }
 
-        // Hook into Gun's wire to detect connection/disconnection (Advanced)
-        // Gun exposes 'hi' and 'bye' events on the mesh
-        gun.on('hi', (peer) => {
-            connectedPeers++;
-            updateStatus();
-            console.log('Connected to peer:', peer.url);
-        });
+        // --- UI Functions ---
+        function connectToPeer() {
+            const targetId = document.getElementById('target-id').value.trim();
+            if (!targetId) return alert("Please enter an ID");
+            if (targetId === myPeerId) return alert("Cannot connect to yourself!");
 
-        gun.on('bye', (peer) => {
-            if (connectedPeers > 0) connectedPeers--;
-            updateStatus();
-            console.log('Disconnected from peer:', peer.url);
-        });
+            statusText.textContent = 'Connecting to ' + targetId + '...';
 
-        // Initial Status
-        updateStatus();
+            // Initiate connection
+            const c = peer.connect(targetId);
+            handleConnection(c);
+        }
 
-        function createAvatar(name) {
-            const div = document.createElement('div');
-            div.className = 'avatar';
-            div.textContent = (name || 'U').charAt(0).toUpperCase();
+        function copyId() {
+            navigator.clipboard.writeText(myPeerId).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            });
+        }
+
+        function appendMessage(text, type, senderName) {
+            if (emptyState.style.display !== 'none') emptyState.style.display = 'none';
+
+            const row = document.createElement('div');
+            row.className = `message-row ${type}`;
+
+            // Avatar
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = (senderName || '?').charAt(0).toUpperCase();
+
+            // Color based on name hash
             let hash = 0;
-            const str = name || 'User';
+            const str = senderName || 'User';
             for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
             const c1 = `hsl(${hash % 360}, 70%, 60%)`;
             const c2 = `hsl(${(hash + 40) % 360}, 70%, 50%)`;
-            div.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
-            return div;
-        }
-
-        const seenMsgIds = new Set();
-
-        function appendMessage(data, id) {
-            if (seenMsgIds.has(id)) return;
-            seenMsgIds.add(id);
-
-            if (emptyState.style.display !== 'none') emptyState.style.display = 'none';
-
-            const isSelf = data.sender === myName;
-            const row = document.createElement('div');
-            row.className = `message-row ${isSelf ? 'self' : 'other'}`;
-
-            const avatar = createAvatar(data.sender);
+            avatar.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
 
             const content = document.createElement('div');
             content.className = 'msg-content';
 
             const nameLabel = document.createElement('div');
             nameLabel.className = 'sender-name';
-            nameLabel.textContent = data.sender + (isSelf ? ' (You)' : '');
+            nameLabel.textContent = senderName + (type === 'self' ? ' (You)' : '');
 
             const bubble = document.createElement('div');
             bubble.className = 'bubble';
-            bubble.textContent = data.text;
+            bubble.textContent = text;
 
             content.appendChild(nameLabel);
             content.appendChild(bubble);
@@ -553,60 +612,55 @@
             chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        // --- Sync Messages ---
-        chatRoom.map().once((data, id) => {
-            if (!data || !data.text) return;
-            // Check timestamp
-            const now = Date.now();
-            if (data.timestamp && now - data.timestamp < 24 * 60 * 60 * 1000) { // Only last 24h
-                appendMessage(data, id);
+        function appendSystemMessage(text) {
+            const row = document.createElement('div');
+            row.className = 'message-row system';
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = text;
+            row.appendChild(bubble);
+            chatWindow.appendChild(row);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // --- Send Logic ---
+        document.getElementById('chat-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            if (conn && conn.open) {
+                // Send to peer
+                conn.send({
+                    sender: myPeerId,
+                    text: text
+                });
+                // Show locally
+                appendMessage(text, 'self', myPeerId);
+                input.value = '';
+                input.style.height = 'auto';
+            } else {
+                alert("Not connected to anyone! Enter an ID and click Connect first.");
             }
         });
 
-        // --- Send Message ---
-        chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const text = messageInput.value.trim();
-            if (!text) return;
-
-            const msgData = {
-                sender: myName,
-                text: text,
-                timestamp: Date.now()
-            };
-
-            // Write to Gun graph
-            chatRoom.set(msgData);
-
-            // Optimistic UI update for "Offline Mode" feeling immediately responsive
-            // (The .map() listener usually catches this, but in offline mode 
-            // relying solely on the loopback can sometimes be slow depending on Gun's internal storage)
-            // However, with Gun + localStorage, the map() listener *should* fire.
-            // If it doesn't, we might need manual append here. 
-            // Let's rely on gun's map() for now as it confirms 'write' to at least local node.
-
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-            messageInput.focus();
-        });
-
-        // Debug
-        console.log("Gun.js initialized by Antigravity.");
-
-        // Auto-expand
-        messageInput.addEventListener('input', function () {
+        // Auto-expand textarea
+        const tx = document.getElementById('message-input');
+        tx.addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
         });
 
-        messageInput.addEventListener('keydown', (e) => {
+        tx.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                chatForm.dispatchEvent(new Event('submit'));
+                document.getElementById('chat-form').dispatchEvent(new Event('submit'));
             }
         });
+
     </script>
-    <div class="version-tag">v2.2.0</div>
+    <div class="version-tag">v3.0.0 (P2P)</div>
 </body>
 
 </html>
