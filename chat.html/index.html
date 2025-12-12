@@ -420,23 +420,37 @@
 
     <script>
         // --- Config ---
-        // Expanded peer list to increase connection chances
-        const maxPeers = 5; // Try multiple peers
+        // --- Config ---
+        // Massive list of community peers to try and bypass availability issues
         const peers = [
+            // Heroku (Often unstable but worth trying)
             'https://gun-manhattan.herokuapp.com/gun',
             'https://gun-ams.herokuapp.com/gun',
+            'https://gun-us.herokuapp.com/gun',
+            'https://gun-eu.herokuapp.com/gun',
+            'https://gunjs.herokuapp.com/gun',
+
+            // Community Hosted
             'https://peer.wallie.io/gun',
             'https://plato.design/gun',
-            'https://gunjs.herokuapp.com/gun',
-            'https://gun-us.herokuapp.com/gun',
-            'https://gun-eu.herokuapp.com/gun'
+            'https://www.raygun.live/gun',
+
+            // Glitch / Replit / Others (Experimental)
+            'https://gun-server.glitch.me/gun',
+            'https://ferret-gun.glitch.me/gun',
+            'https://gun-test.glitch.me/gun',
+
+            // Fallback (older knowns)
+            'https://dletta.rig.io/gun',
+            'https://mg-gun-proxy.herokuapp.com/gun'
         ];
 
         // Initialize Gun with more resilience options
         const gun = Gun({
             peers: peers,
             localStorage: true,
-            radisk: true // Local persistence
+            radisk: true, // Local persistence
+            retry: 1000 // Aggressive retry
         });
 
         const roomName = 'dog-eleven-void-chat-v2';
