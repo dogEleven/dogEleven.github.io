@@ -386,8 +386,8 @@
     <!-- Trystero Logic -->
     <script type="module">
         // Using Trystero via esm.sh for no-build simplicity
-        // Using 'torrent' strategy for true p2p (requires no server setup, just public trackers)
-        import { joinRoom } from 'https://esm.sh/trystero@0.16.0/torrent';
+        // Switch to 'mqtt' strategy for faster local demo signaling (avoids tracker issues)
+        import { joinRoom } from 'https://esm.sh/trystero@0.16.0/mqtt';
 
         // --- Config ---
         const config = { appId: 'dog-eleven-void-chat-v1' };
