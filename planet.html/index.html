@@ -14,117 +14,6 @@
             /* Space Background: Black to Deep Galaxy Blue */
             background: linear-gradient(to top, #000000 0%, #191970 100%);
         }
-
-        /* Chat & UI */
-        #ui-layer {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 10;
-            font-family: monospace;
-            color: white;
-            pointer-events: none;
-        }
-
-        #chat-ui {
-            pointer-events: auto;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 8px;
-        }
-
-        #chat-input {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid #444;
-            color: white;
-            padding: 5px;
-            border-radius: 4px;
-            width: 200px;
-        }
-
-        .chat-bubble {
-            position: absolute;
-            background: white;
-            color: black;
-            padding: 5px 10px;
-            border-radius: 10px;
-            font-family: sans-serif;
-            font-size: 12px;
-            transform: translate(-50%, -100%);
-            pointer-events: none;
-            white-space: nowrap;
-            font-weight: bold;
-        }
-
-        .chat-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-style: solid;
-            border-width: 5px 5px 0;
-            border-color: white transparent transparent transparent;
-        }
-
-        /* Mobile Controls */
-        .d-pad {
-            position: absolute;
-            bottom: 20px;
-            width: 120px;
-            height: 120px;
-            pointer-events: auto;
-            touch-action: none;
-            user-select: none;
-        }
-
-        .d-pad button {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            color: white;
-            font-size: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            touch-action: none;
-            -webkit-user-select: none;
-        }
-
-        .d-pad button:active {
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        #d-pad-left {
-            left: 20px;
-        }
-
-        #d-pad-right {
-            right: 20px;
-        }
-
-        #btn-fwd {
-            top: 0;
-            left: 40px;
-        }
-
-        #btn-back {
-            bottom: 0;
-            left: 40px;
-        }
-
-        #btn-left {
-            top: 40px;
-            left: 0;
-        }
-
-        #btn-right {
-            top: 40px;
-            right: 0;
-        }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -138,40 +27,266 @@
     <script
         src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/ShaderPass.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/BokehPass.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 
 <body>
-    <div id="ui-layer">
-        <div id="chat-ui">
-            <div>Status: <span id="chat-status">Indie (Single)</span></div>
-            <div style="font-size: 10px; opacity: 0.7; margin-bottom: 5px;">
-                ID: <span id="dbg-id">...</span> | Role: <span id="dbg-role">None</span> | Peers: <span
-                    id="dbg-peers">0</span>
-            </div>
-            <input type="text" id="chat-input" placeholder="Press Enter to Chat..." autocomplete="off">
-        </div>
-    </div>
-    <div id="d-pad-left" class="d-pad">
-        <button id="btn-fwd">W</button>
-        <button id="btn-back">S</button>
-    </div>
-    <div id="d-pad-right" class="d-pad">
-        <button id="btn-left">A</button>
-        <button id="btn-right">D</button>
-    </div>
-
-    <script>
-        // --- 1. Noise Implementation ---
-        const p = [151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
-            190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168,
-            68, 175, 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
-            102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196, 135, 130, 116, 188, 159, 86, 164, 100, 109, 198,
-            173, 186, 3, 64, 52, 217, 226, 250, 124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
-            223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224,
-            232, 178, 185, 112, 104, 218, 246, 97, 228, 251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
-            49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243,
-            141, 128, 195, 78, 66, 215, 61, 156, 180];
+    <script> // --- 1. Noise Implementation ---
+        const p = [151,
+            160,
+            137,
+            91,
+            90,
+            15,
+            131,
+            13,
+            201,
+            95,
+            96,
+            53,
+            194,
+            233,
+            7,
+            225,
+            140,
+            36,
+            103,
+            30,
+            69,
+            142,
+            8,
+            99,
+            37,
+            240,
+            21,
+            10,
+            23,
+            190,
+            6,
+            148,
+            247,
+            120,
+            234,
+            75,
+            0,
+            26,
+            197,
+            62,
+            94,
+            252,
+            219,
+            203,
+            117,
+            35,
+            11,
+            32,
+            57,
+            177,
+            33,
+            88,
+            237,
+            149,
+            56,
+            87,
+            174,
+            20,
+            125,
+            136,
+            171,
+            168,
+            68,
+            175,
+            74,
+            165,
+            71,
+            134,
+            139,
+            48,
+            27,
+            166,
+            77,
+            146,
+            158,
+            231,
+            83,
+            111,
+            229,
+            122,
+            60,
+            211,
+            133,
+            230,
+            220,
+            105,
+            92,
+            41,
+            55,
+            46,
+            245,
+            40,
+            244,
+            102,
+            143,
+            54,
+            65,
+            25,
+            63,
+            161,
+            1,
+            216,
+            80,
+            73,
+            209,
+            76,
+            132,
+            187,
+            208,
+            89,
+            18,
+            169,
+            200,
+            196,
+            135,
+            130,
+            116,
+            188,
+            159,
+            86,
+            164,
+            100,
+            109,
+            198,
+            173,
+            186,
+            3,
+            64,
+            52,
+            217,
+            226,
+            250,
+            124,
+            123,
+            5,
+            202,
+            38,
+            147,
+            118,
+            126,
+            255,
+            82,
+            85,
+            212,
+            207,
+            206,
+            59,
+            227,
+            47,
+            16,
+            58,
+            17,
+            182,
+            189,
+            28,
+            42,
+            223,
+            183,
+            170,
+            213,
+            119,
+            248,
+            152,
+            2,
+            44,
+            154,
+            163,
+            70,
+            221,
+            153,
+            101,
+            155,
+            167,
+            43,
+            172,
+            9,
+            129,
+            22,
+            39,
+            253,
+            19,
+            98,
+            108,
+            110,
+            79,
+            113,
+            224,
+            232,
+            178,
+            185,
+            112,
+            104,
+            218,
+            246,
+            97,
+            228,
+            251,
+            34,
+            242,
+            193,
+            238,
+            210,
+            144,
+            12,
+            191,
+            179,
+            162,
+            241,
+            81,
+            51,
+            145,
+            235,
+            249,
+            14,
+            239,
+            107,
+            49,
+            192,
+            214,
+            31,
+            181,
+            199,
+            106,
+            157,
+            184,
+            84,
+            204,
+            176,
+            115,
+            121,
+            50,
+            45,
+            127,
+            4,
+            150,
+            254,
+            138,
+            236,
+            205,
+            93,
+            222,
+            114,
+            67,
+            29,
+            24,
+            72,
+            243,
+            141,
+            128,
+            195,
+            78,
+            66,
+            215,
+            61,
+            156,
+            180];
         const perm = new Uint8Array(512);
         for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
 
@@ -200,8 +315,12 @@
             const u = fade(x);
             const v = fade(y);
             const w = fade(z);
-            const A = perm[X] + Y, AA = perm[A] + Z, AB = perm[A + 1] + Z,
-                B = perm[X + 1] + Y, BA = perm[B] + Z, BB = perm[B + 1] + Z;
+            const A = perm[X] + Y,
+                AA = perm[A] + Z,
+                AB = perm[A + 1] + Z,
+                B = perm[X + 1] + Y,
+                BA = perm[B] + Z,
+                BB = perm[B + 1] + Z;
             return lerp(w, lerp(v, lerp(u, grad(perm[AA], x, y, z),
                 grad(perm[BA], x - 1, y, z)),
                 lerp(u, grad(perm[AB], x, y - 1, z),
@@ -434,7 +553,9 @@
 
             `,
             uniforms: {
-                time: { value: 0.0 }
+                time: {
+                    value: 0.0
+                }
             }
         });
 
@@ -743,7 +864,9 @@
 
                 if (distFromEquator < roadBandWidth) {
                     t = 1.0;
-                } else {
+                }
+
+                else {
                     // Smoothstep logic from shader
                     let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
                     t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist));
@@ -752,6 +875,7 @@
                 // Blend height towards roadHeight
                 h = h * (1.0 - t) + roadHeight * t;
             }
+
             // --- END SYNC ---
 
 
@@ -843,17 +967,30 @@
         // Updated material: Multi-material to fix top face
         // Order: Right, Left, Top, Bottom, Front, Back
         const gradTexture = createGradientTexture();
-        const gradMat = new THREE.MeshBasicMaterial({ map: gradTexture });
-        const whiteMat = new THREE.MeshBasicMaterial({ color: 0xCC3300 }); // Deep Orange for Top
-        const orangeMat = new THREE.MeshBasicMaterial({ color: 0xFF6600 });
 
-        const cabinMats = [
-            gradMat,   // Right
-            gradMat,   // Left
-            whiteMat,  // Top (Solid White)
-            orangeMat, // Bottom
-            gradMat,   // Front
-            gradMat    // Back
+        const gradMat = new THREE.MeshBasicMaterial({
+            map: gradTexture
+        });
+
+        const whiteMat = new THREE.MeshBasicMaterial({
+            color: 0xCC3300
+        }); // Deep Orange for Top
+
+        const orangeMat = new THREE.MeshBasicMaterial({
+            color: 0xFF6600
+        });
+
+        const cabinMats = [gradMat,
+            // Right
+            gradMat,
+            // Left
+            whiteMat,
+            // Top (Solid White)
+            orangeMat,
+            // Bottom
+            gradMat,
+            // Front
+            gradMat // Back
         ];
 
         const cabin = new THREE.Mesh(cabinGeo, cabinMats);
@@ -863,7 +1000,10 @@
 
         // -- License Plate --
         const plateGeo = new THREE.BoxGeometry(0.4, 0.15, 0.05);
-        const plateMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+
+        const plateMat = new THREE.MeshBasicMaterial({
+            color: 0xFFFFFF
+        });
         const plate = new THREE.Mesh(plateGeo, plateMat);
         // Back of chassis (Z=-1.2), slightly offset (-1.21)
         // Chassis Y=0.6.
@@ -917,10 +1057,18 @@
 
             ;
 
-        const wFL = createWheel(); wFL.position.set(-0.7, 0.35, 0.9); carGroup.add(wFL);
-        const wFR = createWheel(); wFR.position.set(0.7, 0.35, 0.9); carGroup.add(wFR);
-        const wBL = createWheel(); wBL.position.set(-0.7, 0.35, -0.9); carGroup.add(wBL);
-        const wBR = createWheel(); wBR.position.set(0.7, 0.35, -0.9); carGroup.add(wBR);
+        const wFL = createWheel();
+        wFL.position.set(-0.7, 0.35, 0.9);
+        carGroup.add(wFL);
+        const wFR = createWheel();
+        wFR.position.set(0.7, 0.35, 0.9);
+        carGroup.add(wFR);
+        const wBL = createWheel();
+        wBL.position.set(-0.7, 0.35, -0.9);
+        carGroup.add(wBL);
+        const wBR = createWheel();
+        wBR.position.set(0.7, 0.35, -0.9);
+        carGroup.add(wBR);
 
         scene.add(carGroup);
 
@@ -961,97 +1109,7 @@
 
 
         // --- Multiplayer Logic ---
-        const ROOM_ID_VERSION = 'v2'; const HOST_ID = `dog-eleven-planet-host-${ROOM_ID_VERSION}`;
-        let myId = null, isHost = false, peer = null, hostConnection = null, clientConnections = new Set(), remoteCars = {}, chatBubbles = [];
-        const statusLabel = document.getElementById('chat-status');
-        const dbgId = document.getElementById('dbg-id'), dbgRole = document.getElementById('dbg-role'), dbgPeers = document.getElementById('dbg-peers');
-        const peerConfig = { debug: 1, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] } };
 
-        function initMultiplayer() {
-            setTimeout(() => {
-                const h = new Peer(HOST_ID, peerConfig);
-                h.on('open', id => { if (id === HOST_ID) { isHost = true; myId = id; peer = h; dbgRole.textContent = 'HOST'; dbgId.textContent = id; setupHost(); } else { h.destroy(); initClient(); } });
-                h.on('error', err => { if (err.type === 'unavailable-id') initClient(); });
-            }, Math.random() * 2000);
-        }
-        function initClient() {
-            myId = 'User-' + Math.floor(Math.random() * 10000);
-            peer = new Peer(myId, peerConfig);
-            peer.on('open', id => { dbgId.textContent = id; dbgRole.textContent = 'CLIENT'; connectToHost(); });
-        }
-        function setupHost() {
-            statusLabel.textContent = "Host (Room Open)";
-            peer.on('connection', conn => {
-                clientConnections.add(conn); dbgPeers.textContent = clientConnections.size;
-                conn.on('data', d => handleData(d, conn.peer));
-                conn.on('close', () => { clientConnections.delete(conn); dbgPeers.textContent = clientConnections.size; removeRemoteCar(conn.peer); });
-            });
-        }
-        function connectToHost() {
-            statusLabel.textContent = "Connecting...";
-            hostConnection = peer.connect(HOST_ID);
-            hostConnection.on('open', () => { statusLabel.textContent = "Connected"; dbgPeers.textContent = "1 (Host)"; });
-            hostConnection.on('data', d => handleData(d, 'Host'));
-            hostConnection.on('close', () => { statusLabel.textContent = "Disconnected"; dbgPeers.textContent = "0"; });
-        }
-        function handleData(d, sender) {
-            if (d.type === 'move') { updateRemoteCar(d.id, d.pos, d.quat); if (isHost) broadcast(d, sender); }
-            else if (d.type === 'chat') { createChatBubble(d.text, d.id); if (isHost) broadcast(d, sender); }
-        }
-        function broadcast(d, excl) {
-            for (let c of clientConnections) if (c.peer !== excl && c.open) c.send(d);
-        }
-        function updateRemoteCar(id, pos, quat) {
-            if (id === myId) return;
-            if (!remoteCars[id]) {
-                const ghost = carGroup.clone();
-                // Unique Color
-                let hash = 0; for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-                const hue = Math.abs(hash % 360);
-                const colorBody = new THREE.Color(`hsl(${hue}, 80%, 60%)`);
-                const colorTop = new THREE.Color(`hsl(${hue}, 80%, 30%)`);
-                ghost.traverse((child) => {
-                    if (child.isMesh) {
-                        if (child.geometry.type === 'CylinderGeometry') return; // Skip wheels
-                        if (Array.isArray(child.material)) {
-                            child.material = child.material.map(m => { const mc = m.clone(); mc.transparent = false; mc.opacity = 1.0; mc.color.copy(colorTop); return mc; });
-                        } else {
-                            child.material = child.material.clone(); child.material.transparent = false; child.material.opacity = 1.0; child.material.color.copy(colorBody);
-                        }
-                    }
-                });
-                scene.add(ghost);
-                remoteCars[id] = { mesh: ghost, targetPos: new THREE.Vector3(), targetQuat: new THREE.Quaternion() };
-            }
-            const c = remoteCars[id];
-            if (pos && quat) { c.targetPos.set(pos.x, pos.y, pos.z); c.targetQuat.set(quat.x, quat.y, quat.z, quat.w); }
-        }
-        function removeRemoteCar(id) { if (remoteCars[id]) { scene.remove(remoteCars[id].mesh); delete remoteCars[id]; } }
-        function createChatBubble(text, senderId) {
-            const d = document.createElement('div'); d.className = 'chat-bubble'; d.textContent = text; document.body.appendChild(d);
-            let t = carGroup; if (senderId !== myId && remoteCars[senderId]) t = remoteCars[senderId].mesh;
-            chatBubbles.push({ element: d, target: t, life: 300 });
-        }
-        const chatInput = document.getElementById('chat-input');
-        chatInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                const t = chatInput.value.trim(); if (!t) return;
-                const d = { type: 'chat', text: t, id: myId };
-                createChatBubble(t, myId);
-                if (isHost) broadcast(d, myId); else if (hostConnection) hostConnection.send(d);
-                chatInput.value = ''; chatInput.blur();
-            }
-        });
-        chatInput.addEventListener('focus', () => { keys.w = keys.a = keys.s = keys.d = false; });
-        function addTouch(id, k) {
-            const b = document.getElementById(id); if (!b) return;
-            b.addEventListener('touchstart', e => { e.preventDefault(); keys[k] = true }, { passive: false });
-            b.addEventListener('touchend', e => { e.preventDefault(); keys[k] = false }, { passive: false });
-            b.addEventListener('mousedown', () => keys[k] = true);
-            b.addEventListener('mouseup', () => keys[k] = false);
-        }
-        addTouch('btn-left', 'a'); addTouch('btn-right', 'd'); addTouch('btn-fwd', 'w'); addTouch('btn-back', 's');
-        initMultiplayer();
 
         const raycaster = new THREE.Raycaster();
         const cameraLookAtCurrent = new THREE.Vector3(0, 0, 0);
@@ -1075,19 +1133,27 @@
                 if (carPhysics.speed < -0.1) {
                     // Moving backward, apply BRAKE
                     carPhysics.speed += brakePower * dt;
-                } else {
+                }
+
+                else {
                     // Moving forward or stopped, Accelerate
                     carPhysics.speed += acc * dt;
                 }
-            } else if (keys.s) {
+            }
+
+            else if (keys.s) {
                 if (carPhysics.speed > 0.1) {
                     // Moving forward, apply BRAKE
                     carPhysics.speed -= brakePower * dt;
-                } else {
+                }
+
+                else {
                     // Moving backward or stopped, Accelerate (Reverse)
                     carPhysics.speed -= acc * dt;
                 }
-            } else {
+            }
+
+            else {
                 // Friction (Idle slowdown)
                 if (carPhysics.speed > 0.1) carPhysics.speed -= friction * dt;
                 else if (carPhysics.speed < -0.1) carPhysics.speed += friction * dt;
@@ -1212,35 +1278,7 @@
             grassMat.uniforms.time.value = clock.getElapsedTime();
 
             // --- Multiplayer Sync ---
-            if (peer && myId && clock.getElapsedTime() % 0.1 < 0.02) {
-                const d = { type: 'move', id: myId, pos: carGroup.position, quat: carGroup.quaternion };
-                if (isHost) broadcast(d, myId); else if (hostConnection && hostConnection.open) hostConnection.send(d);
-            }
-            for (let id in remoteCars) {
-                const r = remoteCars[id];
-                const ls = 5.0 * dt;
-                r.mesh.position.lerp(r.targetPos, ls);
-                r.mesh.quaternion.slerp(r.targetQuat, ls);
-                // Clamp Remote to Ground (Reference Logic)
-                const rp = r.mesh.position.clone().normalize();
-                let rn = noise(rp.x, rp.y, rp.z); rn += 0.25 * noise(rp.x * 3, rp.y * 3, rp.z * 3);
-                // Use Reference Height Scale logic if possible, or simplified
-                // Reference uses pow(abs(n), 3.0) * 30.0 for height
-                let h = (rn < 0 ? -1 : 1) * Math.pow(Math.abs(rn), 3.0) * 30.0;
-                // Road flattening for remote? Maybe too expensive. Just raw clamp for now.
-                const rh = 40.0 + h + 0.5; // +0.5 for offset
-                if (r.mesh.position.length() < rh) r.mesh.position.normalize().multiplyScalar(rh);
-            }
-            // Chat Bubbles
-            const tv = new THREE.Vector3();
-            for (let i = chatBubbles.length - 1; i >= 0; i--) {
-                const b = chatBubbles[i]; b.life--;
-                if (b.life <= 0) { b.element.remove(); chatBubbles.splice(i, 1); continue; }
-                b.target.getWorldPosition(tv); tv.y += 3.0; tv.project(camera);
-                const x = (tv.x * .5 + .5) * window.innerWidth, y = (-(tv.y * .5) + .5) * window.innerHeight;
-                if (tv.z > 1) b.element.style.display = 'none';
-                else { b.element.style.display = 'block'; b.element.style.left = x + 'px'; b.element.style.top = y + 'px'; b.element.style.opacity = Math.min(1, b.life / 50); }
-            }
+
 
             // Update Planet Uniforms (Foam Animation)
             if (planet.material.uniforms && planet.material.uniforms.time) {
