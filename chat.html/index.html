@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Void Chat | P2P Direct</title>
+    <title>Void Chat | Smart Room</title>
     <style>
         :root {
             --bg-color: #0a0a0c;
@@ -17,8 +17,8 @@
             --input-bg: #242629;
             --message-self: #7f5af0;
             --message-other: #2cb67d;
+            --message-host: #f1c40f;
             --system-msg: #94a1b2;
-            --blur-bg: rgba(22, 22, 26, 0.8);
             --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
@@ -88,92 +88,6 @@
             z-index: 10;
         }
 
-        /* Connection Bar (New) */
-        .connection-bar {
-            padding: 1rem;
-            background: rgba(127, 90, 240, 0.1);
-            border-bottom: 1px solid rgba(127, 90, 240, 0.2);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: center;
-            justify-content: center;
-            z-index: 9;
-        }
-
-        .id-display {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .id-value {
-            font-family: monospace;
-            color: var(--primary-color);
-            font-weight: bold;
-            user-select: all;
-        }
-
-        .connect-form {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .connect-input {
-            background: var(--input-bg);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            padding: 0.5rem;
-            border-radius: 6px;
-            width: 150px;
-        }
-
-        .btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.2s;
-        }
-
-        .btn:hover {
-            background: var(--primary-hover);
-        }
-
-        .btn-copy {
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 0.25rem 0.5rem;
-            font-size: 0.8rem;
-        }
-
-        /* Mobile Optimizations */
-        @media (max-width: 768px) {
-            header {
-                padding: 0.75rem 1rem;
-            }
-
-            .connection-bar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .connect-form {
-                width: 100%;
-            }
-
-            .connect-input {
-                flex: 1;
-            }
-        }
-
         .brand {
             font-size: 1.5rem;
             font-weight: 700;
@@ -211,7 +125,22 @@
             box-shadow: 0 0 10px #2cb67d;
         }
 
-        /* Main Chat Area */
+        .status-dot.host {
+            background-color: #f1c40f;
+            box-shadow: 0 0 10px #f1c40f;
+        }
+
+        /* Room Info Bar */
+        .room-info {
+            padding: 0.5rem 1rem;
+            background: rgba(127, 90, 240, 0.1);
+            border-bottom: 1px solid rgba(127, 90, 240, 0.1);
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--primary-color);
+        }
+
+        /* Chat Window */
         main {
             flex: 1;
             display: flex;
@@ -232,7 +161,6 @@
             scroll-behavior: smooth;
         }
 
-        /* Scrollbar */
         #chat-window::-webkit-scrollbar {
             width: 6px;
         }
@@ -278,18 +206,17 @@
         }
 
         .avatar {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: linear-gradient(135deg, #7f5af0, #2cb67d);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: white;
             flex-shrink: 0;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .msg-content {
@@ -312,7 +239,6 @@
             border-radius: 12px;
             background: var(--input-bg);
             line-height: 1.5;
-            position: relative;
             word-wrap: break-word;
         }
 
@@ -329,15 +255,12 @@
         }
 
         .system .bubble {
-            background: rgba(148, 161, 178, 0.1);
+            background: rgba(255, 255, 255, 0.05);
             color: var(--system-msg);
-            font-size: 0.85rem;
-            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
             border-radius: 99px;
             border: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         /* Input Area */
@@ -354,7 +277,6 @@
             gap: 1rem;
             max-width: 1200px;
             margin: 0 auto;
-            position: relative;
         }
 
         textarea {
@@ -369,7 +291,6 @@
             resize: none;
             height: 24px;
             outline: none;
-            transition: border-color 0.2s, min-height 0.2s;
             overflow: hidden;
             line-height: 24px;
         }
@@ -392,7 +313,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s, transform 0.1s;
         }
 
         button.send-btn:hover {
@@ -415,14 +335,10 @@
             bottom: 5px;
             left: 10px;
             font-size: 0.7rem;
-            color: var(--sub-text);
-            opacity: 0.4;
-            pointer-events: none;
-            z-index: 100;
-            user-select: none;
+            color: var(--system-msg);
+            opacity: 0.3;
         }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -433,35 +349,25 @@
         <div class="brand">Void<span>Chat</span></div>
         <div class="status-pill">
             <div id="status-dot" class="status-dot"></div>
-            <span id="status-text">Connecting to Server...</span>
+            <span id="status-text">Detecting Room...</span>
         </div>
     </header>
 
-    <div class="connection-bar">
-        <div class="id-display">
-            <span>My ID:</span>
-            <span id="my-id" class="id-value">Generating...</span>
-            <button class="btn btn-copy" onclick="copyId()">Copy</button>
-        </div>
-        <div class="connect-form">
-            <input type="text" id="target-id" class="connect-input" placeholder="Enter Friend's ID">
-            <button class="btn" onclick="connectToPeer()">Connect</button>
-        </div>
+    <div class="room-info" id="room-info">
+        Identifying network topology...
     </div>
 
     <main>
         <div id="chat-window">
             <div class="empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-                <p>Share your ID to start chatting!</p>
+                <p>Welcome to the Void.</p>
+                <p>Connecting to the collective...</p>
             </div>
         </div>
     </main>
 
     <div class="input-area">
-        <form class="input-container" id="chat-form">
+        <form class="input-container" id="chat-form" style="position: relative;">
             <textarea id="message-input" placeholder="Type a message..." rows="1"></textarea>
             <button type="submit" class="send-btn" id="send-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -473,108 +379,141 @@
         </form>
     </div>
 
-    <!-- PeerJS (P2P Connectivity) -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
     <script>
-        // --- PeerJS Config ---
-        // Generates a short random ID for usability
-        const generateId = () => 'User-' + Math.floor(Math.random() * 9000 + 1000);
-        const myPeerId = generateId();
+        // --- Configuration ---
+        const ROOM_ID_VERSION = 'v1'; // Increment to reset rooms if needed
+        const HOST_ID = `dog-eleven-void-chat-host-${ROOM_ID_VERSION}`;
+        let myId = null;
+        let isHost = false;
+        let peer = null;
+        let hostConnection = null; // Client -> Host connection
+        const clientConnections = new Set(); // Host -> Clients connections
 
-        // Initialize Peer
-        // Uses public PeerJS server (0.peerjs.com) which we verified is ACCESSIBLE (200 OK)
-        const peer = new Peer(myPeerId, {
-            debug: 2
-        });
-
-        // --- State ---
-        let conn = null; // Active connection
-        const chatWindow = document.getElementById('chat-window');
-        const emptyState = document.querySelector('.empty-state');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
-        const myIdLabel = document.getElementById('my-id');
+        const roomInfo = document.getElementById('room-info');
+        const chatWindow = document.getElementById('chat-window');
+        const emptyState = document.querySelector('.empty-state');
 
-        // --- Peer Events ---
-        peer.on('open', (id) => {
-            console.log('My ID is: ' + id);
-            myIdLabel.textContent = id;
-            statusDot.style.backgroundColor = '#f1c40f'; // Yellow (Ready, waiting for connection)
-            statusDot.classList.remove('connected');
-            statusText.textContent = 'Online (Waiting for Friend)';
-        });
+        // --- Step 1: Attempt to be Host ---
+        function init() {
+            console.log("Attempting to claim Hostel ID:", HOST_ID);
 
-        peer.on('connection', (c) => {
-            // Incoming connection
-            console.log("Incoming connection from:", c.peer);
-            handleConnection(c);
-        });
+            // Try to initialize as Host first
+            const hostCandidate = new Peer(HOST_ID, { debug: 1 });
 
-        peer.on('error', (err) => {
-            console.error(err);
-            statusDot.style.backgroundColor = '#ef4565';
-            statusText.textContent = 'Error: ' + err.type;
-            appendSystemMessage('System Error: ' + err.type);
-        });
-
-        function handleConnection(c) {
-            // Close existing connection if any (1-on-1 mode)
-            if (conn) {
-                conn.close();
-            }
-
-            conn = c;
-
-            conn.on('open', () => {
-                console.log("Connected to: " + conn.peer);
-                statusDot.style.backgroundColor = '#2cb67d'; // Green
-                statusDot.classList.add('connected');
-                statusText.textContent = 'Connected to ' + conn.peer;
-                appendSystemMessage('Connected to ' + conn.peer);
-
-                // Hide empty state
-                emptyState.style.display = 'none';
+            hostCandidate.on('open', (id) => {
+                // SUCCESS: We are the Host
+                console.log("I am the Host!");
+                isHost = true;
+                myId = id;
+                peer = hostCandidate;
+                setupHostLogic();
             });
 
-            conn.on('data', (data) => {
-                // Received data
+            hostCandidate.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // FAILURE: Host ID is taken, so we become a Client
+                    console.log("Host exists. Joining as Client...");
+                    initClient();
+                } else {
+                    console.error("Peer Error:", err);
+                    statusText.textContent = "Error: " + err.type;
+                }
+            });
+        }
+
+        // --- Host Logic ---
+        function setupHostLogic() {
+            statusDot.className = 'status-dot host';
+            statusText.textContent = 'Host (Room Open)';
+            roomInfo.textContent = 'You are the Host. Others will join you automatically.';
+            emptyState.style.display = 'none';
+            appendSystemMessage('Room created. Waiting for peers...');
+
+            peer.on('connection', (conn) => {
+                console.log("Client connected:", conn.peer);
+                clientConnections.add(conn);
+
+                conn.on('open', () => {
+                    appendSystemMessage(`${conn.peer} joined the void.`);
+                    // Send welcome message or history could go here
+                });
+
+                conn.on('data', (data) => {
+                    // Host received message from a client
+                    // 1. Display locally
+                    appendMessage(data.text, 'other', data.sender);
+
+                    // 2. Broadcast to ALL OTHER clients (Star Topology Relay)
+                    broadcastMessage(data, conn.peer);
+                });
+
+                conn.on('close', () => {
+                    clientConnections.delete(conn);
+                    appendSystemMessage(`${conn.peer} disconnected.`);
+                });
+            });
+        }
+
+        function broadcastMessage(data, senderIdToExclude) {
+            // Relay message to all clients except the sender
+            for (let client of clientConnections) {
+                if (client.peer !== senderIdToExclude && client.open) {
+                    client.send(data);
+                }
+            }
+        }
+
+        // --- Client Logic ---
+        function initClient() {
+            // Generate random ID for client
+            myId = 'User-' + Math.floor(Math.random() * 10000);
+            peer = new Peer(myId, { debug: 1 });
+
+            peer.on('open', (id) => {
+                console.log("Client initialized:", id);
+                connectToHost();
+            });
+
+            peer.on('error', (err) => console.error(err));
+        }
+
+        function connectToHost() {
+            statusText.textContent = 'Connecting to Host...';
+
+            hostConnection = peer.connect(HOST_ID);
+
+            hostConnection.on('open', () => {
+                console.log("Connected to Host!");
+                statusDot.className = 'status-dot connected';
+                statusText.textContent = 'Connected to Room';
+                roomInfo.textContent = `Connected as ${myId}`;
+                emptyState.style.display = 'none';
+                appendSystemMessage('Successfully joined the room.');
+            });
+
+            hostConnection.on('data', (data) => {
+                // Received message (relayed by Host or from Host)
                 appendMessage(data.text, 'other', data.sender);
             });
 
-            conn.on('close', () => {
-                statusDot.style.backgroundColor = '#f1c40f';
+            hostConnection.on('close', () => {
+                statusDot.className = 'status-dot';
                 statusText.textContent = 'Disconnected';
-                appendSystemMessage('Peer disconnected');
-                conn = null;
+                appendSystemMessage('Lost connection to Host.');
+                // Optional: Retry logic could go here
+            });
+
+            hostConnection.on('error', (err) => {
+                statusText.textContent = 'Host Unreachable';
+                appendSystemMessage('Could not find the Host. Is anyone there?');
             });
         }
 
-        // --- UI Functions ---
-        function connectToPeer() {
-            const targetId = document.getElementById('target-id').value.trim();
-            if (!targetId) return alert("Please enter an ID");
-            if (targetId === myPeerId) return alert("Cannot connect to yourself!");
-
-            statusText.textContent = 'Connecting to ' + targetId + '...';
-
-            // Initiate connection
-            const c = peer.connect(targetId);
-            handleConnection(c);
-        }
-
-        function copyId() {
-            navigator.clipboard.writeText(myPeerId).then(() => {
-                const btn = document.querySelector('.btn-copy');
-                const originalText = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = originalText, 2000);
-            });
-        }
-
+        // --- UI & Message Handling ---
         function appendMessage(text, type, senderName) {
-            if (emptyState.style.display !== 'none') emptyState.style.display = 'none';
-
             const row = document.createElement('div');
             row.className = `message-row ${type}`;
 
@@ -583,7 +522,7 @@
             avatar.className = 'avatar';
             avatar.textContent = (senderName || '?').charAt(0).toUpperCase();
 
-            // Color based on name hash
+            // Avatar Color
             let hash = 0;
             const str = senderName || 'User';
             for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -630,19 +569,24 @@
             const text = input.value.trim();
             if (!text) return;
 
-            if (conn && conn.open) {
-                // Send to peer
-                conn.send({
-                    sender: myPeerId,
-                    text: text
-                });
-                // Show locally
-                appendMessage(text, 'self', myPeerId);
-                input.value = '';
-                input.style.height = 'auto';
+            const msgData = { sender: myId, text: text };
+
+            if (isHost) {
+                // I am Host: Show locally and broadcast to all
+                appendMessage(text, 'self', myId);
+                broadcastMessage(msgData, myId);
             } else {
-                alert("Not connected to anyone! Enter an ID and click Connect first.");
+                // I am Client: Send to Host (who will relay)
+                if (hostConnection && hostConnection.open) {
+                    hostConnection.send(msgData);
+                    appendMessage(text, 'self', myId);
+                } else {
+                    alert("Not connected to the room!");
+                }
             }
+
+            input.value = '';
+            input.style.height = 'auto';
         });
 
         // Auto-expand textarea
@@ -651,7 +595,6 @@
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
         });
-
         tx.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -659,8 +602,11 @@
             }
         });
 
+        // Start
+        init();
+
     </script>
-    <div class="version-tag">v3.0.0 (P2P)</div>
+    <div class="version-tag">v4.0.0 (Smart Room)</div>
 </body>
 
 </html>
