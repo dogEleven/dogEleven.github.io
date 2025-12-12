@@ -92,9 +92,70 @@
             height: 80px;
             pointer-events: auto;
         }
+
+        /* --- Chat UI --- */
+        #chat-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        #chat-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-family: sans-serif;
+            outline: none;
+            backdrop-filter: blur(5px);
+        }
+
+        #chat-status {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            font-family: sans-serif;
+            text-shadow: 0 1px 2px black;
+        }
+
+        /* 3D Chat Bubble */
+        .chat-bubble {
+            position: absolute;
+            background: white;
+            color: black;
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-family: sans-serif;
+            font-size: 12px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            white-space: nowrap;
+            /* Triangle handle */
+        }
+
+        .chat-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid white;
+        }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <!-- Post-Processing Dependencies (r128) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/shaders/CopyShader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/shaders/BokehShader.js"></script>
@@ -116,6 +177,11 @@
     <div class="d-pad-right">
         <div id="btn-fwd" class="control-btn">↑</div>
         <div id="btn-back" class="control-btn">↓</div>
+    </div>
+
+    <div id="chat-overlay">
+        <div id="chat-status">Connecting to Multiplayer...</div>
+        <input type="text" id="chat-input" placeholder="Press Enter to Chat..." maxlength="50">
     </div>
 
     <script>
@@ -939,6 +1005,169 @@
         addTouchHandler('btn-back', 's');
 
 
+        // --- MULTIPLAYER LOGIC START ---
+        const ROOM_ID_VERSION = 'v1';
+        const HOST_ID = `dog-eleven-planet-host-${ROOM_ID_VERSION}`;
+        let myId = null;
+        let isHost = false;
+        let peer = null;
+        let hostConnection = null;
+        const clientConnections = new Set();
+        const remoteCars = {}; // { id: { mesh: Object3D, targetPos: Vector3, targetRot: Quaternion } }
+        const chatBubbles = []; // { element: DOM, position: Vector3, life: number }
+
+        const statusLabel = document.getElementById('chat-status');
+
+        function initMultiplayer() {
+            const hostCandidate = new Peer(HOST_ID, { debug: 1 });
+            hostCandidate.on('open', (id) => {
+                isHost = true;
+                myId = id;
+                peer = hostCandidate;
+                setupHost();
+            });
+            hostCandidate.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    initClient();
+                }
+            });
+        }
+
+        function initClient() {
+            myId = 'User-' + Math.floor(Math.random() * 10000);
+            peer = new Peer(myId, { debug: 1 });
+            peer.on('open', () => connectToHost());
+        }
+
+        function setupHost() {
+            statusLabel.textContent = "Host (Room Open)";
+            peer.on('connection', (conn) => {
+                clientConnections.add(conn);
+                conn.on('data', (data) => handleData(data, conn.peer));
+                conn.on('close', () => {
+                    clientConnections.delete(conn);
+                    removeRemoteCar(conn.peer);
+                });
+            });
+        }
+
+        function connectToHost() {
+            statusLabel.textContent = "Connecting...";
+            hostConnection = peer.connect(HOST_ID);
+            hostConnection.on('open', () => {
+                statusLabel.textContent = "Connected to Room";
+            });
+            hostConnection.on('data', (data) => handleData(data, 'Host'));
+            hostConnection.on('close', () => {
+                statusLabel.textContent = "Disconnected";
+            });
+        }
+
+        function handleData(data, senderId) {
+            // Data types: 'move', 'chat'
+            if (data.type === 'move') {
+                updateRemoteCar(data.id, data.pos, data.quat);
+                // If Host, relay to others
+                if (isHost) broadcast(data, senderId);
+            } else if (data.type === 'chat') {
+                createChatBubble(data.text, data.id);
+                if (isHost) broadcast(data, senderId);
+            }
+        }
+
+        function broadcast(data, excludeId) {
+            for (let client of clientConnections) {
+                if (client.peer !== excludeId && client.open) {
+                    client.send(data);
+                }
+            }
+        }
+
+        function updateRemoteCar(id, pos, quat) {
+            if (id === myId) return; // Ignore self
+
+            if (!remoteCars[id]) {
+                // Create Ghost Car
+                const ghost = carGroup.clone(); // Clone local car
+
+                // Make it look different (Ghostly)
+                ghost.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = child.material.clone();
+                        child.material.transparent = true;
+                        child.material.opacity = 0.6;
+                        if (child.material.color) child.material.color.setHex(0x00FFFF); // Cyan Ghost
+                    }
+                });
+
+                scene.add(ghost);
+                remoteCars[id] = { mesh: ghost, targetPos: new THREE.Vector3(), targetQuat: new THREE.Quaternion() };
+            }
+
+            const car = remoteCars[id];
+            // LERP Targets
+            car.targetPos.set(pos.x, pos.y, pos.z);
+            car.targetQuat.set(quat._x, quat._y, quat._z, quat._w);
+        }
+
+        function removeRemoteCar(id) {
+            if (remoteCars[id]) {
+                scene.remove(remoteCars[id].mesh);
+                delete remoteCars[id];
+            }
+        }
+
+        function createChatBubble(text, senderId) {
+            const div = document.createElement('div');
+            div.className = 'chat-bubble';
+            div.textContent = text;
+            document.body.appendChild(div);
+
+            // Find target object to attach to
+            let targetObj = carGroup; // Default to self logic (if from self loopback)
+            if (senderId !== myId && remoteCars[senderId]) {
+                targetObj = remoteCars[senderId].mesh;
+            } else if (senderId === myId) {
+                targetObj = carGroup;
+            }
+
+            chatBubbles.push({
+                element: div,
+                target: targetObj,
+                life: 300 // Frames (~5s)
+            });
+        }
+
+        // Chat Input Logic
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const text = chatInput.value.trim();
+                if (!text) return;
+
+                const data = { type: 'chat', text: text, id: myId };
+
+                // Show local
+                createChatBubble(text, myId);
+
+                // Send
+                if (isHost) broadcast(data, myId);
+                else if (hostConnection) hostConnection.send(data);
+
+                chatInput.value = '';
+                chatInput.blur(); // Unfocus to return control to driving
+            }
+        });
+
+        // Prevent driving while typing
+        chatInput.addEventListener('focus', () => {
+            // Clear keys so car doesn't get stuck moving
+            keys.w = false; keys.a = false; keys.s = false; keys.d = false;
+        });
+
+        // Start Multiplayer
+        initMultiplayer();
+        // --- MULTIPLAYER LOGIC END ---
 
         const raycaster = new THREE.Raycaster();
         const cameraLookAtCurrent = new THREE.Vector3(0, 0, 0);
@@ -1172,8 +1401,59 @@
             // Animate Stars
             if (stars) stars.rotation.y += 0.0003; // Slow rotation
 
-            // Dynamic Focus REMOVED (Reverting DoF)
-            // if (bokehPass) { ... }
+            // --- MULTIPLAYER UPDATE ---
+            // 1. Broadcast My Position (Throttled)
+            if (peer && myId) {
+                // Broadcast every 5 frames is enough (~12fps update)
+                if (clock.getElapsedTime() % 0.1 < 0.02) {
+                    const data = {
+                        type: 'move',
+                        id: myId,
+                        pos: { x: carGroup.position.x, y: carGroup.position.y, z: carGroup.position.z },
+                        quat: carGroup.quaternion // Three.js quat is standard object
+                    };
+                    if (isHost) broadcast(data, myId);
+                    else if (hostConnection && hostConnection.open) hostConnection.send(data);
+                }
+            }
+
+            // 2. Update Remote Cars (Lerp)
+            for (let id in remoteCars) {
+                const rCar = remoteCars[id];
+                rCar.mesh.position.lerp(rCar.targetPos, 0.2); // Smooth lerp
+                rCar.mesh.quaternion.slerp(rCar.targetQuat, 0.2);
+            }
+
+            // 3. Update Chat Bubbles (Project to 2D)
+            const tempV = new THREE.Vector3();
+            for (let i = chatBubbles.length - 1; i >= 0; i--) {
+                const b = chatBubbles[i];
+                b.life--;
+                if (b.life <= 0) {
+                    b.element.parentNode.removeChild(b.element);
+                    chatBubbles.splice(i, 1);
+                    continue;
+                }
+
+                // Project 3D position to 2D screen
+                b.target.getWorldPosition(tempV);
+                tempV.y += 3.0; // Above car
+                tempV.project(camera);
+
+                const x = (tempV.x * .5 + .5) * window.innerWidth;
+                const y = (-(tempV.y * .5) + .5) * window.innerHeight;
+
+                // Hide if behind camera
+                if (tempV.z > 1) {
+                    b.element.style.display = 'none';
+                } else {
+                    b.element.style.display = 'block';
+                    b.element.style.left = x + 'px';
+                    b.element.style.top = y + 'px';
+                    // Fade out
+                    b.element.style.opacity = Math.min(1, b.life / 50);
+                }
+            }
 
             renderer.render(scene, camera);
             // Use Composer for Post-Processing (DoF) - DISABLED
