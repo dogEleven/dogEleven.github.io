@@ -429,6 +429,14 @@
 
         // --- Step 1: Attempt to be Host ---
         function init() {
+            // Allow forcing client mode for debugging (e.g. ?role=client)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('role') === 'client') {
+                console.log("Forcing Client Mode via URL parameter");
+                initClient();
+                return;
+            }
+
             console.log("Attempting to claim Hostel ID:", HOST_ID);
 
             // Try to initialize as Host first
