@@ -1048,10 +1048,24 @@
         const dbgErr = document.getElementById('dbg-err');
         let pkgIn = 0, pkgOut = 0;
 
+        // Robust STUN Config for Mobile/4G (Google + China mirrors)
+        const peerConfig = {
+            debug: 1,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    // China-friendly public STUNs (Unverified but better than nothing)
+                    { urls: 'stun:stun.miwifi.com:3478' },
+                    { urls: 'stun:stun.qq.com:3478' }
+                ]
+            }
+        };
+
         function initMultiplayer() {
             // Random Delay to prevent race conditions (0-2s)
             setTimeout(() => {
-                const hostCandidate = new Peer(HOST_ID, { debug: 1 });
+                const hostCandidate = new Peer(HOST_ID, peerConfig);
 
                 hostCandidate.on('open', (id) => {
                     // Critical Check: Did PeerJS give us the exact ID we asked for?
@@ -1083,7 +1097,7 @@
 
         function initClient() {
             myId = 'User-' + Math.floor(Math.random() * 10000);
-            peer = new Peer(myId, { debug: 1 });
+            peer = new Peer(myId, peerConfig);
             peer.on('open', (id) => {
                 dbgId.textContent = id;
                 dbgRole.textContent = "CLIENT";

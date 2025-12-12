@@ -396,12 +396,26 @@
         const chatWindow = document.getElementById('chat-window');
         const emptyState = document.querySelector('.empty-state');
 
+        // Robust STUN Config for Mobile/4G (Google + China mirrors)
+        const peerConfig = {
+            debug: 1,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    // China-friendly public STUNs (Unverified but better than nothing)
+                    { urls: 'stun:stun.miwifi.com:3478' },
+                    { urls: 'stun:stun.qq.com:3478' }
+                ]
+            }
+        };
+
         // --- Step 1: Attempt to be Host ---
         function init() {
             console.log("Attempting to claim Hostel ID:", HOST_ID);
 
             // Try to initialize as Host first
-            const hostCandidate = new Peer(HOST_ID, { debug: 1 });
+            const hostCandidate = new Peer(HOST_ID, peerConfig);
 
             hostCandidate.on('open', (id) => {
                 // SUCCESS: We are the Host
@@ -470,7 +484,7 @@
         function initClient() {
             // Generate random ID for client
             myId = 'User-' + Math.floor(Math.random() * 10000);
-            peer = new Peer(myId, { debug: 1 });
+            peer = new Peer(myId, peerConfig);
 
             peer.on('open', (id) => {
                 console.log("Client initialized:", id);
