@@ -1049,25 +1049,36 @@
         let pkgIn = 0, pkgOut = 0;
 
         function initMultiplayer() {
-            // Randomize Host ID slightly to avoid Zombie Hosts during dev
-            // const HOST_ID = `dog-eleven-planet-host-${ROOM_ID_VERSION}`;
+            // Random Delay to prevent race conditions (0-2s)
+            setTimeout(() => {
+                const hostCandidate = new Peer(HOST_ID, { debug: 1 });
 
-            const hostCandidate = new Peer(HOST_ID, { debug: 1 });
-            hostCandidate.on('open', (id) => {
-                isHost = true;
-                myId = id;
-                peer = hostCandidate;
-                dbgRole.textContent = "HOST";
-                dbgId.textContent = id;
-                setupHost();
-            });
-            hostCandidate.on('error', (err) => {
-                if (err.type === 'unavailable-id') {
-                    initClient();
-                } else {
-                    dbgErr.textContent = err.type;
-                }
-            });
+                hostCandidate.on('open', (id) => {
+                    // Critical Check: Did PeerJS give us the exact ID we asked for?
+                    if (id === HOST_ID) {
+                        isHost = true;
+                        myId = id;
+                        peer = hostCandidate;
+                        dbgRole.textContent = "HOST";
+                        dbgId.textContent = id;
+                        setupHost();
+                    } else {
+                        // PeerJS auto-assigned a different ID (Collision) -> Downgrade to Client
+                        console.log("Wanted Host ID but got:", id, ". Downgrading to Client.");
+                        hostCandidate.destroy();
+                        initClient();
+                    }
+                });
+
+                hostCandidate.on('error', (err) => {
+                    if (err.type === 'unavailable-id') {
+                        // ID Taken -> We are Client
+                        initClient();
+                    } else {
+                        dbgErr.textContent = err.type;
+                    }
+                });
+            }, Math.random() * 2000);
         }
 
         function initClient() {
@@ -1138,6 +1149,44 @@
 
             if (!remoteCars[id]) {
                 // Create Ghost Car
+                const ghost = carGroup.clone();
+
+                // Make it look different (Ghostly)
+                ghost.traverse((child) => {
+                    if (child.isMesh) {
+                        if (Array.isArray(child.material)) {
+                            // Handle Multi-Material (Cabin)
+                            child.material = child.material.map(m => {
+                                const mc = m.clone();
+                                mc.transparent = true;
+                                mc.opacity = 0.5;
+                                if (mc.color) mc.color.setHex(0x00FFFF); // Cyan tint
+                                return mc;
+                            });
+                        } else {
+                            // Handle Single Material
+                            child.material = child.material.clone();
+                            child.material.transparent = true;
+                            child.material.opacity = 0.5;
+                            if (child.material.color) child.material.color.setHex(0x00FFFF);
+                        }
+                    }
+                });
+
+                scene.add(ghost);
+                remoteCars[id] = { mesh: ghost, targetPos: new THREE.Vector3(), targetQuat: new THREE.Quaternion() };
+            }
+
+            const car = remoteCars[id];
+            if (pos && quat) {
+                car.targetPos.set(pos.x, pos.y, pos.z);
+                car.targetQuat.set(quat.x, quat.y, quat.z, quat.w);
+            }
+        }
+
+        function removeRemoteCar(id) {
+            if (remoteCars[id]) {
+                scene.remove(remoteCars[id].mesh);
                 delete remoteCars[id];
             }
         }
