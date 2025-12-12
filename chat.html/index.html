@@ -325,256 +325,266 @@
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: var(--sub-text);
-            gap: 1rem;
-            opacity: 0.5;
-        }
+            `;
+            let myId=null;
+            let isHost=false;
+            let peer=null;
+            let hostConnection=null; // Client -> Host connection
+            const clientConnections=new Set(); // Host -> Clients connections
 
-        .version-tag {
-            position: fixed;
-            bottom: 5px;
-            left: 10px;
-            font-size: 0.7rem;
-            color: var(--system-msg);
-            opacity: 0.3;
-        }
-    </style>
-</head>
+            const statusDot=document.getElementById('status-dot');
+            const statusText=document.getElementById('status-text');
+            const roomInfo=document.getElementById('room-info');
+            const chatWindow=document.getElementById('chat-window');
+            const emptyState=document.querySelector('.empty-state');
 
-<body>
-    <div class="bg-orb orb-1"></div>
-    <div class="bg-orb orb-2"></div>
+            // Robust STUN Config for Mobile/4G (Google + China mirrors)
+            const peerConfig= {
 
-    <header>
-        <div class="brand">Void<span>Chat</span></div>
-        <div class="status-pill">
-            <div id="status-dot" class="status-dot"></div>
-            <span id="status-text">Detecting Room...</span>
-        </div>
-    </header>
+                debug: 1,
+                config: {
+                    iceServers: [ {
+                        urls: 'stun:stun.l.google.com:19302'
+                    }
 
-    <div class="room-info" id="room-info">
-        Identifying network topology...
-    </div>
+                    ,
+                    {
+                    urls: 'stun:stun1.l.google.com:19302'
+                }
 
-    <main>
-        <div id="chat-window">
-            <div class="empty-state">
-                <p>Welcome to the Void.</p>
-                <p>Connecting to the collective...</p>
-            </div>
-        </div>
-    </main>
+                ,
+                // China-friendly public STUNs (Unverified but better than nothing)
+                    {
+                    urls: 'stun:stun.miwifi.com:3478'
+                }
 
-    <div class="input-area">
-        <form class="input-container" id="chat-form" style="position: relative;">
-            <textarea id="message-input" placeholder="Type a message..." rows="1"></textarea>
-            <button type="submit" class="send-btn" id="send-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-            </button>
-        </form>
-    </div>
-
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script>
-        // --- Configuration ---
-        const ROOM_ID_VERSION = 'v1'; // Increment to reset rooms if needed
-        const HOST_ID = `dog-eleven-void-chat-host-${ROOM_ID_VERSION}`;
-        let myId = null;
-        let isHost = false;
-        let peer = null;
-        let hostConnection = null; // Client -> Host connection
-        const clientConnections = new Set(); // Host -> Clients connections
-
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
-        const roomInfo = document.getElementById('room-info');
-        const chatWindow = document.getElementById('chat-window');
-        const emptyState = document.querySelector('.empty-state');
-
-        // Robust STUN Config for Mobile/4G (Google + China mirrors)
-        const peerConfig = {
-            debug: 1,
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    // China-friendly public STUNs (Unverified but better than nothing)
-                    { urls: 'stun:stun.miwifi.com:3478' },
-                    { urls: 'stun:stun.qq.com:3478' }
-                ]
+                ,
+                {
+                urls: 'stun:stun.qq.com:3478'
             }
-        };
+
+            ]
+        }
+        }
+
+        ;
 
         // --- Step 1: Attempt to be Host ---
         function init() {
             console.log("Attempting to claim Hostel ID:", HOST_ID);
 
             // Try to initialize as Host first
-            const hostCandidate = new Peer(HOST_ID, peerConfig);
+            const hostCandidate=new Peer(HOST_ID, peerConfig);
 
-            hostCandidate.on('open', (id) => {
-                // SUCCESS: We are the Host
-                console.log("I am the Host!");
-                isHost = true;
-                myId = id;
-                peer = hostCandidate;
-                setupHostLogic();
-            });
+            hostCandidate.on('open', (id)=> {
+                    // SUCCESS: We are the Host
+                    console.log("I am the Host!");
+                    isHost=true;
+                    myId=id;
+                    peer=hostCandidate;
+                    setupHostLogic();
+                });
 
-            hostCandidate.on('error', (err) => {
-                if (err.type === 'unavailable-id') {
-                    // FAILURE: Host ID is taken, so we become a Client
-                    console.log("Host exists. Joining as Client...");
-                    initClient();
-                } else {
-                    console.error("Peer Error:", err);
-                    statusText.textContent = "Error: " + err.type;
-                }
-            });
+            hostCandidate.on('error', (err)=> {
+                    if (err.type==='unavailable-id') {
+                        // FAILURE: Host ID is taken, so we become a Client
+                        console.log("Host exists. Joining as Client...");
+                        initClient();
+                    }
+
+                    else {
+                        console.error("Peer Error:", err);
+                        statusText.textContent="Error: " + err.type;
+                    }
+                });
         }
 
         // --- Host Logic ---
         function setupHostLogic() {
-            statusDot.className = 'status-dot host';
-            statusText.textContent = 'Host (Room Open)';
-            roomInfo.textContent = 'You are the Host. Others will join you automatically.';
-            emptyState.style.display = 'none';
+            statusDot.className='status-dot host';
+            statusText.textContent='Host (Room Open)';
+            roomInfo.textContent='You are the Host. Others will join you automatically.';
+            emptyState.style.display='none';
             appendSystemMessage('Room created. Waiting for peers...');
 
-            peer.on('connection', (conn) => {
-                console.log("Client connected:", conn.peer);
-                clientConnections.add(conn);
+            peer.on('connection', (conn)=> {
+                    console.log("Client connected:", conn.peer);
+                    clientConnections.add(conn);
 
-                conn.on('open', () => {
-                    appendSystemMessage(`${conn.peer} joined the void.`);
-                    // Send welcome message or history could go here
+                    conn.on('open', ()=> {
+                            appendSystemMessage(`$ {
+                                    conn.peer
+                                }
+
+                                joined the void.`);
+                            // Send welcome message or history could go here
+                        });
+
+                    conn.on('data', (data)=> {
+                            // Host received message from a client
+                            // 1. Display locally
+                            appendMessage(data.text, 'other', data.sender);
+
+                            // 2. Broadcast to ALL OTHER clients (Star Topology Relay)
+                            broadcastMessage(data, conn.peer);
+                        });
+
+                    conn.on('close', ()=> {
+                            clientConnections.delete(conn);
+
+                            appendSystemMessage(`$ {
+                                    conn.peer
+                                }
+
+                                disconnected.`);
+                        });
                 });
-
-                conn.on('data', (data) => {
-                    // Host received message from a client
-                    // 1. Display locally
-                    appendMessage(data.text, 'other', data.sender);
-
-                    // 2. Broadcast to ALL OTHER clients (Star Topology Relay)
-                    broadcastMessage(data, conn.peer);
-                });
-
-                conn.on('close', () => {
-                    clientConnections.delete(conn);
-                    appendSystemMessage(`${conn.peer} disconnected.`);
-                });
-            });
         }
 
         function broadcastMessage(data, senderIdToExclude) {
+
             // Relay message to all clients except the sender
             for (let client of clientConnections) {
-                if (client.peer !== senderIdToExclude && client.open) {
+                if (client.peer !==senderIdToExclude && client.open) {
                     client.send(data);
                 }
             }
         }
 
         // Retry State
-        let retryCount = 0;
-        const maxRetries = 5;
+        let retryCount=0;
+        const maxRetries=5;
 
         // --- Client Logic ---
         function initClient() {
             // Generate random ID for client
-            myId = 'User-' + Math.floor(Math.random() * 10000);
-            peer = new Peer(myId, peerConfig);
+            myId='User-'+Math.floor(Math.random() * 10000);
+            peer=new Peer(myId, peerConfig);
 
-            peer.on('open', (id) => {
-                console.log("Client initialized:", id);
-                connectToHost();
-            });
+            peer.on('open', (id)=> {
+                    console.log("Client initialized:", id);
+                    connectToHost();
+                });
 
-            peer.on('error', (err) => console.error(err));
+            peer.on('error', (err)=> console.error(err));
         }
 
         function connectToHost() {
-            statusText.textContent = 'Connecting to Host...';
+            statusText.textContent='Connecting to Host...';
 
-            hostConnection = peer.connect(HOST_ID);
+            hostConnection=peer.connect(HOST_ID);
 
-            hostConnection.on('open', () => {
-                console.log("Connected to Host!");
-                statusDot.className = 'status-dot connected';
-                statusText.textContent = 'Connected to Room';
-                roomInfo.textContent = `Connected as ${myId}`;
-                emptyState.style.display = 'none';
-                appendSystemMessage('Successfully joined the room.');
-            });
+            hostConnection.on('open', ()=> {
+                    console.log("Connected to Host!");
+                    statusDot.className='status-dot connected';
+                    statusText.textContent='Connected to Room';
 
-            hostConnection.on('data', (data) => {
-                // Received message (relayed by Host or from Host)
-                appendMessage(data.text, 'other', data.sender);
-            });
+                    roomInfo.textContent=`Connected as $ {
+                        myId
+                    }
 
-            hostConnection.on('close', () => {
-                statusDot.className = 'status-dot';
-                statusText.textContent = 'Disconnected';
-                appendSystemMessage('Lost connection to Host.');
-                attemptRetry();
-            });
+                    `;
+                    emptyState.style.display='none';
+                    appendSystemMessage('Successfully joined the room.');
+                });
 
-            hostConnection.on('error', (err) => {
-                statusText.textContent = 'Host Unreachable';
-                // Don't spam system message on every retry fail, only on final fail
-                if (retryCount >= maxRetries) {
-                    appendSystemMessage('Could not find the Host. Is anyone there?');
-                } else {
+            hostConnection.on('data', (data)=> {
+                    // Received message (relayed by Host or from Host)
+                    appendMessage(data.text, 'other', data.sender);
+                });
+
+            hostConnection.on('close', ()=> {
+                    statusDot.className='status-dot';
+                    statusText.textContent='Disconnected';
+                    appendSystemMessage('Lost connection to Host.');
                     attemptRetry();
-                }
-            });
+                });
+
+            hostConnection.on('error', (err)=> {
+                    statusText.textContent='Host Unreachable';
+
+                    // Don't spam system message on every retry fail, only on final fail
+                    if (retryCount >=maxRetries) {
+                        appendSystemMessage('Could not find the Host. Is anyone there?');
+                    }
+
+                    else {
+                        attemptRetry();
+                    }
+                });
         }
 
         function attemptRetry() {
             if (retryCount < maxRetries) {
                 retryCount++;
-                const delay = 2000; // 2 seconds
-                statusText.textContent = `Retrying (${retryCount}/${maxRetries})...`;
+                const delay=2000; // 2 seconds
+
+                statusText.textContent=`Retrying ($ {
+                        retryCount
+                    }
+
+                    /$ {
+                        maxRetries
+                    })...`;
                 setTimeout(connectToHost, delay);
-            } else {
-                statusText.textContent = "Connection Failed";
+            }
+
+            else {
+                statusText.textContent="Connection Failed";
                 appendSystemMessage("Failed to connect after multiple attempts. Try refreshing.");
             }
         }
 
         // --- UI & Message Handling ---
         function appendMessage(text, type, senderName) {
-            const row = document.createElement('div');
-            row.className = `message-row ${type}`;
+            const row=document.createElement('div');
+
+            row.className=`message-row $ {
+                type
+            }
+
+            `;
 
             // Avatar
-            const avatar = document.createElement('div');
-            avatar.className = 'avatar';
-            avatar.textContent = (senderName || '?').charAt(0).toUpperCase();
+            const avatar=document.createElement('div');
+            avatar.className='avatar';
+            avatar.textContent=(senderName || '?').charAt(0).toUpperCase();
 
             // Avatar Color
-            let hash = 0;
-            const str = senderName || 'User';
-            for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-            const c1 = `hsl(${hash % 360}, 70%, 60%)`;
-            const c2 = `hsl(${(hash + 40) % 360}, 70%, 50%)`;
-            avatar.style.background = `linear-gradient(135deg, ${c1}, ${c2})`;
+            let hash=0;
+            const str=senderName || 'User';
+            for (let i=0; i < str.length; i++) hash=str.charCodeAt(i)+((hash << 5) - hash);
 
-            const content = document.createElement('div');
-            content.className = 'msg-content';
+            const c1=`hsl($ {
+                    hash % 360
+                }
 
-            const nameLabel = document.createElement('div');
-            nameLabel.className = 'sender-name';
-            nameLabel.textContent = senderName + (type === 'self' ? ' (You)' : '');
+                , 70%, 60%)`;
 
-            const bubble = document.createElement('div');
-            bubble.className = 'bubble';
-            bubble.textContent = text;
+            const c2=`hsl($ {
+                    (hash + 40) % 360
+                }
+
+                , 70%, 50%)`;
+
+            avatar.style.background=`linear-gradient(135deg, $ {
+                    c1
+                }
+
+                , $ {
+                    c2
+                })`;
+
+            const content=document.createElement('div');
+            content.className='msg-content';
+
+            const nameLabel=document.createElement('div');
+            nameLabel.className='sender-name';
+            nameLabel.textContent=senderName+(type==='self' ? ' (You)' : '');
+
+            const bubble=document.createElement('div');
+            bubble.className='bubble';
+            bubble.textContent=text;
 
             content.appendChild(nameLabel);
             content.appendChild(bubble);
@@ -583,65 +593,268 @@
             row.appendChild(content);
 
             chatWindow.appendChild(row);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+            chatWindow.scrollTop=chatWindow.scrollHeight;
         }
 
         function appendSystemMessage(text) {
-            const row = document.createElement('div');
-            row.className = 'message-row system';
-            const bubble = document.createElement('div');
-            bubble.className = 'bubble';
-            bubble.textContent = text;
+            const row=document.createElement('div');
+            row.className='message-row system';
+            const bubble=document.createElement('div');
+            bubble.className='bubble';
+            bubble.textContent=text;
             row.appendChild(bubble);
             chatWindow.appendChild(row);
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+            chatWindow.scrollTop=chatWindow.scrollHeight;
         }
 
         // --- Send Logic ---
-        document.getElementById('chat-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            if (!text) return;
+        document.getElementById('chat-form').addEventListener('submit', (e)=> {
+                e.preventDefault();
+                const input=document.getElementById('message-input');
+                const text=input.value.trim();
+                if ( !text) return;
 
-            const msgData = { sender: myId, text: text };
+                const msgData= {
+                    sender: myId, text: text
+                }
 
-            if (isHost) {
-                // I am Host: Show locally and broadcast to all
-                appendMessage(text, 'self', myId);
-                broadcastMessage(msgData, myId);
-            } else {
-                // I am Client: Send to Host (who will relay)
-                if (hostConnection && hostConnection.open) {
-                    hostConnection.send(msgData);
+                ;
+
+                if (isHost) {
+                    // I am Host: Show locally and broadcast to all
                     appendMessage(text, 'self', myId);
-                } else {
-                    alert("Not connected to the room!");
+                    broadcastMessage(msgData, myId);
+                }
+
+                else {
+
+                    // I am Client: Send to Host (who will relay)
+                    if (hostConnection && hostConnection.open) {
+                        hostConnection.send(msgData);
+                        appendMessage(text, 'self', myId);
+                    }
+
+                    else {
+                        alert("Not connected to the room!");
+                    }
+                }
+
+                input.value='';
+                input.style.height='auto';
+            });
+
+        // Auto-expand textarea
+        const tx=document.getElementById('message-input');
+
+        tx.addEventListener('input', function () {
+                this.style.height='auto';
+                this.style.height=(this.scrollHeight) + 'px';
+            });
+
+        tx.addEventListener('keydown', (e)=> {
+                if (e.key==='Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+                }
+
+                peer.on('open', (id)=> {
+                        console.log("Client initialized:", id);
+                        connectToHost();
+                    });
+
+                peer.on('error', (err)=> console.error(err));
+            }
+
+            function connectToHost() {
+                statusText.textContent='Connecting to Host...';
+
+                hostConnection=peer.connect(HOST_ID);
+
+                hostConnection.on('open', ()=> {
+                        console.log("Connected to Host!");
+                        statusDot.className='status-dot connected';
+                        statusText.textContent='Connected to Room';
+
+                        roomInfo.textContent=`Connected as $ {
+                            myId
+                        }
+
+                        `;
+                        emptyState.style.display='none';
+                        appendSystemMessage('Successfully joined the room.');
+                    });
+
+                hostConnection.on('data', (data)=> {
+                        // Received message (relayed by Host or from Host)
+                        appendMessage(data.text, 'other', data.sender);
+                    });
+
+                hostConnection.on('close', ()=> {
+                        statusDot.className='status-dot';
+                        statusText.textContent='Disconnected';
+                        appendSystemMessage('Lost connection to Host.');
+                        attemptRetry();
+                    });
+
+                hostConnection.on('error', (err)=> {
+                        statusText.textContent='Host Unreachable';
+
+                        // Don't spam system message on every retry fail, only on final fail
+                        if (retryCount >=maxRetries) {
+                            appendSystemMessage('Could not find the Host. Is anyone there?');
+                        }
+
+                        else {
+                            attemptRetry();
+                        }
+                    });
+            }
+
+            function attemptRetry() {
+                if (retryCount < maxRetries) {
+                    retryCount++;
+                    const delay=2000; // 2 seconds
+
+                    statusText.textContent=`Retrying ($ {
+                            retryCount
+                        }
+
+                        /$ {
+                            maxRetries
+                        })...`;
+                    setTimeout(connectToHost, delay);
+                }
+
+                else {
+                    statusText.textContent="Connection Failed";
+                    appendSystemMessage("Failed to connect after multiple attempts. Try refreshing.");
                 }
             }
 
-            input.value = '';
-            input.style.height = 'auto';
-        });
+            // --- UI & Message Handling ---
+            function appendMessage(text, type, senderName) {
+                const row=document.createElement('div');
 
-        // Auto-expand textarea
-        const tx = document.getElementById('message-input');
-        tx.addEventListener('input', function () {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
-        tx.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+                row.className=`message-row $ {
+                    type
+                }
+
+                `;
+
+                // Avatar
+                const avatar=document.createElement('div');
+                avatar.className='avatar';
+                avatar.textContent=(senderName || '?').charAt(0).toUpperCase();
+
+                // Avatar Color
+                let hash=0;
+                const str=senderName || 'User';
+                for (let i=0; i < str.length; i++) hash=str.charCodeAt(i)+((hash << 5) - hash);
+
+                const c1=`hsl($ {
+                        hash % 360
+                    }
+
+                    , 70%, 60%)`;
+
+                const c2=`hsl($ {
+                        (hash + 40) % 360
+                    }
+
+                    , 70%, 50%)`;
+
+                avatar.style.background=`linear-gradient(135deg, $ {
+                        c1
+                    }
+
+                    , $ {
+                        c2
+                    })`;
+
+                const content=document.createElement('div');
+                content.className='msg-content';
+
+                const nameLabel=document.createElement('div');
+                nameLabel.className='sender-name';
+                nameLabel.textContent=senderName+(type==='self' ? ' (You)' : '');
+
+                const bubble=document.createElement('div');
+                bubble.className='bubble';
+                bubble.textContent=text;
+
+                content.appendChild(nameLabel);
+                content.appendChild(bubble);
+
+                row.appendChild(avatar);
+                row.appendChild(content);
+
+                chatWindow.appendChild(row);
+                chatWindow.scrollTop=chatWindow.scrollHeight;
             }
-        });
 
-        // Start
-        init();
+            function appendSystemMessage(text) {
+                const row=document.createElement('div');
+                row.className='message-row system';
+                const bubble=document.createElement('div');
+                bubble.className='bubble';
+                bubble.textContent=text;
+                row.appendChild(bubble);
+                chatWindow.appendChild(row);
+                chatWindow.scrollTop=chatWindow.scrollHeight;
+            }
 
-    </script>
-    <div class="version-tag">v4.0.0 (Smart Room)</div>
-</body>
+            // --- Send Logic ---
+            document.getElementById('chat-form').addEventListener('submit', (e)=> {
+                    e.preventDefault();
+                    const input=document.getElementById('message-input');
+                    const text=input.value.trim();
+                    if ( !text) return;
 
-</html>
+                    const msgData= {
+                        sender: myId, text: text
+                    }
+
+                    ;
+
+                    if (isHost) {
+                        // I am Host: Show locally and broadcast to all
+                        appendMessage(text, 'self', myId);
+                        broadcastMessage(msgData, myId);
+                    }
+
+                    else {
+
+                        // I am Client: Send to Host (who will relay)
+                        if (hostConnection && hostConnection.open) {
+                            hostConnection.send(msgData);
+                            appendMessage(text, 'self', myId);
+                        }
+
+                        else {
+                            alert("Not connected to the room!");
+                        }
+                    }
+
+                    input.value='';
+                    input.style.height='auto';
+                });
+
+            // Auto-expand textarea
+            const tx=document.getElementById('message-input');
+
+            tx.addEventListener('input', function () {
+                    this.style.height='auto';
+                    this.style.height=(this.scrollHeight) + 'px';
+                });
+
+            tx.addEventListener('keydown', (e)=> {
+                    if (e.key==='Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+                    }
+                });
+
+            // Start
+            init();
+
+            </script><div class="version-tag" >v4.1.0 (Mobile/4G Support)</div></body></html>
