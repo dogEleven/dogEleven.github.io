@@ -1306,36 +1306,67 @@
                 planet.material.uniforms.time.value = clock.getElapsedTime();
             }
 
-            // Updated Camera Offset: Closer (User Request) -> ZOOM OUT 20%
-            // Previous: (0, 22, -10). Multiplied by 1.2 -> (0, 26.4, -12.0)
-            const idealOffset = new THREE.Vector3(0, 26.4, -12.0);
-            idealOffset.applyQuaternion(carGroup.quaternion);
-            idealOffset.add(carGroup.position);
+            // --- New Camera Logic (Sphere Projection) ---
 
-            // Updated LookAt Offset: Center Car More (User Request)
-            // Previous Z: 1.5. New Z: -2.0 (Negative pushes it UP on screen).
-            // Result: Car crosses midline, appearing in upper half.
-            const lookTargetOffset = new THREE.Vector3(0, 2, -2.0);
-            lookTargetOffset.applyQuaternion(carGroup.quaternion);
+            // 1. Get Player Direction (Normalized vector from center)
+            const playerDir = carGroup.position.clone().normalize();
+
+            // 2. Calculate Pivot Point on Sphere Surface
+            // "Anchor" the camera to the ideal sphere, ignoring terrain height
+            const pivotPoint = playerDir.clone().multiplyScalar(planetRadius);
+
+            // 3. Construct Stable Basis
+            // Up Vector = playerDir (Normal of the sphere at that point)
+            const stableUp = playerDir.clone();
+
+            // Forward Vector: Project car's forward vector onto the tangent plane
+            const carForward = new THREE.Vector3(0, 0, 1).applyQuaternion(carGroup.quaternion);
+
+            // Project carForward onto plane perpendicular to stableUp
+            // v_proj = v - (v . n) * n
+            const projForward = carForward.clone().sub(stableUp.clone().multiplyScalar(carForward.dot(stableUp))).normalize();
+
+            // Calculate Right Vector
+            const stableRight = new THREE.Vector3().crossVectors(stableUp, projForward).normalize();
+
+            // Re-calculate Forward to ensure orthogonality
+            const stableForward = new THREE.Vector3().crossVectors(stableRight, stableUp).normalize();
+
+            // Create Basis Matrix / Quaternion
+            const stableMat = new THREE.Matrix4().makeBasis(stableRight, stableUp, stableForward);
+            const stableQuat = new THREE.Quaternion().setFromRotationMatrix(stableMat);
+
+            // 4. Calculate Ideal Camera Position
+            // Offset logic: (0, 26.4, -12.0) relative to the STABLE anchor
+            // Note: In our basis construction:
+            // Right = X, Up = Y, Forward = Z.
+            // Original offsets were designed for (0, Y, -Z) being behind/above.
+            // Let's use the local offset vector.
+            const localOffset = new THREE.Vector3(0, 26.4, -12.0);
+            localOffset.applyQuaternion(stableQuat);
+
+            const distFromPivot = localOffset.length();
+            const idealCameraPos = pivotPoint.clone().add(localOffset);
+
+            // 5. Look At Logic
+            // We want to look at the car (or near it) to keep it in frame.
+            // Using the car's actual position ensures we focus on the actionable object.
+            const lookTargetOffset = new THREE.Vector3(0, 2, -2.0); // Keep original offset logic
+            lookTargetOffset.applyQuaternion(carGroup.quaternion); // Rotate with car for natural look
             const idealLookAt = carGroup.position.clone().add(lookTargetOffset);
 
-            // Heavy buffer: 0.02 (Very Slow/Smooth) - User Request
-            const camPosLerp = 0.02;
+            // 6. Apply with Smoothing
+            const camPosLerp = 0.05; // Slightly faster to re-align with the stable anchor
 
-            // Fix: Camera Init Bug
-            if (camera.position.distanceTo(idealOffset) > 100) {
-                camera.position.copy(idealOffset);
+            if (camera.position.length() < 10) { // Initial snap
+                camera.position.copy(idealCameraPos);
                 cameraLookAtCurrent.copy(idealLookAt);
+            } else {
+                camera.position.lerp(idealCameraPos, camPosLerp);
+                cameraLookAtCurrent.lerp(idealLookAt, 0.05);
             }
 
-            else {
-                camera.position.lerp(idealOffset, camPosLerp);
-                cameraLookAtCurrent.lerp(idealLookAt, 0.02); // Match new slow speed
-            }
-
-            // Constrain camera to be level with ground
-            const targetCamUp = carGroup.position.clone().normalize();
-            camera.up.lerp(targetCamUp, 1.0 * dt);
+            camera.up.copy(stableUp); // Align camera up with sphere normal
             camera.lookAt(cameraLookAtCurrent);
 
             // --- Camera Ground Collision ---
