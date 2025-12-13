@@ -1312,8 +1312,8 @@
             lookTargetOffset.applyQuaternion(carGroup.quaternion);
             const idealLookAt = carGroup.position.clone().add(lookTargetOffset);
 
-            // Heavy buffer: 0.02 -> 0.03 -> Reduced 50% again (Speed * 2) = 0.06
-            const camPosLerp = 0.06;
+            // Heavy buffer: 0.02 (Very Slow/Smooth) - User Request
+            const camPosLerp = 0.02;
 
             // Fix: Camera Init Bug
             if (camera.position.distanceTo(idealOffset) > 100) {
@@ -1323,7 +1323,7 @@
 
             else {
                 camera.position.lerp(idealOffset, camPosLerp);
-                cameraLookAtCurrent.lerp(idealLookAt, 0.06); // Match new speed
+                cameraLookAtCurrent.lerp(idealLookAt, 0.02); // Match new slow speed
             }
 
             // Constrain camera to be level with ground
