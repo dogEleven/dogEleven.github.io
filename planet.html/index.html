@@ -939,28 +939,33 @@
         carGroup.add(rollingChassis);
 
         // 1. carSphere with Pink-Purple Gradient
-        // Custom Shader for Gradient + Spots
-        // --- CPU-Based Noise & Coloring for Robustness ---
+        // Custom Shader for Gradient + Spots (Refined)
+        // --- CPU-Based Noise & Coloring for Robustness (Refined) ---
         const snoiseJS = (x, y, z) => {
-            return Math.sin(x * 1.5) * Math.sin(y * 1.5) * Math.sin(z * 1.5);
+            // Simplified: Single Octave for cleaner, less complex spots
+            return Math.sin(x * 1.8) * Math.sin(y * 1.8) * Math.sin(z * 1.8);
         };
-        const getSpotColor = (pos, normalize = true) => {
-            // Gradient Vertical
+        const getSpotColor = (pos) => {
+            // Gradient Vertical - Very Light Pastel
             const t = THREE.MathUtils.clamp((pos.y + 1.8) / 3.6, 0, 1);
-            const cBottom = new THREE.Color(0.5, 0.0, 0.5);
-            const cTop = new THREE.Color(1.0, 0.6, 0.8);
+            const cBottom = new THREE.Color(0.9, 0.6, 0.9);
+            const cTop = new THREE.Color(1.0, 0.9, 0.95);
             const cBase = cBottom.clone().lerp(cTop, t);
 
-            // Spots
+            // Spots - Simple and Subtle
             let n = snoiseJS(pos.x, pos.y, pos.z);
-            n = n * 0.5 + 0.5; // 0..1
+            n = n * 0.5 + 0.5;
+
             const patch = THREE.MathUtils.smoothstep(n, 0.4, 0.6);
-            const cSpot = new THREE.Color(0.6, 0.1, 0.8);
+
+            // Spot color: Slightly darker relative to the local base color
+            // This ensures low contrast and consistent "depth" feel
+            const cSpot = cBase.clone().multiplyScalar(0.9); // 10% Darker
 
             return cBase.lerp(cSpot, patch);
         };
 
-        // 1. carSphere with Vertex Colors
+        // 1. carSphere with Vertex Colors (Basic Material = Pure Color)
         const carSphereGeo = new THREE.SphereGeometry(carRadius, 64, 64);
         const vertexCount = carSphereGeo.attributes.position.count;
         const sphereColors = new Float32Array(vertexCount * 3);
@@ -975,9 +980,9 @@
         }
         carSphereGeo.setAttribute('color', new THREE.BufferAttribute(sphereColors, 3));
 
-        const carSphereMat = new THREE.MeshStandardMaterial({
-            vertexColors: true,
-            roughness: 0.8
+        // Pure Color Material (No Metallic/Roughness)
+        const carSphereMat = new THREE.MeshBasicMaterial({
+            vertexColors: true
         });
 
         const carSphere = new THREE.Mesh(carSphereGeo, carSphereMat);
@@ -985,10 +990,11 @@
 
         // 2. Car Grass with Instance Colors
         const carGrassCount = 3000;
-        const carGrassGeo = new THREE.PlaneGeometry(0.2, 0.6);
-        carGrassGeo.translate(0, 0.3, 0);
+        // Tuned Fur: Width 0.25, Height 0.35
+        const carGrassGeo = new THREE.PlaneGeometry(0.25, 0.35);
+        carGrassGeo.translate(0, 0.175, 0); // Pivot at bottom (half of height)
 
-        // Custom Shader for Grass blending
+        // Custom Shader for Grass blending (Unlit)
         const carGrassMat = new THREE.ShaderMaterial({
             side: THREE.DoubleSide,
             vertexShader: `
@@ -1160,13 +1166,13 @@
             // So +Z is "Forward" in this rig.
             if (keys.w) moveDir.z += 1;
             if (keys.s) moveDir.z -= 1;
-            if (keys.a) moveDir.x -= 1; // Left (-X)
+            if (keys.a) moveDir.x += 1; // Left (Now using +X to fix direction)
             // If Z is forward, Y is Up. X is Right? 
             // Let's assume:
             // W (+Z) -> Forward
             // A (+X) -> Turn Left? Typically A is -X.
             // Let's try: A -> +X, D -> -X. If reversed, we swap.
-            if (keys.d) moveDir.x += 1; // Right (+X)
+            if (keys.d) moveDir.x -= 1; // Right (Now using -X)
 
             if (moveDir.lengthSq() > 0) moveDir.normalize();
 
