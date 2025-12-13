@@ -1306,9 +1306,9 @@
             idealOffset.add(carGroup.position);
 
             // Updated LookAt Offset: Center Car More (User Request)
-            // Previous Z: 8. New Z: 3.5.
-            // Result: Look spot is closer to car, so car moves "up" towards center of screen.
-            const lookTargetOffset = new THREE.Vector3(0, 2, 3.5);
+            // Previous Z: 1.5. New Z: -2.0 (Negative pushes it UP on screen).
+            // Result: Car crosses midline, appearing in upper half.
+            const lookTargetOffset = new THREE.Vector3(0, 2, -2.0);
             lookTargetOffset.applyQuaternion(carGroup.quaternion);
             const idealLookAt = carGroup.position.clone().add(lookTargetOffset);
 
