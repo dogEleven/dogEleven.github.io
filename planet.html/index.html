@@ -1043,9 +1043,15 @@
                     vec3 col = mix(vColor, tipPink, vUv.y);
                     
                     if (vUv.x < 0.1 || vUv.x > 0.9) discard; 
-                    if (vUv.y > 0.9) {
+                    
+                    // Aspect Ratio Correction for Round Top
+                    // Geo: 0.25 W x 0.35 H. Visible UV Width: 0.8 -> Physical Width 0.20.
+                    // Physical Cap Radius: 0.10.
+                    // Cap Height in UV: 0.10 / 0.35 = ~0.29
+                    // Start UV.y = 1.0 - 0.29 = 0.71
+                    if (vUv.y > 0.71) {
                          float nx = (vUv.x - 0.5) / 0.4;
-                         float ny = (vUv.y - 0.9) / 0.1;
+                         float ny = (vUv.y - 0.71) / 0.29;
                          if (nx*nx + ny*ny > 1.0) discard;
                     }
                     gl_FragColor = vec4(col, 1.0);
@@ -1261,10 +1267,9 @@
                 planet.material.uniforms.time.value = clock.getElapsedTime();
             }
 
-            // Updated Camera Offset: Closer (User Request)
-            // Previous: (0, 28, -13)
-            // New: (0, 22, -10) -> Closer and lower
-            const idealOffset = new THREE.Vector3(0, 22, -10);
+            // Updated Camera Offset: Closer (User Request) -> ZOOM OUT 20%
+            // Previous: (0, 22, -10). Multiplied by 1.2 -> (0, 26.4, -12.0)
+            const idealOffset = new THREE.Vector3(0, 26.4, -12.0);
             idealOffset.applyQuaternion(carGroup.quaternion);
             idealOffset.add(carGroup.position);
 
@@ -1272,8 +1277,9 @@
             lookTargetOffset.applyQuaternion(carGroup.quaternion);
             const idealLookAt = carGroup.position.clone().add(lookTargetOffset);
 
-            // Heavy buffer: 0.02 very smooth/slow
-            const camPosLerp = 0.02;
+            // Heavy buffer: 0.02 very smooth/slow -> REDUCED 30% (Speed up)
+            // 0.02 / 0.7 = ~0.0286 -> Round to 0.03
+            const camPosLerp = 0.03;
 
             // Fix: Camera Init Bug
             if (camera.position.distanceTo(idealOffset) > 100) {
@@ -1283,7 +1289,7 @@
 
             else {
                 camera.position.lerp(idealOffset, camPosLerp);
-                cameraLookAtCurrent.lerp(idealLookAt, 0.02);
+                cameraLookAtCurrent.lerp(idealLookAt, 0.03); // Match new speed
             }
 
             // Constrain camera to be level with ground
