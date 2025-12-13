@@ -1182,7 +1182,8 @@
             const dt = Math.min(clock.getDelta(), 0.1);
 
             // --- Direct Movement Logic (Omnidirectional) ---
-            const targetSpeed = 36;
+            // Adjusted Speed: Reduced 40% (36 -> 21.6)
+            const targetSpeed = 21.6;
             const moveDir = new THREE.Vector3(0, 0, 0);
 
             // Input Mapping (Direct Control)
@@ -1308,9 +1309,8 @@
             lookTargetOffset.applyQuaternion(carGroup.quaternion);
             const idealLookAt = carGroup.position.clone().add(lookTargetOffset);
 
-            // Heavy buffer: 0.02 very smooth/slow -> REDUCED 30% (Speed up)
-            // 0.02 / 0.7 = ~0.0286 -> Round to 0.03
-            const camPosLerp = 0.03;
+            // Heavy buffer: 0.02 -> 0.03 -> Reduced 50% again (Speed * 2) = 0.06
+            const camPosLerp = 0.06;
 
             // Fix: Camera Init Bug
             if (camera.position.distanceTo(idealOffset) > 100) {
@@ -1320,7 +1320,7 @@
 
             else {
                 camera.position.lerp(idealOffset, camPosLerp);
-                cameraLookAtCurrent.lerp(idealLookAt, 0.03); // Match new speed
+                cameraLookAtCurrent.lerp(idealLookAt, 0.06); // Match new speed
             }
 
             // Constrain camera to be level with ground
