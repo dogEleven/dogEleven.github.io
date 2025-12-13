@@ -479,7 +479,7 @@
                 float h=r - baseRadius;
 
                 // Bolder, Saturated Colors
-                vec3 cDeepWater=vec3(0.1, 0.4, 0.8); // Lighter Deep Blue (was 0.0, 0.1, 0.8)
+                vec3 cDeepWater=vec3(0.05, 0.2, 0.4); // Darker Deep Blue (50% darker)
                 vec3 cWater=vec3(0.2, 0.7, 0.95); // Lighter Cyan (was 0.0, 0.8, 1.0)
                 vec3 cWetSand=vec3(0.8, 0.6, 0.3); // Darker/Wet Sand
                 vec3 cSand=vec3(1.0, 0.85, 0.5); // Bright Sand
@@ -496,7 +496,11 @@
                 float seaLevel=-1.0;
 
                 // 2. Land Layer (Restored)
-                vec3 landCol=cSand;
+                // Start with Deep Water Color (Darker)
+                vec3 landCol = cDeepWater;
+
+                 // Deep Water -> Wet Sand
+                landCol = softMix(landCol, cWetSand, sh, seaLevel - 3.0, seaLevel - 1.0);
 
                 // Wet Sand -> Dry Sand
                 // Below seaLevel it is wet, dries as it goes up
@@ -504,7 +508,7 @@
                 // Water Level is -1.0. 
                 // Let's transition from -2.0 (Deep Wet) to 0.0 (Dry).
                 // Midpoint is -1.0 (Water Line).
-                landCol=softMix(cWetSand, cSand, sh, seaLevel - 1.0, seaLevel + 1.0);
+                landCol=softMix(landCol, cSand, sh, seaLevel - 1.0, seaLevel + 1.0);
 
                 // Sand -> Grass 
                 // EXPANDED GREEN ZONE: Start very close to water
@@ -588,7 +592,7 @@
         const waterMat = new THREE.MeshBasicMaterial({
             color: 0x00ccff, // Cyan-Blue (User Request)
             transparent: true,
-            opacity: 0.85,
+            opacity: 0.68,
             side: THREE.FrontSide
         });
         const waterSphere = new THREE.Mesh(waterGeo, waterMat);
