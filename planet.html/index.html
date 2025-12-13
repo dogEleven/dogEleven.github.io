@@ -500,7 +500,8 @@
                 vec3 landCol = cDeepWater;
 
                  // Deep Water -> Wet Sand
-                landCol = softMix(landCol, cWetSand, sh, seaLevel - 3.0, seaLevel - 1.0);
+                // Expanded Gradient (User Request): -6.0 to +0.5 (Into Shallow Water)
+                landCol = softMix(landCol, cWetSand, sh, seaLevel - 6.0, seaLevel + 0.5);
 
                 // Wet Sand -> Dry Sand
                 // Below seaLevel it is wet, dries as it goes up
