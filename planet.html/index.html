@@ -421,16 +421,16 @@
             // --- DEEP TERRAIN ADJUSTMENT (User Request) ---
             // If terrain is below 80% radius ( < 32.0 ), raise it to random 80-90% (32.0 - 36.0)
             if (finalRadius < planetRadius * 0.8) {
-                // High frequency deterministic noise for "random" look
+                // FLATTENING FIX (User Request): 
+                // Reduced frequency (8.0 -> 1.5) and amplitude (0.1 -> 0.05) for smooth floor
                 // Use dir scaled up significantly
-                let rNoise = noise(dir.x * 8.0, dir.y * 8.0, dir.z * 8.0);
+                let rNoise = noise(dir.x * 1.5, dir.y * 1.5, dir.z * 1.5);
                 // Map from -1..1 (approx) to 0..1 magnitude
                 // Math.abs might create creases, let's use 0.5 * (n + 1)
                 let normNoise = 0.5 * (rNoise + 1.0);
 
-                // Map to 80% - 90% range
-                // 0.8 to 0.9
-                let factor = 0.8 + normNoise * 0.1;
+                // Map to 80% - 90% range -> Reduced to 82.5% - 87.5%
+                let factor = 0.825 + normNoise * 0.05;
                 finalRadius = planetRadius * factor;
 
                 // Recalculate h for consistency if needed elsewhere (though mostly used for position)
@@ -906,9 +906,11 @@
             // Must match Planet Generation Logic EXACTLY or grass will float/bury
             let finalRadius = planetRadius + h;
             if (finalRadius < planetRadius * 0.8) {
-                let rNoise = noise(_v3.x * 8.0, _v3.y * 8.0, _v3.z * 8.0);
+                // FLATTENING FIX (User Request): 
+                // Reduced frequency (8.0 -> 1.5) and amplitude (0.1 -> 0.05) for smooth floor
+                let rNoise = noise(_v3.x * 1.5, _v3.y * 1.5, _v3.z * 1.5);
                 let normNoise = 0.5 * (rNoise + 1.0);
-                let factor = 0.8 + normNoise * 0.1;
+                let factor = 0.825 + normNoise * 0.05; // Range: 0.825 to 0.875
                 finalRadius = planetRadius * factor;
                 h = finalRadius - planetRadius;
             }
