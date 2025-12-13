@@ -946,23 +946,9 @@
             return Math.sin(x * 1.8) * Math.sin(y * 1.8) * Math.sin(z * 1.8);
         };
         const getSpotColor = (pos) => {
-            // Gradient Vertical - Very Light Pastel
-            const t = THREE.MathUtils.clamp((pos.y + 1.8) / 3.6, 0, 1);
-            const cBottom = new THREE.Color(0.9, 0.6, 0.9);
-            const cTop = new THREE.Color(1.0, 0.9, 0.95);
-            const cBase = cBottom.clone().lerp(cTop, t);
-
-            // Spots - Simple and Subtle
-            let n = snoiseJS(pos.x, pos.y, pos.z);
-            n = n * 0.5 + 0.5;
-
-            const patch = THREE.MathUtils.smoothstep(n, 0.4, 0.6);
-
-            // Spot color: Slightly darker relative to the local base color
-            // This ensures low contrast and consistent "depth" feel
-            const cSpot = cBase.clone().multiplyScalar(0.9); // 10% Darker
-
-            return cBase.lerp(cSpot, patch);
+            // User Request: Pure Pink, no gradient, no spots, but DEEPER
+            // Color: r=1.0, g=0.6, b=0.85 (Deeper Pink)
+            return new THREE.Color(1.0, 0.6, 0.85);
         };
 
         // 1. carSphere with Vertex Colors (Basic Material = Pure Color)
@@ -1049,11 +1035,12 @@
                 varying vec2 vUv;
                 varying vec3 vColor;
                 void main() {
-                    // Tip Color (Bright Pink)
-                    vec3 pink = vec3(1.0, 0.8, 0.95);
+                    // Tip Color (Lighter Pink for volume)
+                    vec3 tipPink = vec3(1.0, 0.8, 0.95);
                     
-                    // Mix Base(vColor) -> Tip(pink)
-                    vec3 col = mix(vColor, pink, vUv.y);
+                    // Mix Base(vColor - Root) -> Tip(tipPink)
+                    // Roots match the surface (vColor), Tips are lighter
+                    vec3 col = mix(vColor, tipPink, vUv.y);
                     
                     if (vUv.x < 0.1 || vUv.x > 0.9) discard; 
                     if (vUv.y > 0.9) {
