@@ -925,153 +925,185 @@
 
         scene.add(grassMesh);
 
-        // --- 4. Car Object ---
+        // --- 4. Car Object (Updated for Rolling & Colored Grass) ---
         const carGroup = new THREE.Group();
         carGroup.position.set(0, planetRadius + 10, 0);
 
-        // -- Chassis --
-        // Reverted width to 1.2 (User request: "Too wide")
-        const chassisGeo = new THREE.BoxGeometry(1.2, 0.4, 2.4);
+        // Define Car Sphere Radius
+        const carRadius = 1.8;
 
-        const chassisMat = new THREE.MeshBasicMaterial({
-            color: 0xFF6600 // Orange
+        // Container for rolling elements (Sphere + Grass)
+        // Positioned at radius height so it rotates around its center while "sitting" on the ground
+        const rollingChassis = new THREE.Group();
+        rollingChassis.position.y = carRadius;
+        carGroup.add(rollingChassis);
+
+        // 1. carSphere with Pink-Purple Gradient
+        // Custom Shader for Gradient + Spots
+        // --- CPU-Based Noise & Coloring for Robustness ---
+        const snoiseJS = (x, y, z) => {
+            return Math.sin(x * 1.5) * Math.sin(y * 1.5) * Math.sin(z * 1.5);
+        };
+        const getSpotColor = (pos, normalize = true) => {
+            // Gradient Vertical
+            const t = THREE.MathUtils.clamp((pos.y + 1.8) / 3.6, 0, 1);
+            const cBottom = new THREE.Color(0.5, 0.0, 0.5);
+            const cTop = new THREE.Color(1.0, 0.6, 0.8);
+            const cBase = cBottom.clone().lerp(cTop, t);
+
+            // Spots
+            let n = snoiseJS(pos.x, pos.y, pos.z);
+            n = n * 0.5 + 0.5; // 0..1
+            const patch = THREE.MathUtils.smoothstep(n, 0.4, 0.6);
+            const cSpot = new THREE.Color(0.6, 0.1, 0.8);
+
+            return cBase.lerp(cSpot, patch);
+        };
+
+        // 1. carSphere with Vertex Colors
+        const carSphereGeo = new THREE.SphereGeometry(carRadius, 64, 64);
+        const vertexCount = carSphereGeo.attributes.position.count;
+        const sphereColors = new Float32Array(vertexCount * 3);
+        const _v3_sphere = new THREE.Vector3();
+
+        for (let i = 0; i < vertexCount; i++) {
+            _v3_sphere.fromBufferAttribute(carSphereGeo.attributes.position, i);
+            const col = getSpotColor(_v3_sphere);
+            sphereColors[i * 3] = col.r;
+            sphereColors[i * 3 + 1] = col.g;
+            sphereColors[i * 3 + 2] = col.b;
+        }
+        carSphereGeo.setAttribute('color', new THREE.BufferAttribute(sphereColors, 3));
+
+        const carSphereMat = new THREE.MeshStandardMaterial({
+            vertexColors: true,
+            roughness: 0.8
         });
-        const chassis = new THREE.Mesh(chassisGeo, chassisMat);
-        // Raised body height (0.4 -> 0.6)
-        chassis.position.y = 0.6;
-        carGroup.add(chassis);
 
-        // Helper to create gradient texture
-        function createGradientTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
+        const carSphere = new THREE.Mesh(carSphereGeo, carSphereMat);
+        rollingChassis.add(carSphere);
 
-            // Bottom to Top Gradient
-            // Map vertically: (0, 64) is bottom, (0, 0) is top
-            const gradient = ctx.createLinearGradient(0, 64, 0, 0);
-            gradient.addColorStop(0, '#FF6600'); // Orange at bottom
-            gradient.addColorStop(1, '#CC3300'); // Deep Orange at top
+        // 2. Car Grass with Instance Colors
+        const carGrassCount = 3000;
+        const carGrassGeo = new THREE.PlaneGeometry(0.2, 0.6);
+        carGrassGeo.translate(0, 0.3, 0);
 
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 64, 64);
+        // Custom Shader for Grass blending
+        const carGrassMat = new THREE.ShaderMaterial({
+            side: THREE.DoubleSide,
+            vertexShader: `
+                attribute vec3 offset;
+                attribute vec3 instanceNormal;
+                attribute float scale;
+                attribute float rot;
+                attribute vec3 instanceColor; // From InstancedMesh
 
-            const texture = new THREE.CanvasTexture(canvas);
-            return texture;
+                varying vec2 vUv;
+                varying vec3 vColor;
+                
+                uniform float time;
+
+                vec3 rotateVector(vec4 q, vec3 v) {
+                    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+                }
+                vec4 axisAngleToQuaternion(vec3 axis, float angle) {
+                    float halfAngle = angle * 0.5;
+                    float s = sin(halfAngle);
+                    return vec4(axis * s, cos(halfAngle));
+                }
+
+                void main() {
+                    vUv = uv;
+                    vColor = instanceColor;
+
+                    vec3 pos = position;
+                    pos.y *= scale; 
+                    pos.x *= (scale * 0.5 + 0.5);
+
+                    float wind = sin(time * 5.0 + offset.x) * 0.05 * uv.y;
+                    pos.x += wind;
+
+                    vec4 qRand = axisAngleToQuaternion(vec3(0,1,0), rot);
+                    pos = rotateVector(qRand, pos);
+
+                    vec3 up = vec3(0,1,0);
+                    vec3 normal = normalize(instanceNormal);
+                    vec3 axis = cross(up, normal);
+                    float cosA = dot(up, normal);
+                    vec4 qAlign = vec4(0,0,0,1);
+                    if (cosA > -0.99) qAlign = normalize(vec4(axis, 1.0 + cosA));
+                    else qAlign = vec4(1,0,0,0);
+                    
+                    pos = rotateVector(qAlign, pos);
+                    vec3 localPos = pos + offset;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(localPos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec2 vUv;
+                varying vec3 vColor;
+                void main() {
+                    // Tip Color (Bright Pink)
+                    vec3 pink = vec3(1.0, 0.8, 0.95);
+                    
+                    // Mix Base(vColor) -> Tip(pink)
+                    vec3 col = mix(vColor, pink, vUv.y);
+                    
+                    if (vUv.x < 0.1 || vUv.x > 0.9) discard; 
+                    if (vUv.y > 0.9) {
+                         float nx = (vUv.x - 0.5) / 0.4;
+                         float ny = (vUv.y - 0.9) / 0.1;
+                         if (nx*nx + ny*ny > 1.0) discard;
+                    }
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `,
+            uniforms: {
+                time: { value: 0 }
+            }
+        });
+
+        const carGrassMesh = new THREE.InstancedMesh(carGrassGeo, carGrassMat, carGrassCount);
+        carGrassMesh.frustumCulled = false;
+
+        const cgOffsets = new Float32Array(carGrassCount * 3);
+        const cgNormals = new Float32Array(carGrassCount * 3);
+        const cgScales = new Float32Array(carGrassCount);
+        const cgRots = new Float32Array(carGrassCount);
+        const cgColors = new Float32Array(carGrassCount * 3);
+
+        const _cgV3 = new THREE.Vector3();
+        for (let i = 0; i < carGrassCount; i++) {
+            _cgV3.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+            const pos = _cgV3.clone().multiplyScalar(carRadius);
+
+            cgOffsets[i * 3 + 0] = pos.x;
+            cgOffsets[i * 3 + 1] = pos.y;
+            cgOffsets[i * 3 + 2] = pos.z;
+
+            cgNormals[i * 3 + 0] = _cgV3.x;
+            cgNormals[i * 3 + 1] = _cgV3.y;
+            cgNormals[i * 3 + 2] = _cgV3.z;
+
+            cgScales[i] = 0.5 + Math.random() * 0.5;
+            cgRots[i] = Math.random() * Math.PI * 2;
+
+            // Color from CPU Noise
+            const col = getSpotColor(pos);
+            cgColors[i * 3] = col.r;
+            cgColors[i * 3 + 1] = col.g;
+            cgColors[i * 3 + 2] = col.b;
         }
 
-        // -- Cabin --
-        const cabinGeo = new THREE.BoxGeometry(1.0, 0.6, 1.4);
+        carGrassMesh.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(cgOffsets, 3));
+        carGrassMesh.geometry.setAttribute('instanceNormal', new THREE.InstancedBufferAttribute(cgNormals, 3));
+        carGrassMesh.geometry.setAttribute('scale', new THREE.InstancedBufferAttribute(cgScales, 1));
+        carGrassMesh.geometry.setAttribute('rot', new THREE.InstancedBufferAttribute(cgRots, 1));
+        carGrassMesh.geometry.setAttribute('instanceColor', new THREE.InstancedBufferAttribute(cgColors, 3)); // Pass Instance Color
 
-        // Updated material: Multi-material to fix top face
-        // Order: Right, Left, Top, Bottom, Front, Back
-        const gradTexture = createGradientTexture();
-
-        const gradMat = new THREE.MeshBasicMaterial({
-            map: gradTexture
-        });
-
-        const whiteMat = new THREE.MeshBasicMaterial({
-            color: 0xCC3300
-        }); // Deep Orange for Top
-
-        const orangeMat = new THREE.MeshBasicMaterial({
-            color: 0xFF6600
-        });
-
-        const cabinMats = [gradMat,
-            // Right
-            gradMat,
-            // Left
-            whiteMat,
-            // Top (Solid White)
-            orangeMat,
-            // Bottom
-            gradMat,
-            // Front
-            gradMat // Back
-        ];
-
-        const cabin = new THREE.Mesh(cabinGeo, cabinMats);
-        // Raised to 1.0, Moved BACK to -0.5 (User request)
-        cabin.position.set(0, 1.0, -0.5);
-        carGroup.add(cabin);
-
-        // -- License Plate --
-        const plateGeo = new THREE.BoxGeometry(0.4, 0.15, 0.05);
-
-        const plateMat = new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF
-        });
-        const plate = new THREE.Mesh(plateGeo, plateMat);
-        // Back of chassis (Z=-1.2), slightly offset (-1.21)
-        // Chassis Y=0.6.
-        plate.position.set(0, 0.6, -1.21);
-        carGroup.add(plate);
-
-        // -- Windows (Black Glass) --
-        const windGeo = new THREE.BoxGeometry(0.9, 0.25, 0.8);
-
-        const windMat = new THREE.MeshBasicMaterial({
-            color: 0x111111
-        });
-        const windowMesh = new THREE.Mesh(windGeo, windMat);
-        // Raised to 1.1, Moved BACK to match cabin (-0.55)
-        windowMesh.position.set(0, 1.1, -0.55);
-        carGroup.add(windowMesh);
-
-        // -- Headlights --
-        const lightGeo = new THREE.BoxGeometry(0.2, 0.1, 0.1);
-
-        const lightMat = new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF
-        });
-        const lightL = new THREE.Mesh(lightGeo, lightMat);
-        lightL.position.set(-0.4, 0.5, 1.2);
-        carGroup.add(lightL);
-        const lightR = new THREE.Mesh(lightGeo, lightMat);
-        // -- Headlight Beams REMOVED (User request) --
-
-        // -- Wheels --
-        const createWheel = () => {
-            const g = new THREE.Group();
-            const tireGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 16);
-            tireGeo.rotateZ(Math.PI / 2);
-
-            const tireMat = new THREE.MeshBasicMaterial({
-                color: 0x111111
-            });
-            const tire = new THREE.Mesh(tireGeo, tireMat);
-            g.add(tire);
-            const hubGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.32, 8);
-            hubGeo.rotateZ(Math.PI / 2);
-
-            const hubMat = new THREE.MeshBasicMaterial({
-                color: 0x888888
-            });
-            const hub = new THREE.Mesh(hubGeo, hubMat);
-            g.add(hub);
-            return g;
-        }
-
-            ;
-
-        const wFL = createWheel();
-        wFL.position.set(-0.7, 0.35, 0.9);
-        carGroup.add(wFL);
-        const wFR = createWheel();
-        wFR.position.set(0.7, 0.35, 0.9);
-        carGroup.add(wFR);
-        const wBL = createWheel();
-        wBL.position.set(-0.7, 0.35, -0.9);
-        carGroup.add(wBL);
-        const wBR = createWheel();
-        wBR.position.set(0.7, 0.35, -0.9);
-        carGroup.add(wBR);
+        rollingChassis.add(carGrassMesh);
 
         scene.add(carGroup);
-
 
 
 
@@ -1119,64 +1151,76 @@
             requestAnimationFrame(animate);
             const dt = Math.min(clock.getDelta(), 0.1);
 
-            // --- Logic ---
-            // Physics Tuning (2025-12-11)
-            // MaxSpeed increased 50% (24 -> 36)
-            // Acc increased 30% (8.5 -> 11.0)
-            const maxSpeed = 36;
-            const acc = 11.0;
-            const brakePower = 30.0; // Stronger than acceleration for snappy braking
-            const friction = 8;
+            // --- Direct Movement Logic (Omnidirectional) ---
+            const targetSpeed = 36;
+            const moveDir = new THREE.Vector3(0, 0, 0);
 
-            // Forward / Backward / Brake Logic
-            if (keys.w) {
-                if (carPhysics.speed < -0.1) {
-                    // Moving backward, apply BRAKE
-                    carPhysics.speed += brakePower * dt;
-                }
+            // Input Mapping (Direct Control)
+            // Previous logic: W -> Increase Speed (Positive Z movement).
+            // So +Z is "Forward" in this rig.
+            if (keys.w) moveDir.z += 1;
+            if (keys.s) moveDir.z -= 1;
+            if (keys.a) moveDir.x -= 1; // Left (-X)
+            // If Z is forward, Y is Up. X is Right? 
+            // Let's assume:
+            // W (+Z) -> Forward
+            // A (+X) -> Turn Left? Typically A is -X.
+            // Let's try: A -> +X, D -> -X. If reversed, we swap.
+            if (keys.d) moveDir.x += 1; // Right (+X)
 
-                else {
-                    // Moving forward or stopped, Accelerate
-                    carPhysics.speed += acc * dt;
-                }
+            if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+            // Direct Velocity Control with Inertia
+            const targetVel = moveDir.multiplyScalar(targetSpeed);
+
+            // Re-use carPhysics.speed as a vector now? 
+            // Let's add a new property for velocity vector
+            if (!carPhysics.velocity) carPhysics.velocity = new THREE.Vector3();
+
+            // Smooth Acceleration/Deceleration (Dampening)
+            const lerpFactorVal = 5.0 * dt;
+            carPhysics.velocity.lerp(targetVel, lerpFactorVal);
+
+            // Apply Velocity
+            const distinctVel = carPhysics.velocity.clone();
+            distinctVel.multiplyScalar(dt); // Displacement
+
+            // Rolling Animation (Omnidirectional)
+            // Rotate around axis perpendicular to movement
+            const speed = carPhysics.velocity.length();
+            if (speed > 0.1) {
+                // Local Axis: Cross product of Up (0,1,0) and VelocityDir
+                // If moving +Z (Forward), Axis should be +X (Pitch Up? No).
+                // Rolling forward: Top moves forward. Axis is X.
+                // v = (0,0,1). up=(0,1,0). v X up = (-1, 0, 0).
+                // We want +X rotation. So we need up X v ?
+                // up(0,1,0) X v(0,0,1) = (1, 0, 0). Determine Direction.
+
+                const moveLocal = carPhysics.velocity.clone().normalize();
+                const up = new THREE.Vector3(0, 1, 0);
+                const rollAxis = new THREE.Vector3().crossVectors(up, moveLocal).normalize();
+
+                const rollAmount = (speed * dt) / 1.8; // radians
+
+                const qRoll = new THREE.Quaternion().setFromAxisAngle(rollAxis, rollAmount);
+                rollingChassis.quaternion.premultiply(qRoll);
             }
 
-            else if (keys.s) {
-                if (carPhysics.speed > 0.1) {
-                    // Moving forward, apply BRAKE
-                    carPhysics.speed -= brakePower * dt;
-                }
-
-                else {
-                    // Moving backward or stopped, Accelerate (Reverse)
-                    carPhysics.speed -= acc * dt;
-                }
-            }
-
-            else {
-                // Friction (Idle slowdown)
-                if (carPhysics.speed > 0.1) carPhysics.speed -= friction * dt;
-                else if (carPhysics.speed < -0.1) carPhysics.speed += friction * dt;
-                else carPhysics.speed = 0;
-            }
-
-            carPhysics.speed = Math.max(Math.min(carPhysics.speed, maxSpeed), -maxSpeed);
-
-            // Velocity
-            const velocity = new THREE.Vector3(0, 0, carPhysics.speed * dt);
-            velocity.applyQuaternion(carGroup.quaternion);
+            // Global Movement
+            const globalMove = distinctVel.clone();
+            globalMove.applyQuaternion(carGroup.quaternion);
 
             // Resistance / Drag when in water
             const distCenter = carPhysics.pos.length();
             const waterLevel = planetRadius + seaLevelRef;
-
             if (distCenter < waterLevel) {
-                // Underwater Drag (Preserved setting: 1.4)
-                const dragFactor = 1.4;
-                carPhysics.speed -= carPhysics.speed * dragFactor * dt;
+                globalMove.multiplyScalar(0.6); // Simple drag
             }
 
-            carPhysics.pos.add(velocity);
+            carPhysics.pos.add(globalMove);
+
+            // DEBUG: Title
+            document.title = `CarPos: ${carPhysics.pos.x.toFixed(1)}, ${carPhysics.pos.y.toFixed(1)}, ${carPhysics.pos.z.toFixed(1)}`;
 
             const skyPos = carPhysics.pos.clone().normalize().multiplyScalar(planetRadius + 50);
             const rayDir = new THREE.Vector3(0, 0, 0).sub(skyPos).normalize();
@@ -1191,91 +1235,30 @@
 
                 const sphereNormal = targetPos.clone().normalize();
                 const floorNormal = hit.face ? hit.face.normal.clone().transformDirection(planet.matrixWorld) : sphereNormal;
-                // Raw target up based on terrain geometry (faceted)
-                // PREVIOUS: 0.5 floor, 0.5 sphere (too stable/flat)
-                // NEW: 0.85 floor, 0.15 sphere (follows terrain, slight sphere bias for safety)
+
                 const rawTargetUp = new THREE.Vector3().addVectors(floorNormal.multiplyScalar(0.85), sphereNormal.multiplyScalar(0.15)).normalize();
 
-                // Smooth the Up vector over time to prevent jitter from face boundaries
-                // Increased lerp speed (5.0 -> 8.0) to react faster to steep slopes
                 carPhysics.smoothedUp.lerp(rawTargetUp, 8.0 * dt);
                 carPhysics.smoothedUp.normalize();
-
                 const targetUp = carPhysics.smoothedUp;
-
-                // Steering Logic:
-                // 1. Only turn if moving (speed > 0.1)
-                // 2. Invert turning when reversing
-                if (Math.abs(carPhysics.speed) > 0.1) {
-                    const dir = carPhysics.speed > 0 ? 1 : -1;
-                    const turnSpeed = 1.2 * dt * dir;
-
-                    if (keys.a) {
-                        const rotQ = new THREE.Quaternion().setFromAxisAngle(targetUp, turnSpeed);
-                        carGroup.quaternion.premultiply(rotQ);
-                    }
-
-                    if (keys.d) {
-                        const rotQ = new THREE.Quaternion().setFromAxisAngle(targetUp, -turnSpeed);
-                        carGroup.quaternion.premultiply(rotQ);
-                    }
-                }
-
-                // Visual Steering (Front Wheels)
-                // Smoothly rotate wheels towards target angle (+0.5 for Left, -0.5 for Right)
-                let targetSteer = 0;
-                if (keys.a) targetSteer = 0.5;
-                else if (keys.d) targetSteer = -0.5;
-
-                // Track current visual steering in a property attached to the carGroup (or just use a global/closure var)
-                if (!carGroup.userData.currentSteer) carGroup.userData.currentSteer = 0;
-
-                // Lerp towards target
-                const steerLerpSpeed = 5.0;
-                carGroup.userData.currentSteer += (targetSteer - carGroup.userData.currentSteer) * steerLerpSpeed * dt;
-
-                // Apply to Front Left (wFL) and Front Right (wFR)
-                // Note: Wheels are rotated Z=90 originally. We need to apply Y rotation locally.
-                // Since they are in a group, we can just set rotation.y if the group is aligned correctly.
-                // The wheels were created with: cylinder rotated Z, added to group 'g'.
-                // So rotating 'g.rotation.y' should steer them.
-                wFL.rotation.y = carGroup.userData.currentSteer;
-                wFR.rotation.y = carGroup.userData.currentSteer;
 
                 const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(carGroup.quaternion);
                 const qAlign = new THREE.Quaternion().setFromUnitVectors(currentUp, targetUp);
-
-                // Slerp the alignment for extra smoothness instead of hard premultiply
                 const targetQ = carGroup.quaternion.clone().premultiply(qAlign);
                 carGroup.quaternion.slerp(targetQ, 10.0 * dt);
 
-                const lerpFactor = 0.2;
-
-                if (carGroup.position.distanceTo(targetPos) > 10) {
-                    carGroup.position.copy(targetPos);
-                }
-
-                else {
-                    carGroup.position.lerp(targetPos, lerpFactor);
-                }
+                // Position Sync
+                const lerpPosFactor = 0.2;
+                if (carGroup.position.distanceTo(targetPos) > 10) carGroup.position.copy(targetPos);
+                else carGroup.position.lerp(targetPos, lerpPosFactor);
             }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
             // Update Grass Uniforms
             grassMat.uniforms.carPos.value.copy(carGroup.position);
             grassMat.uniforms.time.value = clock.getElapsedTime();
+
+            // Update Car Grass Uniforms
+            carGrassMat.uniforms.time.value = clock.getElapsedTime();
 
             // --- Multiplayer Sync ---
 
