@@ -1062,7 +1062,7 @@
             // Base Leaves: Dark Green to Mid Green
             { geo: new THREE.ConeGeometry(1.2, 2.0, 7).translate(0, 2.0, 0), gradient: { from: 0x004d00, to: 0x228B22 } },
             // Top Leaves: Mid Green to Lighter Green
-            { geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 3.2, 0), gradient: { from: 0x228B22, to: 0x66cc44 } }
+            { geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 2.8, 0), gradient: { from: 0x228B22, to: 0x66cc44 } }
         ];
         const treeGeo = createColoredGeometry(treeParts);
 
@@ -1170,6 +1170,12 @@
 
         let debugVegCount = 0;
 
+        let seed = 12345;
+        function seededRandom() {
+            seed = (seed * 9301 + 49297) % 233280;
+            return seed / 233280;
+        }
+
         function scatterObjects(geo, count, type, minDistance = 0) {
             const mesh = new THREE.InstancedMesh(geo, vegMaterial, count);
             const offsets = new Float32Array(count * 3);
@@ -1182,7 +1188,7 @@
 
             // Try more attempts
             for (let i = 0; i < count * 20 && idx < count; i++) {
-                _v3.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                _v3.set(seededRandom() - 0.5, seededRandom() - 0.5, seededRandom() - 0.5).normalize();
 
                 let n = noise(_v3.x, _v3.y, _v3.z);
                 n += 0.25 * noise(_v3.x * 3.0, _v3.y * 3.0, _v3.z * 3.0);
@@ -1246,16 +1252,16 @@
                         if (h < 0.0 || h > 18.0) valid = false;
                         // Simple Density Check
                         if (noise(_v3.x * 5.0, _v3.y * 5.0, _v3.z * 5.0) < 0.0) valid = false;
-                        scale = 1.2 + Math.random() * 1.0; // Larger trees
+                        scale = 1.2 + seededRandom() * 1.0; // Larger trees
                     } else if (type === 'mushroom') {
                         if (h < 1.0 || h > 15.0) valid = false;
                         // Clumps
                         if (noise(_v3.x * 10.0 + 10.0, _v3.y * 10.0, _v3.z * 10.0) > -0.2) valid = false;
-                        scale = 0.8 + Math.random() * 0.5; // Visible mushrooms
+                        scale = 0.8 + seededRandom() * 0.5; // Visible mushrooms
                     } else if (type === 'flower') {
                         if (h < -0.5 || h > 15.0) valid = false;
                         if (noise(_v3.x * 15.0, _v3.y * 15.0, _v3.z * 15.0) < 0.2) valid = false;
-                        scale = 0.8 + Math.random() * 0.5; // Visible flowers
+                        scale = 0.8 + seededRandom() * 0.5; // Visible flowers
                     }
                 }
 
@@ -1270,7 +1276,7 @@
                     normals[idx * 3 + 2] = _v3.z;
 
                     scales[idx] = scale;
-                    rots[idx] = Math.random() * Math.PI * 2;
+                    rots[idx] = seededRandom() * Math.PI * 2;
                     idx++;
                 }
             }
@@ -1286,7 +1292,8 @@
             return mesh;
         }
 
-        const trees = scatterObjects(treeGeo, 195, 'tree', 3.0); // Reduced count 195 (50%), MinDist 3.0
+        seed = 12345; // Reset seed
+        const trees = scatterObjects(treeGeo, 117, 'tree', 3.0); // Reduced count 117 (Target 40% reduction), MinDist 3.0
         const mushrooms = scatterObjects(mushGeo, 200, 'mushroom'); // Reduced 200
         const flowers = scatterObjects(flowerGeo, 2000, 'flower'); // Reduced 50% (was 4000)
 
