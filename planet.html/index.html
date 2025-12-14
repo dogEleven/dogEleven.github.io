@@ -1071,7 +1071,7 @@
             // Stem: Shortened to 0.35 height, Tapered top to 0.1 to fit inside cap
             { geo: new THREE.CylinderGeometry(0.12, 0.1, 0.35, 6).translate(0, 0.175, 0), color: 0xFFF8DC },
             // Cap: Lowered to 0.3 to fully cover stem top
-            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI).translate(0, 0.3, 0), color: 0xFF4500 }
+            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.3, 0), color: 0xFF4500 }
         ];
         const mushGeo = createColoredGeometry(mushParts);
 
@@ -1170,7 +1170,7 @@
 
         let debugVegCount = 0;
 
-        function scatterObjects(geo, count, type) {
+        function scatterObjects(geo, count, type, minDistance = 0) {
             const mesh = new THREE.InstancedMesh(geo, vegMaterial, count);
             const offsets = new Float32Array(count * 3);
             const normals = new Float32Array(count * 3);
@@ -1210,6 +1210,31 @@
 
                 let valid = false;
                 let scale = 1.0;
+
+                // Min Distance Check (Optimization: only if minDistance > 0)
+                if (minDistance > 0) {
+                    // Check against already placed objects in this batch
+                    // Note: This only checks against objects of the SAME type in this scatter call
+                    // To be perfect, we'd need a global list, but self-spacing is usually enough.
+                    let tooClose = false;
+                    const candidatePos = _v3.clone().multiplyScalar(40.0 + h); // Approx position
+
+                    // Simple O(N) check - sufficient for N < 1000
+                    for (let d = 0; d < idx; d++) {
+                        const px = offsets[d * 3];
+                        const py = offsets[d * 3 + 1];
+                        const pz = offsets[d * 3 + 2];
+                        // Squared distance check is faster
+                        const dx = px - candidatePos.x;
+                        const dy = py - candidatePos.y;
+                        const dz = pz - candidatePos.z;
+                        if (dx * dx + dy * dy + dz * dz < minDistance * minDistance) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (tooClose) continue;
+                }
 
                 // SIMPLIFIED ZONING (Debug)
                 // Valid if above Water (-1.0) and below High Peaks (25.0)
@@ -1261,8 +1286,8 @@
             return mesh;
         }
 
-        const trees = scatterObjects(treeGeo, 500, 'tree'); // Reduced 50% (was 1000)
-        const mushrooms = scatterObjects(mushGeo, 500, 'mushroom'); // Reduced 50% (was 1000)
+        const trees = scatterObjects(treeGeo, 560, 'tree', 3.0); // Reduced count 560 (-30%), MinDist 3.0
+        const mushrooms = scatterObjects(mushGeo, 200, 'mushroom'); // Reduced 200
         const flowers = scatterObjects(flowerGeo, 2000, 'flower'); // Reduced 50% (was 4000)
 
         document.title = `Veg: ${debugVegCount}`;
