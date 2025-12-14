@@ -739,7 +739,8 @@
                 // --- 4. Car Interaction ---
                 // Push grass away from car
                 float dist=distance(offset, carPos);
-                float radius=3.5; // Interaction radius
+                // Reduced Interaction Radius (40% of 3.5 -> 1.4)
+                float radius=1.4;
 
                 if (dist < radius) {
                     float strength=(1.0 - dist / radius); // 0 to 1
@@ -1143,11 +1144,11 @@
                     // Car Interaction (Push Away)
                     vec3 worldOffset = offset;
                     float dist = distance(worldOffset, carPos);
-                    // Push radius 4.0
-                    if(dist < 4.0) {
+                    // Push radius 4.0 -> Reduced to 1.6 (40%)
+                    if(dist < 1.6) {
                         float originalLen = length(pos); // Capture original length
                         vec3 push = normalize(worldOffset - carPos);
-                        float pushFactor = (1.0 - dist / 4.0);
+                        float pushFactor = (1.0 - dist / 1.6);
                         // Reduced strength 2.0 -> 1.0
                         pos += push * pushFactor * 1.0 * (h > 0.1 ? 1.0 : 0.0);
                         
@@ -1300,182 +1301,45 @@
         document.title = `Veg: ${debugVegCount}`;
 
 
-        // --- 4. Car Object (Updated for Rolling & Colored Grass) ---
+        // --- 4. Character (Humanoid) ---
         const carGroup = new THREE.Group();
         carGroup.position.set(0, planetRadius + 10, 0);
 
-        // Define Car Sphere Radius
-        const carRadius = 1.8;
+        // Character Container (For local rotation/animation)
+        const characterContainer = new THREE.Group();
+        carGroup.add(characterContainer);
 
-        // Container for rolling elements (Sphere + Grass)
-        // Positioned at radius height so it rotates around its center while "sitting" on the ground
-        const rollingChassis = new THREE.Group();
-        rollingChassis.position.y = carRadius;
-        carGroup.add(rollingChassis);
+        // Material (White)
+        // Material (White, Flat, No Shadow)
+        const charMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-        // 1. carSphere with Pink-Purple Gradient
-        // Custom Shader for Gradient + Spots (Refined)
-        // --- CPU-Based Noise & Coloring for Robustness (Refined) ---
-        const snoiseJS = (x, y, z) => {
-            // Simplified: Single Octave for cleaner, less complex spots
-            return Math.sin(x * 1.8) * Math.sin(y * 1.8) * Math.sin(z * 1.8);
-        };
-        const getSpotColor = (pos) => {
-            // User Request: Pure Pink, no gradient, no spots, but DEEPER
-            // Color: r=1.0, g=0.6, b=0.85 (Deeper Pink)
-            return new THREE.Color(1.0, 0.6, 0.85);
-        };
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.5, 32, 32);
+        const headMesh = new THREE.Mesh(headGeo, charMat);
+        headMesh.position.y = 1.7;
+        characterContainer.add(headMesh);
 
-        // 1. carSphere with Vertex Colors (Basic Material = Pure Color)
-        const carSphereGeo = new THREE.SphereGeometry(carRadius, 64, 64);
-        const vertexCount = carSphereGeo.attributes.position.count;
-        const sphereColors = new Float32Array(vertexCount * 3);
-        const _v3_sphere = new THREE.Vector3();
+        // Body (Capsule-ish: Cylinder with rounded feel, or just Cylinder)
+        // Image shows a simple shape. Let's make it a slightly tapered cylinder.
+        const bodyGeo = new THREE.CylinderGeometry(0.35, 0.45, 0.7, 16);
+        const bodyMesh = new THREE.Mesh(bodyGeo, charMat);
+        bodyMesh.position.y = 1.0;
+        characterContainer.add(bodyMesh);
 
-        for (let i = 0; i < vertexCount; i++) {
-            _v3_sphere.fromBufferAttribute(carSphereGeo.attributes.position, i);
-            const col = getSpotColor(_v3_sphere);
-            sphereColors[i * 3] = col.r;
-            sphereColors[i * 3 + 1] = col.g;
-            sphereColors[i * 3 + 2] = col.b;
-        }
-        carSphereGeo.setAttribute('color', new THREE.BufferAttribute(sphereColors, 3));
+        // Legs
+        // Pivot at the hips (top of leg)
+        const legGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.7, 12);
+        legGeo.translate(0, -0.35, 0); // Shift so origin is at top
 
-        // Pure Color Material (No Metallic/Roughness)
-        const carSphereMat = new THREE.MeshBasicMaterial({
-            vertexColors: true
-        });
+        // Left Leg
+        const leftLeg = new THREE.Mesh(legGeo, charMat);
+        leftLeg.position.set(-0.2, 0.7, 0); // Hip position
+        characterContainer.add(leftLeg);
 
-        const carSphere = new THREE.Mesh(carSphereGeo, carSphereMat);
-        rollingChassis.add(carSphere);
-
-        // 2. Car Grass with Instance Colors
-        const carGrassCount = 3000;
-        // Tuned Fur: Width 0.25, Height 0.35
-        const carGrassGeo = new THREE.PlaneGeometry(0.25, 0.35);
-        carGrassGeo.translate(0, 0.175, 0); // Pivot at bottom (half of height)
-
-        // Custom Shader for Grass blending (Unlit)
-        const carGrassMat = new THREE.ShaderMaterial({
-            side: THREE.DoubleSide,
-            vertexShader: `
-                attribute vec3 offset;
-                attribute vec3 instanceNormal;
-                attribute float scale;
-                attribute float rot;
-                attribute vec3 instanceColor; // From InstancedMesh
-
-                varying vec2 vUv;
-                varying vec3 vColor;
-                
-                uniform float time;
-
-                vec3 rotateVector(vec4 q, vec3 v) {
-                    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
-                }
-                vec4 axisAngleToQuaternion(vec3 axis, float angle) {
-                    float halfAngle = angle * 0.5;
-                    float s = sin(halfAngle);
-                    return vec4(axis * s, cos(halfAngle));
-                }
-
-                void main() {
-                    vUv = uv;
-                    vColor = instanceColor;
-
-                    vec3 pos = position;
-                    pos.y *= scale; 
-                    pos.x *= (scale * 0.5 + 0.5);
-
-                    float wind = sin(time * 5.0 + offset.x) * 0.05 * uv.y;
-                    pos.x += wind;
-
-                    vec4 qRand = axisAngleToQuaternion(vec3(0,1,0), rot);
-                    pos = rotateVector(qRand, pos);
-
-                    vec3 up = vec3(0,1,0);
-                    vec3 normal = normalize(instanceNormal);
-                    vec3 axis = cross(up, normal);
-                    float cosA = dot(up, normal);
-                    vec4 qAlign = vec4(0,0,0,1);
-                    if (cosA > -0.99) qAlign = normalize(vec4(axis, 1.0 + cosA));
-                    else qAlign = vec4(1,0,0,0);
-                    
-                    pos = rotateVector(qAlign, pos);
-                    vec3 localPos = pos + offset;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(localPos, 1.0);
-                }
-            `,
-            fragmentShader: `
-                varying vec2 vUv;
-                varying vec3 vColor;
-                void main() {
-                    // Tip Color (Lighter Pink for volume)
-                    vec3 tipPink = vec3(1.0, 0.8, 0.95);
-                    
-                    // Mix Base(vColor - Root) -> Tip(tipPink)
-                    // Roots match the surface (vColor), Tips are lighter
-                    vec3 col = mix(vColor, tipPink, vUv.y);
-                    
-                    if (vUv.x < 0.1 || vUv.x > 0.9) discard; 
-                    
-                    // Aspect Ratio Correction for Round Top
-                    // Geo: 0.25 W x 0.35 H. Visible UV Width: 0.8 -> Physical Width 0.20.
-                    // Physical Cap Radius: 0.10.
-                    // Cap Height in UV: 0.10 / 0.35 = ~0.29
-                    // Start UV.y = 1.0 - 0.29 = 0.71
-                    if (vUv.y > 0.71) {
-                         float nx = (vUv.x - 0.5) / 0.4;
-                         float ny = (vUv.y - 0.71) / 0.29;
-                         if (nx*nx + ny*ny > 1.0) discard;
-                    }
-                    gl_FragColor = vec4(col, 1.0);
-                }
-            `,
-            uniforms: {
-                time: { value: 0 }
-            }
-        });
-
-        const carGrassMesh = new THREE.InstancedMesh(carGrassGeo, carGrassMat, carGrassCount);
-        carGrassMesh.frustumCulled = false;
-
-        const cgOffsets = new Float32Array(carGrassCount * 3);
-        const cgNormals = new Float32Array(carGrassCount * 3);
-        const cgScales = new Float32Array(carGrassCount);
-        const cgRots = new Float32Array(carGrassCount);
-        const cgColors = new Float32Array(carGrassCount * 3);
-
-        const _cgV3 = new THREE.Vector3();
-        for (let i = 0; i < carGrassCount; i++) {
-            _cgV3.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-            const pos = _cgV3.clone().multiplyScalar(carRadius);
-
-            cgOffsets[i * 3 + 0] = pos.x;
-            cgOffsets[i * 3 + 1] = pos.y;
-            cgOffsets[i * 3 + 2] = pos.z;
-
-            cgNormals[i * 3 + 0] = _cgV3.x;
-            cgNormals[i * 3 + 1] = _cgV3.y;
-            cgNormals[i * 3 + 2] = _cgV3.z;
-
-            cgScales[i] = 0.5 + Math.random() * 0.5;
-            cgRots[i] = Math.random() * Math.PI * 2;
-
-            // Color from CPU Noise
-            const col = getSpotColor(pos);
-            cgColors[i * 3] = col.r;
-            cgColors[i * 3 + 1] = col.g;
-            cgColors[i * 3 + 2] = col.b;
-        }
-
-        carGrassMesh.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(cgOffsets, 3));
-        carGrassMesh.geometry.setAttribute('instanceNormal', new THREE.InstancedBufferAttribute(cgNormals, 3));
-        carGrassMesh.geometry.setAttribute('scale', new THREE.InstancedBufferAttribute(cgScales, 1));
-        carGrassMesh.geometry.setAttribute('rot', new THREE.InstancedBufferAttribute(cgRots, 1));
-        carGrassMesh.geometry.setAttribute('instanceColor', new THREE.InstancedBufferAttribute(cgColors, 3)); // Pass Instance Color
-
-        rollingChassis.add(carGrassMesh);
+        // Right Leg
+        const rightLeg = new THREE.Mesh(legGeo, charMat);
+        rightLeg.position.set(0.2, 0.7, 0); // Hip position
+        characterContainer.add(rightLeg);
 
         scene.add(carGroup);
 
@@ -1527,7 +1391,8 @@
 
             // --- Direct Movement Logic (Omnidirectional) ---
             // Adjusted Speed: Reduced 40% (36 -> 21.6)
-            const targetSpeed = 21.6;
+            // Adjusted Speed: Reduced to 10.0 (User Request)
+            const targetSpeed = 10.0;
             const moveDir = new THREE.Vector3(0, 0, 0);
 
             // Input Mapping (Direct Control)
@@ -1560,25 +1425,38 @@
             const distinctVel = carPhysics.velocity.clone();
             distinctVel.multiplyScalar(dt); // Displacement
 
-            // Rolling Animation (Omnidirectional)
-            // Rotate around axis perpendicular to movement
+            // Character Animation Logic
             const speed = carPhysics.velocity.length();
-            if (speed > 0.1) {
-                // Local Axis: Cross product of Up (0,1,0) and VelocityDir
-                // If moving +Z (Forward), Axis should be +X (Pitch Up? No).
-                // Rolling forward: Top moves forward. Axis is X.
-                // v = (0,0,1). up=(0,1,0). v X up = (-1, 0, 0).
-                // We want +X rotation. So we need up X v ?
-                // up(0,1,0) X v(0,0,1) = (1, 0, 0). Determine Direction.
 
-                const moveLocal = carPhysics.velocity.clone().normalize();
-                const up = new THREE.Vector3(0, 1, 0);
-                const rollAxis = new THREE.Vector3().crossVectors(up, moveLocal).normalize();
+            // 1. Face Direction
+            if (moveDir.lengthSq() > 0.1) {
+                // Calculate target angle from input
+                // moveDir.z is Forward/Backward, moveDir.x is Left/Right
+                const targetAngle = Math.atan2(moveDir.x, moveDir.z);
 
-                const rollAmount = (speed * dt) / 1.8; // radians
+                // Smooth Rotation
+                const currentRotation = characterContainer.rotation.y;
+                let diff = targetAngle - currentRotation;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
 
-                const qRoll = new THREE.Quaternion().setFromAxisAngle(rollAxis, rollAmount);
-                rollingChassis.quaternion.premultiply(qRoll);
+                // Rotation speed
+                characterContainer.rotation.y += diff * 15.0 * dt;
+            }
+
+            // 2. Walk Cycle (Legs)
+            if (speed > 0.5) {
+                // Use clock time for continuous walking
+                const t = clock.getElapsedTime() * 12.0; // Speed of legs
+                const amp = 0.8; // Leg swing amplitude
+
+                leftLeg.rotation.x = Math.sin(t) * amp;
+                rightLeg.rotation.x = -Math.sin(t) * amp;
+            } else {
+                // Reset legs separately when stopped
+                const t = dt * 10.0;
+                leftLeg.rotation.x = leftLeg.rotation.x * (1.0 - t);
+                rightLeg.rotation.x = rightLeg.rotation.x * (1.0 - t);
             }
 
             // Global Movement
@@ -1636,8 +1514,7 @@
             vegMaterial.uniforms.carPos.value.copy(carGroup.position);
             vegMaterial.uniforms.time.value = clock.getElapsedTime();
 
-            // Update Car Grass Uniforms
-            carGrassMat.uniforms.time.value = clock.getElapsedTime();
+            // Car Grass Uniforms removed
 
             // --- Multiplayer Sync ---
 
