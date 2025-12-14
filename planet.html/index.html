@@ -967,14 +967,13 @@
 
         // --- 3.9 Additional Vegetation (Trees, Flowers, Mushrooms) ---
 
-        // Helper to merge geometries with baked vertex colors
+        // Helper to merge geometries with baked vertex colors (Support Gradient)
         function createColoredGeometry(parts) {
             let totalVerts = 0;
-            // Must use toNonIndexed() to handle geometries with indices (like Sphere/Cylinder) correctly
-            // Otherwise vertices will be scrambled and shapes will look broken/exploded
             const unindexedParts = parts.map(p => ({
                 geo: p.geo.toNonIndexed(),
-                color: p.color
+                color: p.color,
+                gradient: p.gradient // { from: hex, to: hex }
             }));
 
             unindexedParts.forEach(p => totalVerts += p.geo.attributes.position.count);
@@ -982,11 +981,12 @@
             const positions = new Float32Array(totalVerts * 3);
             const normals = new Float32Array(totalVerts * 3);
             const colors = new Float32Array(totalVerts * 3);
-            // UVs for wind gradients
             const uvs = new Float32Array(totalVerts * 2);
 
             let offset = 0;
             const _col = new THREE.Color();
+            const _colStart = new THREE.Color();
+            const _colEnd = new THREE.Color();
 
             unindexedParts.forEach(p => {
                 const geo = p.geo;
@@ -995,12 +995,43 @@
                 const uv = geo.attributes.uv;
                 const count = pos.count;
 
-                _col.setHex(p.color);
+                let useGradient = false;
+                let yMin = 0, yRange = 1;
+
+                if (p.gradient) {
+                    useGradient = true;
+                    _colStart.setHex(p.gradient.from);
+                    _colEnd.setHex(p.gradient.to);
+
+                    geo.computeBoundingBox();
+                    yMin = geo.boundingBox.min.y;
+                    yRange = geo.boundingBox.max.y - yMin;
+                    if (yRange < 0.001) yRange = 1.0;
+                } else {
+                    _col.setHex(p.color);
+                }
 
                 for (let i = 0; i < count; i++) {
-                    positions[(offset + i) * 3 + 0] = pos.getX(i);
-                    positions[(offset + i) * 3 + 1] = pos.getY(i);
-                    positions[(offset + i) * 3 + 2] = pos.getZ(i);
+                    // Position
+                    const px = pos.getX(i);
+                    const py = pos.getY(i);
+                    const pz = pos.getZ(i);
+
+                    positions[(offset + i) * 3 + 0] = px;
+                    positions[(offset + i) * 3 + 1] = py;
+                    positions[(offset + i) * 3 + 2] = pz;
+
+                    // Color Logic
+                    if (useGradient) {
+                        // t = 0 (bottom) to 1 (top)
+                        let t = (py - yMin) / yRange;
+                        // Lerp
+                        _col.lerpColors(_colStart, _colEnd, t);
+                    }
+
+                    colors[(offset + i) * 3 + 0] = _col.r;
+                    colors[(offset + i) * 3 + 1] = _col.g;
+                    colors[(offset + i) * 3 + 2] = _col.b;
 
                     if (norm) {
                         normals[(offset + i) * 3 + 0] = norm.getX(i);
@@ -1012,13 +1043,8 @@
                         uvs[(offset + i) * 2 + 0] = uv.getX(i);
                         uvs[(offset + i) * 2 + 1] = uv.getY(i);
                     }
-
-                    colors[(offset + i) * 3 + 0] = _col.r;
-                    colors[(offset + i) * 3 + 1] = _col.g;
-                    colors[(offset + i) * 3 + 2] = _col.b;
                 }
                 offset += count;
-                // It's good practice to dispose the temp geometry
                 geo.dispose();
             });
 
@@ -1030,11 +1056,13 @@
             return finalGeo;
         }
 
-        // 1. Tree Geometry (Trunk + 2 Cones)
+        // 1. Tree Geometry (Trunk + 2 Cones) with Gradients
         const treeParts = [
-            { geo: new THREE.CylinderGeometry(0.2, 0.3, 1.0, 7).translate(0, 0.5, 0), color: 0x5C4033 }, // Trunk
-            { geo: new THREE.ConeGeometry(1.2, 2.0, 7).translate(0, 2.0, 0), color: 0x228B22 }, // Base Leaves
-            { geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 3.2, 0), color: 0x32CD32 }  // Top Leaves
+            { geo: new THREE.CylinderGeometry(0.2, 0.3, 1.0, 7).translate(0, 0.5, 0), color: 0x5C4033 }, // Trunk (Solid)
+            // Base Leaves: Dark Green to Mid Green
+            { geo: new THREE.ConeGeometry(1.2, 2.0, 7).translate(0, 2.0, 0), gradient: { from: 0x004d00, to: 0x228B22 } },
+            // Top Leaves: Mid Green to Lighter Green
+            { geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 3.2, 0), gradient: { from: 0x228B22, to: 0x66cc44 } }
         ];
         const treeGeo = createColoredGeometry(treeParts);
 
