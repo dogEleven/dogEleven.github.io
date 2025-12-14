@@ -1357,7 +1357,7 @@
             ;
 
         const keys = {
-            w: false, a: false, s: false, d: false
+            w: false, a: false, s: false, d: false, " ": false
         }
 
             ;
@@ -1483,40 +1483,76 @@
 
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                let targetPos = hit.point.clone();
+                const landPos = hit.point.clone(); // The point on the ground (Horizontal target)
 
-                const distToCenter = targetPos.length();
-                // Ensure floating level is calculated relative to global Sea Level
+                // Initialize physics Vertical Speed
+                if (carPhysics.vSpeed === undefined) carPhysics.vSpeed = 0;
+
+                const currentHeight = carPhysics.pos.length();
+                const groundH = landPos.length();
                 const waterR = planetRadius + seaLevelRef;
-                let isFloating = false;
 
-                // Buoyancy / Floating Logic
-                if (distToCenter < waterR) {
-                    // Float at chest depth (approximated)
-                    const floatH = waterR - 0.6;
-                    // Add subtle bobbing
-                    const bob = Math.sin(clock.getElapsedTime() * 2.0) * 0.08;
-                    const finalH = Math.max(distToCenter, floatH + bob);
+                // Physics Constants
+                const gravity = -20.0; // Strong gravity in air
+                const waterGravity = -3.0; // Slow sinking in water
+                const swimForce = 15.0; // Upward acceleration
+                const drag = 0.92; // Water resistance
 
-                    // If the calculated floating height is significantly above ground, we float
-                    if (finalH > distToCenter + 0.05) {
-                        targetPos.setLength(finalH);
-                        isFloating = true;
+                let activeGravity = gravity;
+                let isUnderwater = false;
+
+                // Water Check
+                if (currentHeight < waterR) {
+                    isUnderwater = true;
+                    activeGravity = waterGravity; // Reduced gravity (Buoyancy factor)
+                    carPhysics.vSpeed *= drag; // Water resistance
+
+                    // Swim Up
+                    if (keys[" "]) {
+                        carPhysics.vSpeed += swimForce * dt;
                     }
                 }
 
-                carPhysics.pos.copy(targetPos);
+                // Apply Gravity
+                carPhysics.vSpeed += activeGravity * dt;
 
-                const sphereNormal = targetPos.clone().normalize();
+                // Calculate New Height
+                let newH = currentHeight + carPhysics.vSpeed * dt;
+
+                // Ground Collision
+                if (newH < groundH) {
+                    newH = groundH;
+                    carPhysics.vSpeed = 0;
+                }
+
+                // Construct New Target Position
+                // Maintain the "Horizontal" position determined by the Raycast (which follows player input via skyPos)
+                // But set the Vertical Height to our physics height
+                const finalPos = landPos.clone().normalize().multiplyScalar(newH);
+
+                // Update Physics Position
+                carPhysics.pos.copy(finalPos);
+
+                // --- Orientation Logic ---
+                // If in air/water, align with Sphere Normal (Global Up)
+                // If on ground, align with Terrain Normal
+                // Smooth blend based on distance to ground
+                const distToGround = newH - groundH;
+
+                const sphereNormal = finalPos.clone().normalize();
                 const floorNormal = hit.face ? hit.face.normal.clone().transformDirection(planet.matrixWorld) : sphereNormal;
 
-                // If floating, align largely with sphere up (gravity), canceling out underwater slope
-                const desiredNormal = isFloating ? sphereNormal : floorNormal;
-                const blendFactor = isFloating ? 0.95 : 0.85;
+                // Blend factor: 0 (Ground) -> 1 (Air/Water)
+                // Transition over 2.0 unit height
+                let airFactor = Math.min(distToGround / 2.0, 1.0);
+                if (isUnderwater) airFactor = Math.max(airFactor, 0.5); // Always orient largely upright in water
 
-                const rawTargetUp = new THREE.Vector3().addVectors(desiredNormal.multiplyScalar(blendFactor), sphereNormal.multiplyScalar(1.0 - blendFactor)).normalize();
+                const blendedTargetUp = new THREE.Vector3().addVectors(
+                    floorNormal.multiplyScalar(1.0 - airFactor),
+                    sphereNormal.multiplyScalar(airFactor)
+                ).normalize();
 
-                carPhysics.smoothedUp.lerp(rawTargetUp, 8.0 * dt);
+                carPhysics.smoothedUp.lerp(blendedTargetUp, 5.0 * dt);
                 carPhysics.smoothedUp.normalize();
                 const targetUp = carPhysics.smoothedUp;
 
@@ -1527,8 +1563,8 @@
 
                 // Position Sync
                 const lerpPosFactor = 0.2;
-                if (carGroup.position.distanceTo(targetPos) > 10) carGroup.position.copy(targetPos);
-                else carGroup.position.lerp(targetPos, lerpPosFactor);
+                if (carGroup.position.distanceTo(finalPos) > 10) carGroup.position.copy(finalPos);
+                else carGroup.position.lerp(finalPos, lerpPosFactor);
             }
 
             // Update Grass Uniforms
