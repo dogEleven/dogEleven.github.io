@@ -1483,13 +1483,38 @@
 
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                const targetPos = hit.point.clone();
+                let targetPos = hit.point.clone();
+
+                const distToCenter = targetPos.length();
+                // Ensure floating level is calculated relative to global Sea Level
+                const waterR = planetRadius + seaLevelRef;
+                let isFloating = false;
+
+                // Buoyancy / Floating Logic
+                if (distToCenter < waterR) {
+                    // Float at chest depth (approximated)
+                    const floatH = waterR - 0.6;
+                    // Add subtle bobbing
+                    const bob = Math.sin(clock.getElapsedTime() * 2.0) * 0.08;
+                    const finalH = Math.max(distToCenter, floatH + bob);
+
+                    // If the calculated floating height is significantly above ground, we float
+                    if (finalH > distToCenter + 0.05) {
+                        targetPos.setLength(finalH);
+                        isFloating = true;
+                    }
+                }
+
                 carPhysics.pos.copy(targetPos);
 
                 const sphereNormal = targetPos.clone().normalize();
                 const floorNormal = hit.face ? hit.face.normal.clone().transformDirection(planet.matrixWorld) : sphereNormal;
 
-                const rawTargetUp = new THREE.Vector3().addVectors(floorNormal.multiplyScalar(0.85), sphereNormal.multiplyScalar(0.15)).normalize();
+                // If floating, align largely with sphere up (gravity), canceling out underwater slope
+                const desiredNormal = isFloating ? sphereNormal : floorNormal;
+                const blendFactor = isFloating ? 0.95 : 0.85;
+
+                const rawTargetUp = new THREE.Vector3().addVectors(desiredNormal.multiplyScalar(blendFactor), sphereNormal.multiplyScalar(1.0 - blendFactor)).normalize();
 
                 carPhysics.smoothedUp.lerp(rawTargetUp, 8.0 * dt);
                 carPhysics.smoothedUp.normalize();
