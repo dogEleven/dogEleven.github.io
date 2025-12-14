@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimPlanet</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            /* Space Background: Black to Deep Galaxy Blue */
+            background: linear-gradient(to top, #000000 0%, #191970 100%);
+            /* Space Background: Black to Deep Galaxy Blue */
+            background: linear-gradient(to top, #000000 0%, #191970 100%);
+        }
+    </style>
+    <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Post-Processing Dependencies (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/shaders/BokehShader.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/EffectComposer.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/RenderPass.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/BokehPass.js"></script>
+</head>
+
+<body>
+    <script> // --- 1. Noise Implementation ---
+        const p = [151,
+            160,
+            137,
+            91,
+            90,
+            15,
+            131,
+            13,
+            201,
+            95,
+            96,
+            53,
+            194,
+            233,
+            7,
+            225,
+            140,
+            51,
+            36,
+            103,
+            30,
+            69,
+            142,
+            8,
+            99,
+            37,
+            240,
+            21,
+            10,
+            62,
+            23,
+            190,
+            6,
+            148,
+            247,
+            120,
+            234,
+            75,
+            0,
+            26,
+            197,
+            62,
+            94,
+            252,
+            219,
+            203,
+            117,
+            35,
+            11,
+            32,
+            57,
+            177,
+            33,
+            88,
+            237,
+            149,
+            56,
+            87,
+            174,
+            20,
+            125,
+            136,
+            171,
+            168,
+            68,
+            175,
+            74,
+            165,
+            71,
+            134,
+            139,
+            48,
+            27,
+            166,
+            77,
+            146,
+            158,
+            231,
+            110,
+            83,
+            111,
+            229,
+            122,
+            60,
+            211,
+            133,
+            230,
+            220,
+            105,
+            92,
+            41,
+            55,
+            46,
+            245,
+            40,
+            244,
+            102,
+            143,
+            54,
+            65,
+            25,
+            63,
+            161,
+            1,
+            216,
+            80,
+            73,
+            209,
+            76,
+            132,
+            141,
+            187,
+            208,
+            89,
+            18,
+            169,
+            200,
+            196,
+            135,
+            130,
+            116,
+            188,
+            159,
+            86,
+            164,
+            100,
+            109,
+            198,
+            173,
+            186,
+            3,
+            64,
+            52,
+            217,
+            226,
+            250,
+            124,
+            123,
+            5,
+            202,
+            38,
+            147,
+            118,
+            126,
+            255,
+            82,
+            85,
+            212,
+            207,
+            206,
+            59,
+            227,
+            47,
+            16,
+            58,
+            17,
+            182,
+            189,
+            28,
+            42,
+            223,
+            183,
+            170,
+            213,
+            119,
+            248,
+            152,
+            2,
+            44,
+            154,
+            163,
+            70,
+            221,
+            153,
+            101,
+            155,
+            167,
+            43,
+            172,
+            9,
+            129,
+            22,
+            39,
+            253,
+            19,
+            98,
+            108,
+            217,
+            110,
+            79,
+            113,
+            224,
+            232,
+            178,
+            185,
+            112,
+            104,
+            218,
+            246,
+            97,
+            228,
+            251,
+            34,
+            242,
+            193,
+            234,
+            238,
+            210,
+            144,
+            237,
+            12,
+            191,
+            179,
+            162,
+            241,
+            81,
+            51,
+            145,
+            235,
+            249,
+            14,
+            239,
+            107,
+            49,
+            192,
+            214,
+            31,
+            254,
+            181,
+            199,
+            106,
+            157,
+            184,
+            84,
+            204,
+            176,
+            115,
+            121,
+            50,
+            45,
+            127,
+            4,
+            150,
+            254,
+            138,
+            271,
+            236,
+            205,
+            93,
+            274,
+            222,
+            114,
+            67,
+            29,
+            24,
+            72,
+            280,
+            243,
+            141,
+            282,
+            128,
+            195,
+            78,
+            285,
+            66,
+            215,
+            61,
+            288,
+            156,
+            180];
+        const perm = new Uint8Array(512);
+        for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+
+        function fade(t) {
+            return t * t * t * (t * (t * 6 - 15) + 10);
+        }
+
+        function lerp(t, a, b) {
+            return a + t * (b - a);
+        }
+
+        function grad(hash, x, y, z) {
+            const h = hash & 15;
+            const u = h < 8 ? x : y;
+            const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+            return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+        }
+
+        function noise(x, y, z) {
+            const X = Math.floor(x) & 255;
+            const Y = Math.floor(y) & 255;
+            const Z = Math.floor(z) & 255;
+            x -= Math.floor(x);
+            y -= Math.floor(y);
+            z -= Math.floor(z);
+            const u = fade(x);
+            const v = fade(y);
+            const w = fade(z);
+            const A = perm[X] + Y,
+                AA = perm[A] + Z,
+                AB = perm[A + 1] + Z,
+                B = perm[X + 1] + Y,
+                BA = perm[B] + Z,
+                BB = perm[B + 1] + Z;
+            return lerp(w, lerp(v, lerp(u, grad(perm[AA], x, y, z),
+                grad(perm[BA], x - 1, y, z)),
+                lerp(u, grad(perm[AB], x, y - 1, z),
+                    grad(perm[BB], x - 1, y - 1, z))),
+                lerp(v, lerp(u, grad(perm[AA + 1], x, y, z - 1),
+                    grad(perm[BA + 1], x - 1, y, z - 1)),
+                    lerp(u, grad(perm[AB + 1], x, y - 1, z - 1),
+                        grad(perm[BB + 1], x - 1, y - 1, z - 1))));
+        }
+
+        // --- 2. Scene Setup ---
+        const scene = new THREE.Scene();
+        // scene.background = new THREE.Color(0x87CEEB); // Removed for CSS Gradient
+        // Match Fog to the bottom color of the gradient (#000000 - Space)
+        scene.fog = new THREE.Fog(0x000000, 20, 150);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        // Enable alpha to let CSS background show through
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true, alpha: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- 3. Planet Generation ---
+        const planetRadius = 40;
+        const geometry = new THREE.SphereGeometry(planetRadius, 128, 128);
+
+        const count = geometry.attributes.position.count;
+        const positions = geometry.attributes.position;
+        const v3 = new THREE.Vector3();
+
+        // Deform Geometry on CPU (so physics raycaster matches visual)
+        for (let i = 0; i < count; i++) {
+            v3.fromBufferAttribute(positions, i);
+            const dir = v3.clone().normalize();
+
+            // 1. Structure Noise (Large features)
+            // Smoother terrain: base freq 1.0
+            let n = noise(dir.x * 1.0, dir.y * 1.0, dir.z * 1.0);
+
+            // Reduced detail noise amplitude (0.25) and frequency (3.0)
+            n += 0.25 * noise(dir.x * 3.0, dir.y * 3.0, dir.z * 3.0);
+
+            // Terrain Logic
+            // Apply Power Curve for "Flat Plains, High Peaks"
+            // Use Math.pow(abs(n), 2.5) * sign(n)
+            const power = 3.0;
+            const sign = n < 0 ? -1 : 1;
+            let shapedN = sign * Math.pow(Math.abs(n), power);
+
+            // Scale up significantly because pow(x, 3) makes values much smaller
+            const heightScale = 30.0;
+            let h = shapedN * heightScale;
+
+            // --- ROAD GENERATION START ---
+            // Normalized Y is roughly dir.y
+            // Road Width definition
+            const roadHalfWidth = 2.0; // Half width in world units approx
+
+            // Distance from equator on surface ~= planetRadius * abs(dir.y) (approx)
+            // Arc length = R * angle. angle = asin(y). linear approx y works for small y.
+            const distFromEquator = planetRadius * Math.abs(dir.y);
+
+            const roadBandWidth = 3.0; // The flat area width (Narrowed to match)
+            const roadTransition = 3.0; // The blend area
+
+            // If within road band, flatten to constant height
+            if (distFromEquator < (roadBandWidth + roadTransition)) {
+                // Road Height: slightly above sea level (0.0) 
+                // Sea Level is -1.0. Let's make it 0.5 for a nice causeway.
+                const roadHeight = 0.5;
+
+                let t = 0.0;
+
+                if (distFromEquator < roadBandWidth) {
+                    t = 1.0;
+                }
+
+                else {
+                    // Linear transition? Or smoothstep.
+                    // normalized edge distance: 0 (at band) to 1 (at band+trans)
+                    let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
+                    t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist)); // smoothstep logic manually
+                }
+
+                // Blend h towards roadHeight
+                // h = h + (roadHeight - h) * t;
+                h = h * (1.0 - t) + roadHeight * t;
+            }
+
+            // --- ROAD GENERATION END ---
+
+            // Flatten Water removed, just natural terrain
+            let finalRadius = planetRadius + h;
+
+            // --- DEEP TERRAIN ADJUSTMENT (User Request) ---
+            // If terrain is below 80% radius ( < 32.0 ), raise it to random 80-90% (32.0 - 36.0)
+            if (finalRadius < planetRadius * 0.8) {
+                // FLATTENING FIX (User Request): 
+                // Reduced frequency (8.0 -> 1.5) and amplitude (0.1 -> 0.05) for smooth floor
+                // Use dir scaled up significantly
+                let rNoise = noise(dir.x * 1.5, dir.y * 1.5, dir.z * 1.5);
+                // Map from -1..1 (approx) to 0..1 magnitude
+                // Math.abs might create creases, let's use 0.5 * (n + 1)
+                let normNoise = 0.5 * (rNoise + 1.0);
+
+                // Map to 80% - 90% range -> Reduced to 82.5% - 87.5%
+                let factor = 0.825 + normNoise * 0.05;
+                finalRadius = planetRadius * factor;
+
+                // Recalculate h for consistency if needed elsewhere (though mostly used for position)
+                h = finalRadius - planetRadius;
+            }
+
+            dir.multiplyScalar(finalRadius);
+            positions.setXYZ(i, dir.x, dir.y, dir.z);
+        }
+
+        geometry.computeVertexNormals();
+        geometry.attributes.position.needsUpdate = true;
+
+        // Procedural Shader for sharp details
+        const material = new THREE.ShaderMaterial({
+            vertexShader: ` varying vec3 vPosition;
+            varying vec3 vNormal;
+
+            void main() {
+                vPosition=position; // Local position (includes CPU deformation)
+                vNormal=normal;
+                gl_Position=projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+
+            `,
+            fragmentShader: ` varying vec3 vPosition;
+            varying vec3 vNormal;
+            uniform float time;
+
+
+            // Simple pseudo-random for noise
+            float noise(vec3 p) {
+                return fract(sin(dot(p, vec3(12.9898, 78.233, 128.85))) * 43758.5453);
+            }
+
+            // Smooth mixing function
+            vec3 softMix(vec3 a, vec3 b, float val, float edge0, float edge1) {
+                float t=smoothstep(edge0, edge1, val);
+                return mix(a, b, t);
+            }
+
+            void main() {
+                // Calculate height relative to base radius
+                float r=length(vPosition);
+                float baseRadius=40.0;
+                float h=r - baseRadius;
+
+                // Bolder, Saturated Colors
+                vec3 cDeepWater=vec3(0.05, 0.2, 0.4); // Darker Deep Blue (50% darker)
+                vec3 cWater=vec3(0.2, 0.7, 0.95); // Lighter Cyan (was 0.0, 0.8, 1.0)
+                vec3 cWetSand=vec3(0.8, 0.6, 0.3); // Darker/Wet Sand
+                vec3 cSand=vec3(1.0, 0.85, 0.5); // Bright Sand
+                vec3 cGrass=vec3(0.4, 0.8, 0.2); // Vibrant Light Green
+                vec3 cForest=vec3(0.1, 0.5, 0.15); // Rich Green (not black)
+                vec3 cRock=vec3(0.5, 0.5, 0.55); // Neutral Grey
+                vec3 cSnow=vec3(0.9, 0.95, 1.0); // White with hint of blue
+
+                // Noise grain for texture
+                float grain=noise(vPosition * 8.0) * 0.08;
+                float sh=h + grain; // Noisy height for terrain transitions
+
+                // Adjust Sea Level for new scale
+                float seaLevel=-1.0;
+
+                // 2. Land Layer (Restored)
+                // Start with Deep Water Color (Darker)
+                vec3 landCol = cDeepWater;
+
+                 // Deep Water -> Wet Sand
+                // Expanded Gradient (User Request): -6.0 to +0.5 (Into Shallow Water)
+                landCol = softMix(landCol, cWetSand, sh, seaLevel - 6.0, seaLevel + 0.5);
+
+                // Wet Sand -> Dry Sand
+                // Below seaLevel it is wet, dries as it goes up
+                // User Request: Lower it so gradient matches water line.
+                // Water Level is -1.0. 
+                // Let's transition from -2.0 (Deep Wet) to 0.0 (Dry).
+                // Midpoint is -1.0 (Water Line).
+                landCol=softMix(landCol, cSand, sh, seaLevel - 1.0, seaLevel + 1.0);
+
+                // Sand -> Grass 
+                // EXPANDED GREEN ZONE: Start very close to water
+                landCol=softMix(landCol, cGrass, sh, seaLevel + 0.2, seaLevel + 0.8);
+                // Grass -> Forest 
+                // Smoother/Wider Transition: 0.0 to 12.0 (was -1.5 to 4.0)
+                // Eliminates "dead green" block by mixing earlier and longer
+                landCol=softMix(landCol, cForest, sh, 0.0, 12.0);
+                // Forest -> Rock 
+                // Overlap with Forest: 8.0 to 25.0 (was 15.0 to 22.0)
+                // Starts fading to rock while still in forest zone
+                landCol=softMix(landCol, cRock, sh, 8.0, 25.0);
+                // Rock -> Snow 
+                // Higher peaks: 20.0 to 32.0 (was 24.0 to 32.0)
+                landCol=softMix(landCol, cSnow, sh, 20.0, 32.0);
+
+                // --- ROAD RENDERING ---
+                // vPosition.y is distance from equator plane.
+                // Flattened area is where abs(vPosition.y) < roadBandWidth approx.
+                // Because we deformed the mesh, vPosition reflects that.
+                // However, 'vPosition' in FS is interpolated. 
+                float distFromEq=abs(vPosition.y);
+                const float roadBandW=3.0; // Narrowed by 40% (was 5.0)
+
+
+                if (distFromEq < roadBandW) {
+                    // Soft edge for texture
+                    float edgeDist=roadBandW - distFromEq;
+                    // Sharpened Road Edge: 0.0 to 0.2 (was 1.0)
+                    float roadMix=smoothstep(0.0, 0.2, edgeDist);
+
+                    vec3 cRoad=vec3(0.3, 0.3, 0.3); // Lighter Asphalt (was 0.15)
+
+                    // White Dashed Lines
+                    float roadWidth=roadBandW * 2.0;
+                    // Center line:
+                    // angle = atan(z, x)
+                    float angle=atan(vPosition.z, vPosition.x);
+                    float dash=sin(angle * 40.0); // Frequency lowered (was 80) -> Larger Gaps
+
+                    // Line thickened by 40% (0.2 -> 0.28)
+                    // THEN Narrowed by 30% (0.28 -> 0.2)
+                    if (distFromEq < 0.2 && dash > 0.0) {
+                        cRoad=vec3(0.9, 0.9, 0.9); // White
+                    }
+
+                    landCol=mix(landCol, cRoad, roadMix);
+                }
+
+                // --- ROAD END ---
+
+
+
+                // --- ROAD END ---
+
+
+                // --- FOAM REMOVED (User Request) ---
+
+
+                // 3. Final Color (No Water Mix)
+                vec3 finalColor=landCol;
+
+                gl_FragColor=vec4(finalColor, 1.0);
+            }
+
+            `,
+            uniforms: {
+                time: {
+                    value: 0.0
+                }
+            }
+        });
+
+        const planet = new THREE.Mesh(geometry, material);
+        scene.add(planet);
+
+        // --- 3.5 Water Sphere ---
+        const seaLevelRef = -0.5; // Slightly deeper
+        const waterGeo = new THREE.SphereGeometry(planetRadius + seaLevelRef, 96, 96);
+
+        const waterMat = new THREE.MeshBasicMaterial({
+            color: 0x00ccff, // Cyan-Blue (User Request)
+            transparent: true,
+            opacity: 0.68,
+            side: THREE.FrontSide
+        });
+        const waterSphere = new THREE.Mesh(waterGeo, waterMat);
+        scene.add(waterSphere);
+
+        // Add a directional light so the water shines
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        sunLight.position.set(50, 50, 50);
+        scene.add(sunLight);
+        const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+        scene.add(ambientLight);
+
+        // --- 3.6 Star Field ---
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 3000;
+        const starPos = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount; i++) {
+            // Spherical distribution to keep away from planet
+            // User Request: Much further away to reduce parallax/movement speed
+            const r = 1000 + Math.random() * 1500; // Min radius 1000, Max 2500
+            const theta = Math.random() * Math.PI * 2; // Azimuth
+            const phi = Math.acos(2 * Math.random() - 1); // Polar
+
+            starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            starPos[i * 3 + 2] = r * Math.cos(phi);
+        }
+
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+
+        const starMat = new THREE.PointsMaterial({
+            color: 0xffffff, size: 5.0
+        });
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+        // --- 3.8 Interactive Grass ---
+        const grassCount = 80000;
+        // Reduced Size: Wide Base (0.3), tapered by shader
+        // Height 1.2 (was 0.8), Translate 0.2 (was 0.3)
+        // Original: Base -0.1, Top 0.7
+        // New: 1.2 height -> [-0.6, 0.6]. +0.2Y -> [-0.4, 0.8].
+        // Result: Deeper underground (-0.4) and taller (+0.8).
+        // Height 2.2 (was 1.2) to sink roots deeper and prevent floating
+        // Translate -0.3: Bottom at -1.4, Top at 0.8
+        const grassGeo = new THREE.PlaneGeometry(0.3, 2.2);
+        grassGeo.translate(0, -0.3, 0); // Pivot logic
+
+        const grassMat = new THREE.ShaderMaterial({
+            uniforms: {
+                time: {
+                    value: 0
+                }
+
+                ,
+                carPos: {
+                    value: new THREE.Vector3()
+                }
+
+                ,
+                cameraPos: {
+                    value: new THREE.Vector3()
+                }
+            }
+
+            ,
+            vertexShader: ` uniform float time;
+            uniform vec3 carPos;
+            attribute vec3 offset;
+            attribute vec3 instanceNormal;
+            attribute float scale;
+            attribute float rot;
+
+            varying vec2 vUv;
+            varying float vAltitude; // Pass height to fragment
+            varying vec3 vPos; // World position for noise
+
+            // Quaternion rotation utility
+            vec3 rotateVector(vec4 q, vec3 v) {
+                return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+            }
+
+            vec4 axisAngleToQuaternion(vec3 axis, float angle) {
+                float halfAngle=angle * 0.5;
+                float s=sin(halfAngle);
+                return vec4(axis * s, cos(halfAngle));
+            }
+
+            void main() {
+                vUv=uv;
+
+                // Calculate Altitude for coloring
+                // Planet Radius is 40.0
+                vAltitude=length(offset) - 40.0;
+                vPos=offset;
+
+                // 1. Base Geometry
+                vec3 pos=position;
+                pos.y *=scale;
+                // Width Logic: CONSTANT WIDTH (for rounded top via Fragment Shader)
+                // User Request: Round top (not pointy)
+                // We remove the taper here and handle the shape in Fragment Shader.
+                pos.x *=(scale * 0.5 + 0.5);
+
+                // Capture length to restore later
+                float originalLen=length(pos);
+
+                // --- Wind Sway ---
+                // Combine sine waves for random-ish motion
+                // Phase depends on world position (offset) so they don't sway together
+                float wind=sin(time * 3.0 + offset.x * 0.5) + sin(time * 1.5 + offset.z * 0.5) * 0.5;
+                // Apply to top only (uv.y), scaled STRONGER (was 0.05)
+                // User Request: Stronger wind feel.
+                pos.x +=wind * 0.15 * uv.y;
+
+                // 2. Random Rotation (Y-axis)
+                vec4 qRand=axisAngleToQuaternion(vec3(0, 1, 0), rot);
+                pos=rotateVector(qRand, pos);
+
+                // 3. Align to Surface Normal
+                vec3 up=vec3(0, 1, 0); // Grass local up
+                vec3 normal=normalize(instanceNormal);
+
+                // Rotation from Up to Normal
+                vec3 axis=cross(up, normal);
+                float cosA=dot(up, normal);
+
+                // Simple alignment
+                vec4 qAlign=vec4(0, 0, 0, 1);
+
+                if (cosA > -0.99) {
+                    qAlign=normalize(vec4(axis, 1.0 + cosA));
+                }
+
+                else {
+                    qAlign=vec4(1, 0, 0, 0); // Flip
+                }
+
+                pos=rotateVector(qAlign, pos);
+
+                // --- 4. Car Interaction ---
+                // Push grass away from car
+                float dist=distance(offset, carPos);
+                float radius=3.5; // Interaction radius
+
+                if (dist < radius) {
+                    float strength=(1.0 - dist / radius); // 0 to 1
+                    strength=pow(strength, 2.0); // Non-linear falloff
+
+                    vec3 pushDir=normalize(offset - carPos);
+
+                    // Push away from car, mostly affecting the top (uv.y)
+                    // flattened y slightly to simulate being crushed
+                    pos +=pushDir * strength * 2.5 * uv.y;
+                }
+
+                // --- Fix Stretching ---
+                // Force the bent grass to maintain its original length (relative to its pivot)
+                // This naturally lowers the Y as it bends X/Z, preventing the "rubber" look.
+                if (originalLen > 0.001) {
+                    pos=normalize(pos) * originalLen;
+                }
+
+                // 5. Translate
+                vec3 worldPos=pos + offset;
+
+                gl_Position=projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+            }
+
+            `,
+            fragmentShader: ` varying vec2 vUv;
+            varying float vAltitude;
+            varying vec3 vPos;
+
+            // Simple pseudo-random for noise (Same as Planet Shader)
+            float noise(vec3 p) {
+                return fract(sin(dot(p, vec3(12.9898, 78.233, 128.85))) * 43758.5453);
+            }
+
+            // Smooth mixing function
+            vec3 softMix(vec3 a, vec3 b, float val, float edge0, float edge1) {
+                float t=smoothstep(edge0, edge1, val);
+                return mix(a, b, t);
+            }
+
+            void main() {
+                // Simple Alpha Cutoff (Side Margins)
+                if (vUv.x < 0.1 || vUv.x > 0.9) discard;
+                if (vUv.y < 0.0) discard;
+
+                // ROUNDED TOP LOGIC
+                // Aspect ratio correction: Geo is 0.3 x 1.2 (Ratio ~0.25)
+                // Effective width in UV is 0.8 (0.1 to 0.9).
+                // To get a circle, RadiusY should vary.
+                // Let's assume a semi-circle cap at the top 10% (0.9 to 1.0)
+                if (vUv.y > 0.9) {
+                    float nx=(vUv.x - 0.5) / 0.4; // Map 0.1..0.9 to -1..1
+                    float ny=(vUv.y - 0.9) / 0.1; // Map 0.9..1.0 to 0..1
+                    if (nx*nx + ny*ny > 1.0) discard;
+                }
+
+                // Exact Color Match with Planet Shader
+                vec3 cGrass=vec3(0.4, 0.8, 0.2); // Vibrant Light Green
+                vec3 cForest=vec3(0.1, 0.5, 0.15); // Rich Green
+                vec3 cRock=vec3(0.5, 0.5, 0.55); // Neutral Grey
+
+                // Add noise to altitude just like planet shader
+                float grain=noise(vPos * 8.0) * 0.08;
+                float sh=vAltitude + grain;
+
+                // Base Color: Grass
+                // Gradient: Darker base to Lighter tip
+                vec3 cGrassTop=vec3(0.42, 0.82, 0.22); // Very subtle gradient vs base (0.4, 0.8, 0.2)
+                // Use pow(vUv.y) to control gradient curve if needed, linear for now
+                vec3 col=mix(cGrass, cGrassTop, vUv.y);
+
+                // Transition: Grass -> Forest (Match Planet 0.0 -> 12.0)
+                // Start mixing forest at 0.0 (near sea level)
+                // Widen range to eliminate "dead green"
+                col=softMix(col, cForest, sh, 0.0, 12.0);
+
+                // Transition: Forest -> Rock (Match Planet 8.0 -> 25.0)
+                // High altitude grass will blend into the rock color
+                col=softMix(col, cRock, sh, 8.0, 25.0);
+
+                gl_FragColor=vec4(col, 1.0);
+            }
+
+            `,
+            side: THREE.DoubleSide
+        });
+
+        const grassMesh = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
+
+        // Populate Grass Instances
+        const dummy = new THREE.Object3D();
+        const _v3 = new THREE.Vector3();
+        const _normal = new THREE.Vector3();
+
+        // Arrays for attributes
+        const offsets = new Float32Array(grassCount * 3);
+        const normals = new Float32Array(grassCount * 3);
+        const scales = new Float32Array(grassCount);
+        const rots = new Float32Array(grassCount);
+
+        let grassIdx = 0;
+
+        // Try up to X times to find valid spots
+        for (let i = 0; i < grassCount * 3 && grassIdx < grassCount; i++) {
+            // Random point on sphere surface
+            _v3.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+
+            // Re-calculate noise height for this point
+            // Re-calculate noise height for this point
+            // Copy logic from planet generation loop EXACTLY
+            // 1. Structure Noise (Large features)
+            // Smoother terrain: base freq 1.0
+            let n = noise(_v3.x * 1.0, _v3.y * 1.0, _v3.z * 1.0);
+            // Reduced detail noise amplitude (0.25) and frequency (3.0)
+            n += 0.25 * noise(_v3.x * 3.0, _v3.y * 3.0, _v3.z * 3.0);
+
+            // Terrain Logic
+            // Apply Power Curve for "Flat Plains, High Peaks"
+            // Use Math.pow(abs(n), 2.5) * sign(n)
+            const power = 3.0;
+            const sign = n < 0 ? -1 : 1;
+            let shapedN = sign * Math.pow(Math.abs(n), power);
+
+            const heightScale = 30.0;
+            let h = shapedN * heightScale;
+
+            // Green Zone Criteria
+            const seaLevel = -0.5;
+
+            // Define Road Zone (Must match Planet Generation)
+            const distFromEquator = planetRadius * Math.abs(_v3.y);
+            // Road Band (3.0)
+            // User Request: Grow closer to road.
+            // Buffer 0.5 -> Limit 3.5
+            const roadZoneLimit = 3.5;
+            const isRoad = distFromEquator < roadZoneLimit;
+
+            // --- SYNC HEIGHT WITH ROAD SHADER ---
+            // The shader flattens the geometry near the road, but 'h' here is the raw noisy height.
+            // We must replicate the shader's height modification so grass sits ON the flattened ground.
+
+            const roadBandWidth = 3.0; // Matches Shader
+            const roadTransition = 3.0; // Matches Shader (assumed default)
+
+            if (distFromEquator < (roadBandWidth + roadTransition)) {
+                const roadHeight = 0.5; // Matches Shader
+                let t = 0.0;
+
+                if (distFromEquator < roadBandWidth) {
+                    t = 1.0;
+                }
+
+                else {
+                    // Smoothstep logic from shader
+                    let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
+                    t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist));
+                }
+
+                // Blend height towards roadHeight
+                h = h * (1.0 - t) + roadHeight * t;
+            }
+
+            // --- END SYNC ---
+
+            // --- DEEP TERRAIN SYNC (User Request) ---
+            // Must match Planet Generation Logic EXACTLY or grass will float/bury
+            let finalRadius = planetRadius + h;
+            if (finalRadius < planetRadius * 0.8) {
+                // FLATTENING FIX (User Request): 
+                // Reduced frequency (8.0 -> 1.5) and amplitude (0.1 -> 0.05) for smooth floor
+                let rNoise = noise(_v3.x * 1.5, _v3.y * 1.5, _v3.z * 1.5);
+                let normNoise = 0.5 * (rNoise + 1.0);
+                let factor = 0.825 + normNoise * 0.05; // Range: 0.825 to 0.875
+                finalRadius = planetRadius * factor;
+                h = finalRadius - planetRadius;
+            }
+            // --- END DEEP TERRAIN SYNC ---
+
+
+            // Green Height Range: 
+            // -1.0 is water line. 
+            // EXPANDED: Spawn closer to water (was 0.5, now -0.2) because green starts earlier
+            // 8.0 is start of rock. -> Raised to 24.0 (start of snow/rock transition)
+            const isGreenHeight = (h > -0.2) && (h < 24.0);
+
+            // Density Noise REMOVED for Uniform Distribution
+            // User Request: Uniformly dense grass (no clumps)
+            // let density = noise(_v3.x * 8.0, _v3.y * 8.0, _v3.z * 8.0);
+
+            // Allow if satisfies criteria (removed density check)
+            if (!isRoad && isGreenHeight) {
+                // Determine Position
+                const r = planetRadius + h;
+                const pos = _v3.clone().multiplyScalar(r);
+
+                offsets[grassIdx * 3 + 0] = pos.x;
+                offsets[grassIdx * 3 + 1] = pos.y;
+                offsets[grassIdx * 3 + 2] = pos.z;
+
+                // Normal is direction from center
+                normals[grassIdx * 3 + 0] = _v3.x;
+                normals[grassIdx * 3 + 1] = _v3.y;
+                normals[grassIdx * 3 + 2] = _v3.z;
+
+                // Reverted Size Logic
+                scales[grassIdx] = 0.5 + Math.random() * 0.5;
+                rots[grassIdx] = Math.random() * Math.PI * 2;
+
+                grassIdx++;
+            }
+        }
+
+        // --- Bind Attributes (Outside Loop) ---
+        grassMesh.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(offsets, 3));
+        grassMesh.geometry.setAttribute('instanceNormal', new THREE.InstancedBufferAttribute(normals, 3));
+        grassMesh.geometry.setAttribute('scale', new THREE.InstancedBufferAttribute(scales, 1));
+        grassMesh.geometry.setAttribute('rot', new THREE.InstancedBufferAttribute(rots, 1));
+
+        // Fix: User reported invisible grass.
+        // InstancedMesh bounding sphere might not be computed correctly for all instances automatically.
+        // Disabling frustum culling to ensure it's always rendered.
+        grassMesh.frustumCulled = false;
+
+        scene.add(grassMesh);
+
+        // --- 4. Car Object (Updated for Rolling & Colored Grass) ---
+        const carGroup = new THREE.Group();
+        carGroup.position.set(0, planetRadius + 10, 0);
+
+        // Invisible "Car" which is just an anchor for the camera
+        // Removed: rollingChassis and visuals
+
+        scene.add(carGroup);
+
+
+
+
+        const carPhysics = {
+            pos: new THREE.Vector3(0, planetRadius + 10, 0),
+            quat: new THREE.Quaternion(),
+            speed: 0,
+            up: new THREE.Vector3(0, 1, 0),
+            smoothedUp: new THREE.Vector3(0, 1, 0)
+        }
+
+            ;
+
+        const keys = {
+            w: false, a: false, s: false, d: false
+        }
+
+            ;
+
+        const handleKeyDown = (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+        }
+
+            ;
+
+        const handleKeyUp = (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+        }
+
+            ;
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+
+
+        // --- Multiplayer Logic ---
+
+
+        const raycaster = new THREE.Raycaster();
+        const cameraLookAtCurrent = new THREE.Vector3(0, 0, 0);
+        const clock = new THREE.Clock();
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.1);
+
+            // --- Direct Movement Logic (Omnidirectional) ---
+            // Adjusted Speed: Reduced 40% (36 -> 21.6)
+            const targetSpeed = 21.6;
+            const moveDir = new THREE.Vector3(0, 0, 0);
+
+            // Input Mapping (Direct Control)
+            // Previous logic: W -> Increase Speed (Positive Z movement).
+            // So +Z is "Forward" in this rig.
+            if (keys.w) moveDir.z += 1;
+            if (keys.s) moveDir.z -= 1;
+            if (keys.a) moveDir.x += 1; // Left (Now using +X to fix direction)
+            // If Z is forward, Y is Up. X is Right? 
+            // Let's assume:
+            // W (+Z) -> Forward
+            // A (+X) -> Turn Left? Typically A is -X.
+            // Let's try: A -> +X, D -> -X. If reversed, we swap.
+            if (keys.d) moveDir.x -= 1; // Right (Now using -X)
+
+            if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+            // Direct Velocity Control with Inertia
+            const targetVel = moveDir.multiplyScalar(targetSpeed);
+
+            // Re-use carPhysics.speed as a vector now? 
+            // Let's add a new property for velocity vector
+            if (!carPhysics.velocity) carPhysics.velocity = new THREE.Vector3();
+
+            // Smooth Acceleration/Deceleration (Dampening)
+            const lerpFactorVal = 5.0 * dt;
+            carPhysics.velocity.lerp(targetVel, lerpFactorVal);
+
+            // Apply Velocity
+            const distinctVel = carPhysics.velocity.clone();
+            distinctVel.multiplyScalar(dt); // Displacement
+
+            // Rolling Animation Removed
+
+            // Global Movement
+            const globalMove = distinctVel.clone();
+            globalMove.applyQuaternion(carGroup.quaternion);
+
+            // Resistance / Drag when in water
+            const distCenter = carPhysics.pos.length();
+            const waterLevel = planetRadius + seaLevelRef;
+            if (distCenter < waterLevel) {
+                globalMove.multiplyScalar(0.6); // Simple drag
+            }
+
+            carPhysics.pos.add(globalMove);
+
+            // DEBUG: Title
+            document.title = `CamPos: ${carPhysics.pos.x.toFixed(1)}, ${carPhysics.pos.y.toFixed(1)}, ${carPhysics.pos.z.toFixed(1)}`;
+
+            const skyPos = carPhysics.pos.clone().normalize().multiplyScalar(planetRadius + 50);
+            const rayDir = new THREE.Vector3(0, 0, 0).sub(skyPos).normalize();
+
+            raycaster.set(skyPos, rayDir);
+            const intersects = raycaster.intersectObject(planet);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                const targetPos = hit.point.clone();
+                carPhysics.pos.copy(targetPos);
+
+                const sphereNormal = targetPos.clone().normalize();
+                const floorNormal = hit.face ? hit.face.normal.clone().transformDirection(planet.matrixWorld) : sphereNormal;
+
+                const rawTargetUp = new THREE.Vector3().addVectors(floorNormal.multiplyScalar(0.85), sphereNormal.multiplyScalar(0.15)).normalize();
+
+                carPhysics.smoothedUp.lerp(rawTargetUp, 8.0 * dt);
+                carPhysics.smoothedUp.normalize();
+                const targetUp = carPhysics.smoothedUp;
+
+                const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(carGroup.quaternion);
+                const qAlign = new THREE.Quaternion().setFromUnitVectors(currentUp, targetUp);
+                const targetQ = carGroup.quaternion.clone().premultiply(qAlign);
+                carGroup.quaternion.slerp(targetQ, 10.0 * dt);
+
+                // Position Sync
+                const lerpPosFactor = 0.2;
+                if (carGroup.position.distanceTo(targetPos) > 10) carGroup.position.copy(targetPos);
+                else carGroup.position.lerp(targetPos, lerpPosFactor);
+            }
+
+            // Update Grass Uniforms
+            grassMat.uniforms.carPos.value.copy(carGroup.position);
+            grassMat.uniforms.time.value = clock.getElapsedTime();
+
+            // Update Car Grass Uniforms REMOVED
+
+            // --- Multiplayer Sync ---
+
+
+            // Update Planet Uniforms (Foam Animation)
+            if (planet.material.uniforms && planet.material.uniforms.time) {
+                planet.material.uniforms.time.value = clock.getElapsedTime();
+            }
+
+            // --- New Camera Logic (Sphere Projection) ---
+
+            // 1. Get Player Direction (Normalized vector from center)
+            const playerDir = carGroup.position.clone().normalize();
+
+            // 2. Calculate Pivot Point on Sphere Surface
+            // "Anchor" the camera to the ideal sphere, ignoring terrain height
+            const pivotPoint = playerDir.clone().multiplyScalar(planetRadius);
+
+            // 3. Construct Stable Basis
+            // Up Vector = playerDir (Normal of the sphere at that point)
+            const stableUp = playerDir.clone();
+
+            // Forward Vector: Project car's forward vector onto the tangent plane
+            const carForward = new THREE.Vector3(0, 0, 1).applyQuaternion(carGroup.quaternion);
+
+            // Project carForward onto plane perpendicular to stableUp
+            // v_proj = v - (v . n) * n
+            const projForward = carForward.clone().sub(stableUp.clone().multiplyScalar(carForward.dot(stableUp))).normalize();
+
+            // Calculate Right Vector
+            const stableRight = new THREE.Vector3().crossVectors(stableUp, projForward).normalize();
+
+            // Re-calculate Forward to ensure orthogonality
+            const stableForward = new THREE.Vector3().crossVectors(stableRight, stableUp).normalize();
+
+            // Create Basis Matrix / Quaternion
+            const stableMat = new THREE.Matrix4().makeBasis(stableRight, stableUp, stableForward);
+            const stableQuat = new THREE.Quaternion().setFromRotationMatrix(stableMat);
+
+            // 4. Calculate Ideal Camera Position
+            // Offset logic: (0, 26.4, -12.0) relative to the STABLE anchor
+            // Note: In our basis construction:
+            // Right = X, Up = Y, Forward = Z.
+            // Original offsets were designed for (0, Y, -Z) being behind/above.
+            // Let's use the local offset vector.
+            const localOffset = new THREE.Vector3(0, 26.4, -12.0);
+            localOffset.applyQuaternion(stableQuat);
+
+            const distFromPivot = localOffset.length();
+            const idealCameraPos = pivotPoint.clone().add(localOffset);
+
+            // 5. Look At Logic
+            // We want to look at the car (or near it) to keep it in frame.
+            // Using the car's actual position ensures we focus on the actionable object.
+            const lookTargetOffset = new THREE.Vector3(0, 2, -2.0); // Keep original offset logic
+            lookTargetOffset.applyQuaternion(carGroup.quaternion); // Rotate with car for natural look
+            const idealLookAt = carGroup.position.clone().add(lookTargetOffset);
+
+            // 6. Apply with Smoothing
+            const camPosLerp = 0.05; // Slightly faster to re-align with the stable anchor
+
+            if (camera.position.length() < 10) { // Initial snap
+                camera.position.copy(idealCameraPos);
+                cameraLookAtCurrent.copy(idealLookAt);
+            } else {
+                camera.position.lerp(idealCameraPos, camPosLerp);
+                cameraLookAtCurrent.lerp(idealLookAt, 0.05);
+            }
+
+            camera.up.copy(stableUp); // Align camera up with sphere normal
+            camera.lookAt(cameraLookAtCurrent);
+
+            // --- Camera Ground Collision ---
+            // Calculate terrain height below camera to prevent clipping
+            const camDir = camera.position.clone().normalize();
+            let cn = noise(camDir.x * 1.5, camDir.y * 1.5, camDir.z * 1.5);
+            cn += 0.5 * noise(camDir.x * 5, camDir.y * 5, camDir.z * 5);
+            const cheight = cn * 10.0; // Must match heightScale
+            const groundRad = planetRadius + cheight;
+            const minCamDist = groundRad + 2.0; // Keep at least 2.0 units above ground
+
+            if (camera.position.length() < minCamDist) {
+                camera.position.normalize().multiplyScalar(minCamDist);
+            }
+
+            // Update Water
+            // (Shader uniforms removed, standard material static)
+            // waterMat.uniforms.time.value = clock.getElapsedTime();
+            // waterMat.uniforms.carPos.value.copy(carPhysics.pos);
+
+            // Underwater Fog Effect
+            const camDist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+            const waterRadius = planetRadius + seaLevelRef;
+
+            if (camDist < waterRadius) {
+                // Underwater
+                scene.fog.color.setHex(0x006677); // Dark Cyan
+                scene.fog.near = 1;
+                scene.fog.far = 30; // Dense fog
+            }
+
+            else {
+                // Above water - SPACE
+                scene.fog.color.setHex(0x000000); // Black Fog for Space
+                scene.fog.near = 20;
+                scene.fog.far = 150;
+            }
+
+            // Animate Stars
+            if (stars) stars.rotation.y += 0.0003; // Slow rotation
+
+            // Dynamic Focus REMOVED (Reverting DoF)
+            // if (bokehPass) { ... }
+
+            renderer.render(scene, camera);
+            // Use Composer for Post-Processing (DoF) - DISABLED
+            // composer.render(0.1);
+        }
+
+            ;
+
+        // --- Post-Processing Setup (DISABLED) ---
+        /*
+        const composer = new THREE.EffectComposer(renderer);
+        const renderPass = new THREE.RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        const bokehPass = new THREE.BokehPass(scene, camera, {
+            focus: 35.0,      
+            aperture: 0.0001, 
+            maxblur: 0.01,    
+            width: window.innerWidth,
+            height: window.innerHeight
+        });
+        composer.addPass(bokehPass);
+        */
+
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            // composer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>
