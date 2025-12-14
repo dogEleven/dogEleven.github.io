@@ -1085,6 +1085,22 @@
         ];
         const flowerGeo = createColoredGeometry(flowerParts);
 
+        // 4. Stone Geometry (Low-poly Dodecahedron, flattened)
+        const stoneParts = [
+            // User Request: Gradient on top (Dark Gray -> Light Gray)
+            { geo: new THREE.DodecahedronGeometry(0.3, 0).scale(1.0, 0.6, 1.0).translate(0, 0.15, 0), gradient: { from: 0x505050, to: 0xAAAAAA } }
+        ];
+        const stoneGeo = createColoredGeometry(stoneParts);
+
+        // 5. Twig Geometry (Thin, rotated Cylinder)
+        const twigParts = [
+            // Main branch: Thickened (0.03/0.04 -> 0.07/0.09)
+            { geo: new THREE.CylinderGeometry(0.07, 0.09, 0.6, 5).rotateZ(Math.PI / 2.5).translate(0, 0.05, 0), color: 0x5C4033 },
+            // Side branch: Thickened (0.02 -> 0.05)
+            { geo: new THREE.CylinderGeometry(0.05, 0.05, 0.3, 4).rotateZ(-Math.PI / 3).translate(0.1, 0.05, 0), color: 0x5C4033 }
+        ];
+        const twigGeo = createColoredGeometry(twigParts);
+
 
         // Shared Vegetation Material
         const vegMaterial = new THREE.ShaderMaterial({
@@ -1264,6 +1280,14 @@
                         if (noise(_v3.x * 15.0, _v3.y * 15.0, _v3.z * 15.0) < 0.2) valid = false;
                         scale = 0.8 + seededRandom() * 0.5; // Visible flowers
                     }
+                    // Stones & Twigs Logic
+                    else if (type === 'stone') {
+                        if (h < -1.0 || h > 28.0) valid = false; // Anywhere on land
+                        scale = 0.5 + seededRandom() * 0.8;
+                    } else if (type === 'twig') {
+                        if (h < 0.0 || h > 18.0) valid = false; // Near trees (approx forest height)
+                        scale = 0.6 + seededRandom() * 0.6;
+                    }
                 }
 
                 if (valid) {
@@ -1297,6 +1321,10 @@
         const trees = scatterObjects(treeGeo, 117, 'tree', 3.0); // Reduced count 117 (Target 40% reduction), MinDist 3.0
         const mushrooms = scatterObjects(mushGeo, 200, 'mushroom'); // Reduced 200
         const flowers = scatterObjects(flowerGeo, 2000, 'flower'); // Reduced 50% (was 4000)
+
+        // Add Stones and Twigs
+        const stones = scatterObjects(stoneGeo, 50, 'stone');
+        const twigs = scatterObjects(twigGeo, 50, 'twig');
 
         document.title = `Veg: ${debugVegCount}`;
 
