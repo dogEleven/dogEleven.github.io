@@ -1494,7 +1494,7 @@
 
                 // Physics Constants
                 const gravity = -20.0; // Strong gravity in air
-                const waterGravity = -3.0; // Slow sinking in water
+                const waterGravity = -4.5; // Faster sinking (User Request 50% increase)
                 const swimForce = 15.0; // Upward acceleration
                 const drag = 0.92; // Water resistance
 
@@ -1523,6 +1523,16 @@
                 if (newH < groundH) {
                     newH = groundH;
                     carPhysics.vSpeed = 0;
+                }
+
+                // Water Surface Collision (Ceiling)
+                // User Request: Cannot float more than half body out (Neck/Waist deep)
+                const surfaceLimit = waterR - 1.2;
+                // Only clamp if we are swimming in deep water (ground is below the limit)
+                // This ensures we can still walk out on shallow beaches
+                if (groundH < surfaceLimit && newH > surfaceLimit) {
+                    newH = surfaceLimit;
+                    if (carPhysics.vSpeed > 0) carPhysics.vSpeed = 0;
                 }
 
                 // Construct New Target Position
