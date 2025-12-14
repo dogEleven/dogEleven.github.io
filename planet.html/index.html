@@ -1071,7 +1071,7 @@
             // Stem: Shortened to 0.35 height, Tapered top to 0.1 to fit inside cap
             { geo: new THREE.CylinderGeometry(0.12, 0.1, 0.35, 6).translate(0, 0.175, 0), color: 0xFFF8DC },
             // Cap: Lowered to 0.3 to fully cover stem top
-            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.3, 0), color: 0xFF4500 }
+            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.3, 0), gradient: { from: 0xFF0000, to: 0x8B0000 } }
         ];
         const mushGeo = createColoredGeometry(mushParts);
 
