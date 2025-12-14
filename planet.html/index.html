@@ -749,7 +749,7 @@
 
                     // Push away from car, mostly affecting the top (uv.y)
                     // flattened y slightly to simulate being crushed
-                    pos +=pushDir * strength * 2.5 * uv.y;
+                    pos +=pushDir * strength * 1.0 * uv.y;
                 }
 
                 // --- Fix Stretching ---
@@ -1068,8 +1068,10 @@
 
         // 2. Mushroom Geometry (Stem + Cap)
         const mushParts = [
-            { geo: new THREE.CylinderGeometry(0.15, 0.2, 0.5, 6).translate(0, 0.25, 0), color: 0xFFF8DC }, // Stem
-            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI).translate(0, 0.5, 0), color: 0xFF4500 } // Red Cap
+            // Stem: Shortened to 0.35 height, Tapered top to 0.1 to fit inside cap
+            { geo: new THREE.CylinderGeometry(0.12, 0.1, 0.35, 6).translate(0, 0.175, 0), color: 0xFFF8DC },
+            // Cap: Lowered to 0.3 to fully cover stem top
+            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI).translate(0, 0.3, 0), color: 0xFF4500 }
         ];
         const mushGeo = createColoredGeometry(mushParts);
 
@@ -1143,9 +1145,14 @@
                     float dist = distance(worldOffset, carPos);
                     // Push radius 4.0
                     if(dist < 4.0) {
+                        float originalLen = length(pos); // Capture original length
                         vec3 push = normalize(worldOffset - carPos);
                         float pushFactor = (1.0 - dist / 4.0);
-                        pos += push * pushFactor * 2.0 * (h > 0.2 ? 1.0 : 0.0);
+                        // Reduced strength 2.0 -> 1.0
+                        pos += push * pushFactor * 1.0 * (h > 0.1 ? 1.0 : 0.0);
+                        
+                        // Restore length to prevent stretching (Bend instead of stretch)
+                        if(originalLen > 0.001) pos = normalize(pos) * originalLen;
                     }
 
                     vec3 worldPos = pos + offset;
