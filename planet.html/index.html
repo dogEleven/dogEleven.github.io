@@ -965,6 +965,274 @@
 
         scene.add(grassMesh);
 
+        // --- 3.9 Additional Vegetation (Trees, Flowers, Mushrooms) ---
+
+        // Helper to merge geometries with baked vertex colors
+        function createColoredGeometry(parts) {
+            let totalVerts = 0;
+            // Must use toNonIndexed() to handle geometries with indices (like Sphere/Cylinder) correctly
+            // Otherwise vertices will be scrambled and shapes will look broken/exploded
+            const unindexedParts = parts.map(p => ({
+                geo: p.geo.toNonIndexed(),
+                color: p.color
+            }));
+
+            unindexedParts.forEach(p => totalVerts += p.geo.attributes.position.count);
+
+            const positions = new Float32Array(totalVerts * 3);
+            const normals = new Float32Array(totalVerts * 3);
+            const colors = new Float32Array(totalVerts * 3);
+            // UVs for wind gradients
+            const uvs = new Float32Array(totalVerts * 2);
+
+            let offset = 0;
+            const _col = new THREE.Color();
+
+            unindexedParts.forEach(p => {
+                const geo = p.geo;
+                const pos = geo.attributes.position;
+                const norm = geo.attributes.normal;
+                const uv = geo.attributes.uv;
+                const count = pos.count;
+
+                _col.setHex(p.color);
+
+                for (let i = 0; i < count; i++) {
+                    positions[(offset + i) * 3 + 0] = pos.getX(i);
+                    positions[(offset + i) * 3 + 1] = pos.getY(i);
+                    positions[(offset + i) * 3 + 2] = pos.getZ(i);
+
+                    if (norm) {
+                        normals[(offset + i) * 3 + 0] = norm.getX(i);
+                        normals[(offset + i) * 3 + 1] = norm.getY(i);
+                        normals[(offset + i) * 3 + 2] = norm.getZ(i);
+                    }
+
+                    if (uv) {
+                        uvs[(offset + i) * 2 + 0] = uv.getX(i);
+                        uvs[(offset + i) * 2 + 1] = uv.getY(i);
+                    }
+
+                    colors[(offset + i) * 3 + 0] = _col.r;
+                    colors[(offset + i) * 3 + 1] = _col.g;
+                    colors[(offset + i) * 3 + 2] = _col.b;
+                }
+                offset += count;
+                // It's good practice to dispose the temp geometry
+                geo.dispose();
+            });
+
+            const finalGeo = new THREE.BufferGeometry();
+            finalGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            finalGeo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+            finalGeo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+            finalGeo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+            return finalGeo;
+        }
+
+        // 1. Tree Geometry (Trunk + 2 Cones)
+        const treeParts = [
+            { geo: new THREE.CylinderGeometry(0.2, 0.3, 1.0, 7).translate(0, 0.5, 0), color: 0x5C4033 }, // Trunk
+            { geo: new THREE.ConeGeometry(1.2, 2.0, 7).translate(0, 2.0, 0), color: 0x228B22 }, // Base Leaves
+            { geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 3.2, 0), color: 0x32CD32 }  // Top Leaves
+        ];
+        const treeGeo = createColoredGeometry(treeParts);
+
+        // 2. Mushroom Geometry (Stem + Cap)
+        const mushParts = [
+            { geo: new THREE.CylinderGeometry(0.15, 0.2, 0.5, 6).translate(0, 0.25, 0), color: 0xFFF8DC }, // Stem
+            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI).translate(0, 0.5, 0), color: 0xFF4500 } // Red Cap
+        ];
+        const mushGeo = createColoredGeometry(mushParts);
+
+        // 3. Flower Geometry (Yellow Heart, White Petals)
+        const flowerParts = [
+            { geo: new THREE.CylinderGeometry(0.04, 0.04, 0.4, 4).translate(0, 0.2, 0), color: 0x006400 }, // Stem
+            { geo: new THREE.SphereGeometry(0.12, 4, 4).translate(0, 0.45, 0), color: 0xFFD700 }, // Center (Yellow)
+            // Petals as a flat circle/cone
+            { geo: new THREE.CircleGeometry(0.28, 6).rotateX(-Math.PI / 2).translate(0, 0.42, 0), color: 0xFFFFFF } // White Petals
+        ];
+        const flowerGeo = createColoredGeometry(flowerParts);
+
+
+        // Shared Vegetation Material
+        const vegMaterial = new THREE.ShaderMaterial({
+            vertexColors: true,
+            uniforms: {
+                time: { value: 0 },
+                carPos: { value: new THREE.Vector3() }
+            },
+            vertexShader: `
+                uniform float time;
+                uniform vec3 carPos;
+                attribute vec3 offset;
+                attribute vec3 instanceNormal;
+                attribute float scale;
+                attribute float rot;
+                attribute vec3 aColor; // Renamed from 'color' to avoid collisions
+
+                varying vec3 vColor;
+                
+                vec3 rotateVector(vec4 q, vec3 v) {
+                    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+                }
+                vec4 axisAngleToQuaternion(vec3 axis, float angle) {
+                    float halfAngle = angle * 0.5;
+                    float s = sin(halfAngle);
+                    return vec4(axis * s, cos(halfAngle));
+                }
+
+                void main() {
+                    vColor = aColor;
+                    vec3 pos = position;
+                    pos *= scale;
+
+                    // WIND SWAY
+                    float h = position.y; // Local height
+                    // Sway more at top
+                    if(h > 0.3) {
+                         float wind = sin(time * 2.0 + offset.x * 0.5) + sin(time * 1.5 + offset.z * 0.5);
+                         pos.x += wind * 0.1 * h; 
+                         pos.z += wind * 0.05 * h;
+                    }
+
+                    // Rotation
+                    vec4 qRand = axisAngleToQuaternion(vec3(0, 1, 0), rot);
+                    pos = rotateVector(qRand, pos);
+
+                    // Align to Normal
+                    vec3 up = vec3(0, 1, 0);
+                    vec3 normal = normalize(instanceNormal);
+                    vec3 axis = cross(up, normal);
+                    float cosA = dot(up, normal);
+                    vec4 qAlign = vec4(0, 0, 0, 1);
+                    if (cosA > -0.99) qAlign = normalize(vec4(axis, 1.0 + cosA));
+                    else qAlign = vec4(1, 0, 0, 0);
+                    pos = rotateVector(qAlign, pos);
+
+                    // Car Interaction (Push Away)
+                    vec3 worldOffset = offset;
+                    float dist = distance(worldOffset, carPos);
+                    // Push radius 4.0
+                    if(dist < 4.0) {
+                        vec3 push = normalize(worldOffset - carPos);
+                        float pushFactor = (1.0 - dist / 4.0);
+                        pos += push * pushFactor * 2.0 * (h > 0.2 ? 1.0 : 0.0);
+                    }
+
+                    vec3 worldPos = pos + offset;
+                    gl_Position = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                void main() {
+                    gl_FragColor = vec4(vColor, 1.0);
+                }
+            `,
+            side: THREE.DoubleSide
+        });
+
+        let debugVegCount = 0;
+
+        function scatterObjects(geo, count, type) {
+            const mesh = new THREE.InstancedMesh(geo, vegMaterial, count);
+            const offsets = new Float32Array(count * 3);
+            const normals = new Float32Array(count * 3);
+            const scales = new Float32Array(count);
+            const rots = new Float32Array(count);
+
+            const _v3 = new THREE.Vector3();
+            let idx = 0;
+
+            // Try more attempts
+            for (let i = 0; i < count * 20 && idx < count; i++) {
+                _v3.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+
+                let n = noise(_v3.x, _v3.y, _v3.z);
+                n += 0.25 * noise(_v3.x * 3.0, _v3.y * 3.0, _v3.z * 3.0);
+                // n range roughly -1.25 to 1.25
+
+                const sign = n < 0 ? -1 : 1;
+                let shapedN = sign * Math.pow(Math.abs(n), 3.0);
+                let h = shapedN * 30.0;
+
+                // Road Avoidance
+                const distEq = 40.0 * Math.abs(_v3.y);
+                if (distEq < 5.0) continue;
+
+                // Deep Terrain Sync (Simplified Check)
+                let finalR = 40.0 + h;
+                // If very low, it's water/trench.
+                // Apply specific Flattening Logic if needed, but for vegetation just check height.
+                // Re-apply logic to get correct surface H
+                if (finalR < 32.0) {
+                    let rNoise = noise(_v3.x * 1.5, _v3.y * 1.5, _v3.z * 1.5);
+                    let factor = 0.825 + (0.5 * (rNoise + 1.0)) * 0.05;
+                    finalR = 40.0 * factor;
+                    h = finalR - 40.0;
+                }
+
+                let valid = false;
+                let scale = 1.0;
+
+                // SIMPLIFIED ZONING (Debug)
+                // Valid if above Water (-1.0) and below High Peaks (25.0)
+                if (h > -0.5 && h < 25.0) {
+                    valid = true;
+
+                    if (type === 'tree') {
+                        // Allow trees in 0..18
+                        if (h < 0.0 || h > 18.0) valid = false;
+                        // Simple Density Check
+                        if (noise(_v3.x * 5.0, _v3.y * 5.0, _v3.z * 5.0) < 0.0) valid = false;
+                        scale = 1.2 + Math.random() * 1.0; // Larger trees
+                    } else if (type === 'mushroom') {
+                        if (h < 1.0 || h > 15.0) valid = false;
+                        // Clumps
+                        if (noise(_v3.x * 10.0 + 10.0, _v3.y * 10.0, _v3.z * 10.0) > -0.2) valid = false;
+                        scale = 0.8 + Math.random() * 0.5; // Visible mushrooms
+                    } else if (type === 'flower') {
+                        if (h < -0.5 || h > 15.0) valid = false;
+                        if (noise(_v3.x * 15.0, _v3.y * 15.0, _v3.z * 15.0) < 0.2) valid = false;
+                        scale = 0.8 + Math.random() * 0.5; // Visible flowers
+                    }
+                }
+
+                if (valid) {
+                    const pos = _v3.clone().multiplyScalar(40.0 + h);
+                    offsets[idx * 3] = pos.x;
+                    offsets[idx * 3 + 1] = pos.y;
+                    offsets[idx * 3 + 2] = pos.z;
+
+                    normals[idx * 3] = _v3.x;
+                    normals[idx * 3 + 1] = _v3.y;
+                    normals[idx * 3 + 2] = _v3.z;
+
+                    scales[idx] = scale;
+                    rots[idx] = Math.random() * Math.PI * 2;
+                    idx++;
+                }
+            }
+
+            debugVegCount += idx;
+
+            mesh.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(offsets, 3));
+            mesh.geometry.setAttribute('instanceNormal', new THREE.InstancedBufferAttribute(normals, 3));
+            mesh.geometry.setAttribute('scale', new THREE.InstancedBufferAttribute(scales, 1));
+            mesh.geometry.setAttribute('rot', new THREE.InstancedBufferAttribute(rots, 1));
+            mesh.frustumCulled = false;
+            scene.add(mesh);
+            return mesh;
+        }
+
+        const trees = scatterObjects(treeGeo, 500, 'tree'); // Reduced 50% (was 1000)
+        const mushrooms = scatterObjects(mushGeo, 500, 'mushroom'); // Reduced 50% (was 1000)
+        const flowers = scatterObjects(flowerGeo, 2000, 'flower'); // Reduced 50% (was 4000)
+
+        document.title = `Veg: ${debugVegCount}`;
+
+
         // --- 4. Car Object (Updated for Rolling & Colored Grass) ---
         const carGroup = new THREE.Group();
         carGroup.position.set(0, planetRadius + 10, 0);
@@ -1296,6 +1564,10 @@
             // Update Grass Uniforms
             grassMat.uniforms.carPos.value.copy(carGroup.position);
             grassMat.uniforms.time.value = clock.getElapsedTime();
+
+            // Update Vegetation Uniforms
+            vegMaterial.uniforms.carPos.value.copy(carGroup.position);
+            vegMaterial.uniforms.time.value = clock.getElapsedTime();
 
             // Update Car Grass Uniforms
             carGrassMat.uniforms.time.value = clock.getElapsedTime();
