@@ -1415,7 +1415,156 @@
 
 
 
-        // --- Multiplayer Logic ---
+        // --- Mobile Control Logic (Decoupled) ---
+        const MobileController = {
+            isMobile: false,
+            active: false,
+            moveVector: new THREE.Vector3(0, 0, 0),
+            jumpTrigger: false,
+
+            init: function () {
+                // Detect Mobile (Phones/Tablets)
+                this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent)); // iPad Pro often reports as Mac but has touch points
+
+                if (!this.isMobile) return;
+
+                console.log("Mobile device detected. Initializing controls...");
+
+                // Inject CSS
+                const style = document.createElement('style');
+                style.innerHTML = `
+            .joystick-base {
+                position: absolute;
+                width: 120px;
+                height: 120px;
+                background: rgba(255, 255, 255, 0.15);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                border-radius: 50%;
+                display: none;
+                z-index: 9999;
+                pointer-events: none; /* User touches screen, we track via window but this visual should not block */
+                touch-action: none;
+                backdrop-filter: blur(4px);
+                box-sizing: border-box;
+            }
+            .joystick-knob {
+                position: absolute;
+                width: 50px;
+                height: 50px;
+                background: rgba(255, 255, 255, 0.8);
+                border-radius: 50%;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                pointer-events: none;
+            }
+        `;
+                document.head.appendChild(style);
+
+                // Create Elements
+                this.base = document.createElement('div');
+                this.base.className = 'joystick-base';
+                this.knob = document.createElement('div');
+                this.knob.className = 'joystick-knob';
+                this.base.appendChild(this.knob);
+                document.body.appendChild(this.base);
+
+                // Attach Events
+                this.attachEvents();
+            },
+
+            attachEvents: function () {
+                let startX = 0, startY = 0;
+                const maxDist = 60; // Max radius (120px / 2)
+
+                // Use 'touchstart' on window to catch tapping anywhere
+                window.addEventListener('touchstart', (e) => {
+                    // Prevent default if it's a multi-touch gesture to avoid zooming, 
+                    // but we want to allow scrolling if not on joystick? 
+                    // Actually, "Touch Drag Move" implies a game-like full screen control.
+                    // We prevent default to stop scrolling/zooming/selection.
+                    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+                        e.preventDefault();
+                    }
+
+                    this.active = true;
+                    this.jumpTrigger = false;
+
+                    const t = e.changedTouches[0];
+                    startX = t.clientX;
+                    startY = t.clientY;
+
+                    // Show Joystick at touch point
+                    this.base.style.left = (startX - 60) + 'px';
+                    this.base.style.top = (startY - 60) + 'px';
+                    this.base.style.display = 'block';
+                    this.knob.style.transform = `translate(-50%, -50%)`;
+
+                    this.moveVector.set(0, 0, 0);
+                }, { passive: false });
+
+                window.addEventListener('touchmove', (e) => {
+                    if (!this.active) return;
+                    e.preventDefault();
+
+                    const t = e.changedTouches[0];
+                    const dx = t.clientX - startX;
+                    const dy = t.clientY - startY;
+
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    let moveX = dx;
+                    let moveY = dy;
+
+                    // Clamp visual knob
+                    if (dist > maxDist) {
+                        const ratio = maxDist / dist;
+                        moveX *= ratio;
+                        moveY *= ratio;
+                    }
+
+                    this.knob.style.transform = `translate(-50%, -50%) translate(${moveX}px, ${moveY}px)`;
+
+                    // Map to Logic Vector
+                    // Visual Up (-dy) -> Logic Forward (+z)
+                    // Visual Right (+dx) -> Logic Left (+x is left in our strange key mapping: A->+x)
+                    // Wait, let's re-verify key mapping in animate:
+                    // keys.a (Left) -> moveDir.x += 1.
+                    // keys.d (Right) -> moveDir.x -= 1.
+                    // keys.w (Forward) -> moveDir.z += 1.
+                    // keys.s (Backward) -> moveDir.z -= 1.
+
+                    // Joystick Up (dy < 0) -> Need Z > 0 -> z = -dy
+                    // Joystick Right (dx > 0) -> Need X < 0 -> x = -dx
+
+                    this.moveVector.set(-(dx / maxDist), 0, -(dy / maxDist));
+
+                    // Clamp vector magnitude to 1.0 for consistency
+                    if (this.moveVector.length() > 1) this.moveVector.normalize();
+
+                }, { passive: false });
+
+                window.addEventListener('touchend', (e) => {
+                    if (!this.active) return;
+                    this.active = false;
+                    this.base.style.display = 'none';
+                    this.moveVector.set(0, 0, 0);
+
+                    // Trigger Jump on release
+                    this.jumpTrigger = true;
+                });
+            },
+
+            consumeJump: function () {
+                if (this.jumpTrigger) {
+                    this.jumpTrigger = false;
+                    return true;
+                }
+                return false;
+            }
+        };
+
+        MobileController.init();
 
 
         const raycaster = new THREE.Raycaster();
@@ -1444,6 +1593,15 @@
             // A (+X) -> Turn Left? Typically A is -X.
             // Let's try: A -> +X, D -> -X. If reversed, we swap.
             if (keys.d) moveDir.x -= 1; // Right (Now using -X)
+
+            // --- Mobile Input Integration ---
+            let isJumpActive = keys[" "];
+            if (MobileController.isMobile) {
+                moveDir.add(MobileController.moveVector);
+                if (MobileController.consumeJump()) {
+                    isJumpActive = true;
+                }
+            }
 
             if (moveDir.lengthSq() > 0) moveDir.normalize();
 
@@ -1545,7 +1703,8 @@
                     carPhysics.vSpeed *= drag; // Water resistance
 
                     // Swim Up
-                    if (keys[" "]) {
+                    // Use unified isJumpActive
+                    if (isJumpActive) {
                         carPhysics.vSpeed += swimForce * dt;
                     }
                 }
@@ -1560,9 +1719,9 @@
                 if (newH < groundH) {
                     newH = groundH;
 
-                    // Jump (Space)
+                    // Jump (Space or Mobile Release)
                     // Heavier Jump: Gravity -50, Vel 15 -> Snappy, powerful hop
-                    if (keys[" "]) {
+                    if (isJumpActive) {
                         carPhysics.vSpeed = 15.0;
                     } else {
                         carPhysics.vSpeed = 0;
