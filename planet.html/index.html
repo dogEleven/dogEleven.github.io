@@ -1119,6 +1119,7 @@
                 attribute float scale;
                 attribute float rot;
                 attribute vec3 aColor; // Renamed from 'color' to avoid collisions
+                attribute float isStatic;
 
                 varying vec3 vColor;
                 
@@ -1160,18 +1161,21 @@
                     pos = rotateVector(qAlign, pos);
 
                     // Car Interaction (Push Away)
-                    vec3 worldOffset = offset;
-                    float dist = distance(worldOffset, carPos);
-                    // Push radius 4.0 -> Reduced to 1.6 (40%)
-                    if(dist < 1.6) {
-                        float originalLen = length(pos); // Capture original length
-                        vec3 push = normalize(worldOffset - carPos);
-                        float pushFactor = (1.0 - dist / 1.6);
-                        // Reduced strength 2.0 -> 1.0
-                        pos += push * pushFactor * 1.0 * (h > 0.1 ? 1.0 : 0.0);
-                        
-                        // Restore length to prevent stretching (Bend instead of stretch)
-                        if(originalLen > 0.001) pos = normalize(pos) * originalLen;
+                    // Disable for Static objects (Stones, Twigs)
+                    if (isStatic < 0.5) {
+                        vec3 worldOffset = offset;
+                        float dist = distance(worldOffset, carPos);
+                        // Push radius 4.0 -> Reduced to 1.6 (40%)
+                        if(dist < 1.6) {
+                            float originalLen = length(pos); // Capture original length
+                            vec3 push = normalize(worldOffset - carPos);
+                            float pushFactor = (1.0 - dist / 1.6);
+                            // Reduced strength 2.0 -> 1.0
+                            pos += push * pushFactor * 1.0 * (h > 0.1 ? 1.0 : 0.0);
+                            
+                            // Restore length to prevent stretching (Bend instead of stretch)
+                            if(originalLen > 0.001) pos = normalize(pos) * originalLen;
+                        }
                     }
 
                     vec3 worldPos = pos + offset;
@@ -1201,6 +1205,7 @@
             const normals = new Float32Array(count * 3);
             const scales = new Float32Array(count);
             const rots = new Float32Array(count);
+            const isStaticArr = new Float32Array(count);
 
             const _v3 = new THREE.Vector3();
             let idx = 0;
@@ -1304,6 +1309,7 @@
 
                     scales[idx] = scale;
                     rots[idx] = seededRandom() * Math.PI * 2;
+                    isStaticArr[idx] = (type === 'stone' || type === 'twig') ? 1.0 : 0.0;
                     idx++;
                 }
             }
@@ -1314,6 +1320,7 @@
             mesh.geometry.setAttribute('instanceNormal', new THREE.InstancedBufferAttribute(normals, 3));
             mesh.geometry.setAttribute('scale', new THREE.InstancedBufferAttribute(scales, 1));
             mesh.geometry.setAttribute('rot', new THREE.InstancedBufferAttribute(rots, 1));
+            mesh.geometry.setAttribute('isStatic', new THREE.InstancedBufferAttribute(isStaticArr, 1));
             mesh.frustumCulled = false;
             scene.add(mesh);
             return mesh;
