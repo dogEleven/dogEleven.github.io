@@ -1493,7 +1493,7 @@
                 const waterR = planetRadius + seaLevelRef;
 
                 // Physics Constants
-                const gravity = -20.0; // Strong gravity in air
+                const gravity = -50.0; // Stronger gravity (Heavy feel)
                 const waterGravity = -4.5; // Faster sinking (User Request 50% increase)
                 const swimForce = 15.0; // Upward acceleration
                 const drag = 0.92; // Water resistance
@@ -1522,7 +1522,14 @@
                 // Ground Collision
                 if (newH < groundH) {
                     newH = groundH;
-                    carPhysics.vSpeed = 0;
+
+                    // Jump (Space)
+                    // Heavier Jump: Gravity -50, Vel 15 -> Snappy, powerful hop
+                    if (keys[" "]) {
+                        carPhysics.vSpeed = 15.0;
+                    } else {
+                        carPhysics.vSpeed = 0;
+                    }
                 }
 
                 // Water Surface Collision (Ceiling)
