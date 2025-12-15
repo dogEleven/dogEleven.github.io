@@ -1329,7 +1329,7 @@
         seed = 12345; // Reset seed
         const trees = scatterObjects(treeGeo, 117, 'tree', 3.0); // Reduced count 117 (Target 40% reduction), MinDist 3.0
         const mushrooms = scatterObjects(mushGeo, 200, 'mushroom'); // Reduced 200
-        const flowers = scatterObjects(flowerGeo, 1000, 'flower'); // Reduced 50% again (2000 -> 1000)
+        const flowers = scatterObjects(flowerGeo, 500, 'flower'); // Reduced 50% again (1000 -> 500)
 
         // Add Stones and Twigs
         const stones = scatterObjects(stoneGeo, 25, 'stone');
@@ -1886,7 +1886,7 @@
         let lastDroppedIndex = -1;
         let lastPickupTime = 0;
 
-        const pickupDist = 2.5;
+        const pickupDist = 1.25;
 
         function getVisualGeometry(originalGeo) {
             const clone = originalGeo.clone();
