@@ -653,9 +653,7 @@
                 ,
                 carPos: {
                     value: new THREE.Vector3()
-                }
-
-                ,
+                },
                 cameraPos: {
                     value: new THREE.Vector3()
                 }
@@ -1684,9 +1682,7 @@
                     if (item.mesh.geometry) item.mesh.geometry.dispose();
                     flyingItems.splice(i, 1);
 
-                    // Visual Feedback
-                    chestMesh.material.color.setHex(0xA0522D);
-                    setTimeout(() => { chestMesh.material.color.setHex(0x8B4513); }, 200);
+                    // Visual Feedback Removed
                 }
             }
         }
@@ -1987,9 +1983,12 @@
                         if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
                         f.heldItem = null;
 
-                        // Chest Flash
-                        chestMesh.material.color.setHex(0xA0522D);
-                        setTimeout(() => { chestMesh.material.color.setHex(0x8B4513); }, 200);
+                        // Visuals
+                        f.mesh.remove(f.heldItem.mesh);
+                        if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
+                        f.heldItem = null;
+
+                        // Chest Flash Removed as per user request
 
                         // Flying Item Effect (Score)
                         // TODO: Create a flying item from chestBubble or similar? 
@@ -2558,6 +2557,7 @@
                     else carGroup.position.lerp(finalPos, lerpPosFactor);
                 }
 
+                // Update Uniforms
                 // Update Uniforms
                 grassMat.uniforms.carPos.value.copy(carGroup.position);
                 grassMat.uniforms.time.value = clock.getElapsedTime();
