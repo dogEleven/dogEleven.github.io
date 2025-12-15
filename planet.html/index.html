@@ -1420,33 +1420,33 @@
         chestBubble.id = 'chestBubble';
         chestBubble.style.position = 'absolute';
         chestBubble.style.zIndex = '100';
-        chestBubble.style.padding = '4px 10px'; // Reduced padding
+        chestBubble.style.padding = '2px 5px'; // Reduced 50%
         chestBubble.style.background = 'rgba(255, 255, 255, 0.95)';
-        chestBubble.style.borderRadius = '12px';
+        chestBubble.style.borderRadius = '6px'; // Reduced 50%
         chestBubble.style.pointerEvents = 'none';
         chestBubble.style.display = 'none';
         chestBubble.style.color = '#333';
-        chestBubble.style.boxShadow = '0 4px 15px rgba(0,0,0,0.15)';
+        chestBubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'; // Reduced shadow
         chestBubble.style.minWidth = 'auto'; // Shrink to fit content
 
         // Add Triangle indicator
         const bubbleArrow = document.createElement('div');
         bubbleArrow.style.position = 'absolute';
-        bubbleArrow.style.bottom = '-6px';
+        bubbleArrow.style.bottom = '-3px'; // Reduced 50%
         bubbleArrow.style.left = '50%';
-        bubbleArrow.style.marginLeft = '-6px';
+        bubbleArrow.style.marginLeft = '-3px'; // Reduced 50%
         bubbleArrow.style.width = '0';
         bubbleArrow.style.height = '0';
-        bubbleArrow.style.borderLeft = '6px solid transparent';
-        bubbleArrow.style.borderRight = '6px solid transparent';
-        bubbleArrow.style.borderTop = '6px solid rgba(255, 255, 255, 0.95)';
+        bubbleArrow.style.borderLeft = '3px solid transparent'; // Reduced 50%
+        bubbleArrow.style.borderRight = '3px solid transparent'; // Reduced 50%
+        bubbleArrow.style.borderTop = '3px solid rgba(255, 255, 255, 0.95)'; // Reduced 50%
         chestBubble.appendChild(bubbleArrow);
 
         // Inventory Container
         const inventoryGrid = document.createElement('div');
         inventoryGrid.style.display = 'grid';
         inventoryGrid.style.gridTemplateColumns = 'auto 1fr';
-        inventoryGrid.style.gap = '0px 10px'; // ZERO row gap, tight column gap
+        inventoryGrid.style.gap = '0px 5px'; // Reduced 50%
         inventoryGrid.style.alignItems = 'center';
         chestBubble.appendChild(inventoryGrid);
 
@@ -1660,19 +1660,19 @@
                 types.forEach(type => {
                     const count = chestInventory[type] || 0;
 
-                    // Icon (Doubled Size: 24 -> 48)
+                    // Icon (Reduced Size: 48 -> 24)
                     const img = document.createElement('img');
                     img.src = itemIcons[type] || '';
-                    img.style.width = '48px';
-                    img.style.height = '48px';
+                    img.style.width = '24px'; // Reduced 50%
+                    img.style.height = '24px'; // Reduced 50%
                     img.style.objectFit = 'contain';
-                    img.style.margin = '-8px'; // Reduce whitespace
+                    img.style.margin = '-4px'; // Reduced 50%
 
 
                     // Count
                     const txt = document.createElement('span');
                     txt.textContent = `${count}`;
-                    txt.style.fontSize = '18px'; // Slightly larger font for larger icon
+                    txt.style.fontSize = '9px'; // Reduced 50% (18 -> 9)
                     txt.style.fontWeight = 'bold';
 
                     inventoryGrid.appendChild(img);
