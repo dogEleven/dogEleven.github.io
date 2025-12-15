@@ -1413,6 +1413,278 @@
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
+        // --- Chest Implementation ---
+
+        // 1. UI Bubble
+        const chestBubble = document.createElement('div');
+        chestBubble.id = 'chestBubble';
+        chestBubble.style.position = 'absolute';
+        chestBubble.style.zIndex = '100';
+        chestBubble.style.padding = '10px 14px';
+        chestBubble.style.background = 'rgba(255, 255, 255, 0.95)';
+        chestBubble.style.borderRadius = '12px';
+        chestBubble.style.pointerEvents = 'none';
+        chestBubble.style.display = 'none';
+        chestBubble.style.color = '#333';
+        chestBubble.style.boxShadow = '0 4px 15px rgba(0,0,0,0.15)';
+        chestBubble.style.minWidth = '120px';
+
+        // Add Triangle indicator
+        const bubbleArrow = document.createElement('div');
+        bubbleArrow.style.position = 'absolute';
+        bubbleArrow.style.bottom = '-6px';
+        bubbleArrow.style.left = '50%';
+        bubbleArrow.style.marginLeft = '-6px';
+        bubbleArrow.style.width = '0';
+        bubbleArrow.style.height = '0';
+        bubbleArrow.style.borderLeft = '6px solid transparent';
+        bubbleArrow.style.borderRight = '6px solid transparent';
+        bubbleArrow.style.borderTop = '6px solid rgba(255, 255, 255, 0.95)';
+        chestBubble.appendChild(bubbleArrow);
+
+        // Inventory Container
+        const inventoryGrid = document.createElement('div');
+        inventoryGrid.style.display = 'grid';
+        inventoryGrid.style.gridTemplateColumns = 'auto 1fr';
+        inventoryGrid.style.gap = '8px 12px';
+        inventoryGrid.style.alignItems = 'center';
+        chestBubble.appendChild(inventoryGrid);
+
+        document.body.appendChild(chestBubble);
+
+        // 2. Chest State
+        const chestInventory = {
+            stone: 0,
+            twig: 0,
+            mushroom: 0
+        };
+        let lastChestDepositTime = 0;
+        const chestPos = new THREE.Vector3(0, planetRadius, 15.0); // Z+15
+
+        // 3. Chest Mesh
+        const chestGeo = new THREE.BoxGeometry(2.0, 1.5, 1.5);
+        const chestMat = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
+        const chestMesh = new THREE.Mesh(chestGeo, chestMat);
+        scene.add(chestMesh);
+
+        // 4. Precise Terrain Height Logic (Copied from Terrain Pipeline)
+        function getSurfaceHeight(x, y, z) {
+            const dir = new THREE.Vector3(x, y, z).normalize();
+
+            // 1. Structure Noise
+            let n = noise(dir.x * 1.0, dir.y * 1.0, dir.z * 1.0);
+            n += 0.25 * noise(dir.x * 3.0, dir.y * 3.0, dir.z * 3.0);
+
+            // 2. Power Curve
+            const power = 3.0;
+            const sign = n < 0 ? -1 : 1;
+            let shapedN = sign * Math.pow(Math.abs(n), power);
+            let h = shapedN * 30.0;
+
+            // 3. Road Zone
+            const roadBandWidth = 3.0;
+            const roadTransition = 3.0;
+            const distFromEquator = planetRadius * Math.abs(dir.y);
+
+            if (distFromEquator < (roadBandWidth + roadTransition)) {
+                const roadHeight = 0.5;
+                let t = 0.0;
+                if (distFromEquator < roadBandWidth) t = 1.0;
+                else {
+                    let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
+                    t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist));
+                }
+                h = h * (1.0 - t) + roadHeight * t;
+            }
+
+            // 4. Deep Terrain Flattening
+            let finalRadius = planetRadius + h;
+            if (finalRadius < planetRadius * 0.8) {
+                let rNoise = noise(dir.x * 1.5, dir.y * 1.5, dir.z * 1.5);
+                let normNoise = 0.5 * (rNoise + 1.0);
+                let factor = 0.825 + normNoise * 0.05;
+                finalRadius = planetRadius * factor;
+                h = finalRadius - planetRadius;
+            }
+            return planetRadius + h;
+        }
+
+        // Init Chest Pos
+        const groundH = getSurfaceHeight(chestPos.x, chestPos.y, chestPos.z);
+        chestPos.normalize().multiplyScalar(groundH + 0.75);
+        chestMesh.position.copy(chestPos);
+        chestMesh.lookAt(new THREE.Vector3(0, 0, 0));
+
+        // 5. Icon Generation
+        const itemIcons = {};
+        function generateIcon(geo, color) {
+            const size = 64;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+
+            // Create mini scene
+            const iconScene = new THREE.Scene();
+            // iconScene.background = new THREE.Color(0xffffff); // Transparent preferable?
+            const iconCam = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
+            iconCam.position.z = 2.5; // Adjust based on object size
+
+            const iconLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            iconLight.position.set(1, 1, 1);
+            iconScene.add(iconLight);
+            iconScene.add(new THREE.AmbientLight(0x404040));
+
+            // Mesh
+            // Use VertexColors if geometry has them, else use color
+            let mat;
+            if (geo.attributes.aColor) {
+                // Clone geo to safely set color attribute? 
+                // Actually for icons we can just use the provided color fallback or force vertex colors
+                // But standard MeshBasicMaterial might look flat. Let's use Lambert for icon depth.
+                const iconGeo = geo.clone();
+                iconGeo.setAttribute('color', iconGeo.attributes.aColor);
+                // Center geometry
+                iconGeo.computeBoundingBox();
+                const center = iconGeo.boundingBox.getCenter(new THREE.Vector3());
+                iconGeo.translate(-center.x, -center.y, -center.z);
+
+                mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+                const m = new THREE.Mesh(iconGeo, mat);
+                iconScene.add(m);
+            } else {
+                // Fallback geometry center
+                const iconGeo = geo.clone();
+                iconGeo.computeBoundingBox();
+                const center = iconGeo.boundingBox.getCenter(new THREE.Vector3());
+                iconGeo.translate(-center.x, -center.y, -center.z);
+
+                mat = new THREE.MeshLambertMaterial({ color: color });
+                const m = new THREE.Mesh(iconGeo, mat);
+                iconScene.add(m);
+            }
+
+            // Render
+            renderer.render(iconScene, iconCam);
+            return renderer.domElement.toDataURL();
+        }
+
+        // Generate Icons (Delayed slightly to ensure renderer is ready? No, renderer exists)
+        // Store geometries to use. 
+        // Note: stoneGeo, twigGeo have aColor? Stone does. Twig does. Mushroom has parts.
+        // For mushroom, we need to combine parts or just pick the cap?
+        // Let's approximate.
+
+        // Wait, Mushroom is complex (cap + stipe). We don't have a single merged geometry variable easily accessible 
+        // except the InstancedMesh's geometry? No, we used 'mushGeo' which was an array of parts? 
+        // Let's see: const mushrooms = scatterObjects(mushGeo, ...)
+        // 'mushGeo' passed to scatterObjects is expected to be a single geometry (BufferGeometry).
+
+        setTimeout(() => {
+            // Safe delay to ensure context is clean
+            const currentClearColor = renderer.getClearColor(new THREE.Color());
+            const currentClearAlpha = renderer.getClearAlpha();
+            const currentSize = new THREE.Vector2();
+            renderer.getSize(currentSize);
+
+            // Temp resize for icon
+            renderer.setSize(64, 64);
+            renderer.setClearColor(0x000000, 0); // Transparent background
+
+            itemIcons['stone'] = generateIcon(stoneGeo, 0x888888);
+            itemIcons['twig'] = generateIcon(twigGeo, 0x5C4033);
+
+            // For mushroom, stick to a simple proxy if complex, or try mushGeo if it is a geometry
+            // If mushGeo is array of parts, we need to construct a group.
+            // Looking at scatterObjects usage: `scatterObjects(mushGeo, ...)`
+            // This implies `mushGeo` IS a Geometry (BufferGeometry).
+            itemIcons['mushroom'] = generateIcon(mushGeo, 0xff0000);
+
+            // Restore
+            renderer.setSize(currentSize.x, currentSize.y);
+            renderer.setClearColor(currentClearColor, currentClearAlpha);
+        }, 100);
+
+
+        function updateChestLogic(playerPos) {
+            const dist = playerPos.distanceTo(chestMesh.position);
+            const interactRange = 6.0;
+
+            if (dist < interactRange) {
+                // Show Bubble
+                chestBubble.style.display = 'block';
+
+                // Rebuild Inventory Grid Content
+                // Clear current
+                inventoryGrid.innerHTML = '';
+
+                // For each item type
+                const types = ['stone', 'twig', 'mushroom'];
+                types.forEach(type => {
+                    const count = chestInventory[type] || 0;
+
+                    // Icon
+                    const img = document.createElement('img');
+                    img.src = itemIcons[type] || '';
+                    img.style.width = '24px';
+                    img.style.height = '24px';
+                    img.style.objectFit = 'contain';
+
+                    // Count
+                    const txt = document.createElement('span');
+                    txt.textContent = `x ${count}`;
+                    txt.style.fontSize = '14px';
+                    txt.style.fontWeight = 'bold';
+
+                    inventoryGrid.appendChild(img);
+                    inventoryGrid.appendChild(txt);
+                });
+
+
+                // Project Position
+                const bubbleWorldPos = chestMesh.position.clone().add(chestMesh.position.clone().normalize().multiplyScalar(2.5));
+                const p = bubbleWorldPos.clone();
+                p.project(camera);
+
+                const x = (p.x * 0.5 + 0.5) * window.innerWidth;
+                const y = -(p.y * 0.5 - 0.5) * window.innerHeight;
+
+                chestBubble.style.left = x + 'px';
+                chestBubble.style.top = y + 'px';
+                chestBubble.style.transform = 'translate(-50%, -100%)';
+
+                // Interaction: Deposit
+                if (heldItem) {
+                    const now = clock.getElapsedTime();
+                    if (now - lastChestDepositTime > 1.0) {
+
+                        // Increment specific type
+                        if (chestInventory.hasOwnProperty(heldItem.type)) {
+                            chestInventory[heldItem.type]++;
+                        } else {
+                            chestInventory[heldItem.type] = 1;
+                        }
+
+                        // Consume Item
+                        if (heldItem.mesh) {
+                            characterContainer.remove(heldItem.mesh);
+                            heldItem.mesh.geometry.dispose();
+                        }
+
+                        heldItem = null;
+                        lastChestDepositTime = now;
+
+                        // Visual Feedback
+                        chestMesh.material.color.setHex(0xA0522D);
+                        setTimeout(() => { chestMesh.material.color.setHex(0x8B4513); }, 200);
+                    }
+                }
+
+            } else {
+                chestBubble.style.display = 'none';
+            }
+        }
+
+
 
 
         // --- Mobile Control Logic (Decoupled) ---
@@ -1948,6 +2220,9 @@
                         heldItem.mesh.position.lerpVectors(new THREE.Vector3(0, 0.5, 1.5), new THREE.Vector3(0, 2.5, 0), t);
                     }
                 }
+
+                // --- Chest Logic ---
+                updateChestLogic(carPhysics.pos);
 
                 // Update Planet Uniforms
                 if (planet.material.uniforms && planet.material.uniforms.time) {
