@@ -1836,7 +1836,7 @@
                 const distToPlayer = f.mesh.position.distanceTo(playerPos);
 
                 // Activation
-                if (distToPlayer < 20.0) f.isFollowing = true;
+                if (distToPlayer < 10.0) f.isFollowing = true;
 
                 // Physics Forces
                 const moveForce = new THREE.Vector3();
@@ -1924,10 +1924,13 @@
                 f.mesh.quaternion.slerp(_dummy.quaternion, 5.0 * dt);
 
                 // Animation
-                if (f.velocity.lengthSq() > 0.05) {
-                    const t = clock.getElapsedTime() * 20.0;
-                    f.leftLeg.rotation.x = Math.sin(t) * 1.5;
-                    f.rightLeg.rotation.x = -Math.sin(t) * 1.5;
+                // Animation
+                const speed = f.velocity.length();
+                if (speed > 0.05) {
+                    // Accumulate local timer
+                    f.walkTime = (f.walkTime || 0) + dt * speed * 1.5;
+                    f.leftLeg.rotation.x = Math.sin(f.walkTime) * 1.5;
+                    f.rightLeg.rotation.x = -Math.sin(f.walkTime) * 1.5;
                 } else {
                     // Idle state
                     f.leftLeg.rotation.x = 0;
@@ -2271,6 +2274,7 @@
             }
         }
 
+        let playerWalkTime = 0;
         const animate = () => {
             try {
                 requestAnimationFrame(animate);
@@ -2325,11 +2329,13 @@
                 }
 
                 // 2. Walk Cycle (Legs)
+                // 2. Walk Cycle (Legs)
                 if (speed > 0.5) {
-                    const t = clock.getElapsedTime() * 12.0;
+                    // Accumulate time based on speed (Fixes strobing and inverse speed illusion)
+                    playerWalkTime += dt * speed * 1.5;
                     const amp = 0.8;
-                    leftLeg.rotation.x = Math.sin(t) * amp;
-                    rightLeg.rotation.x = -Math.sin(t) * amp;
+                    leftLeg.rotation.x = Math.sin(playerWalkTime) * amp;
+                    rightLeg.rotation.x = -Math.sin(playerWalkTime) * amp;
                 } else {
                     const t = dt * 10.0;
                     leftLeg.rotation.x = leftLeg.rotation.x * (1.0 - t);
