@@ -651,9 +651,7 @@
                 }
 
                 ,
-                carPos: {
-                    value: new THREE.Vector3()
-                },
+                carPos: { value: new THREE.Vector3() },
                 cameraPos: {
                     value: new THREE.Vector3()
                 }
@@ -735,20 +733,16 @@
                 pos=rotateVector(qAlign, pos);
 
                 // --- 4. Car Interaction ---
-                // Push grass away from car
-                float dist=distance(offset, carPos);
-                // Reduced Interaction Radius (40% of 3.5 -> 1.4)
-                float radius=1.4;
+                {
+                    vec3 totalPush = vec3(0.0);
+                    
+                    // Player (Radius 1.4)
+                    float dCar = distance(offset, carPos);
+                    if (dCar < 1.4) {
+                        totalPush += normalize(offset - carPos) * (1.0 - dCar/1.4);
+                    }
 
-                if (dist < radius) {
-                    float strength=(1.0 - dist / radius); // 0 to 1
-                    strength=pow(strength, 2.0); // Non-linear falloff
-
-                    vec3 pushDir=normalize(offset - carPos);
-
-                    // Push away from car, mostly affecting the top (uv.y)
-                    // flattened y slightly to simulate being crushed
-                    pos +=pushDir * strength * 1.0 * uv.y;
+                    pos += totalPush * 1.0 * uv.y;
                 }
 
                 // --- Fix Stretching ---
@@ -1148,7 +1142,7 @@
             vertexColors: true,
             uniforms: {
                 time: { value: 0 },
-                carPos: { value: new THREE.Vector3() }
+                carPos: { value: new THREE.Vector3() },
             },
             vertexShader: `
                 uniform float time;
@@ -1199,22 +1193,22 @@
                     else qAlign = vec4(1, 0, 0, 0);
                     pos = rotateVector(qAlign, pos);
 
-                    // Car Interaction (Push Away)
-                    // Disable for Static objects (Stones, Twigs)
+                    // Interaction
                     if (isStatic < 0.5) {
-                        vec3 worldOffset = offset;
-                        float dist = distance(worldOffset, carPos);
-                        // Push radius 4.0 -> Reduced to 1.6 (40%)
-                        if(dist < 1.6) {
-                            float originalLen = length(pos); // Capture original length
-                            vec3 push = normalize(worldOffset - carPos);
-                            float pushFactor = (1.0 - dist / 1.6);
-                            // Reduced strength 2.0 -> 1.0
-                            pos += push * pushFactor * 1.0 * (h > 0.1 ? 1.0 : 0.0);
-                            
-                            // Restore length to prevent stretching (Bend instead of stretch)
-                            if(originalLen > 0.001) pos = normalize(pos) * originalLen;
-                        }
+                         vec3 worldOffset = offset;
+                         vec3 totalDisp = vec3(0.0);
+                         float originalLen = length(pos);
+
+                         // Player
+                         float dCar = distance(worldOffset, carPos);
+                         if(dCar < 1.6) {
+                            totalDisp += normalize(worldOffset - carPos) * (1.0 - dCar/1.6);
+                         }
+
+                         pos += totalDisp * 1.0 * (h > 0.1 ? 1.0 : 0.0);
+                         
+                         // Consistency
+                         if(originalLen > 0.001) pos = normalize(pos) * originalLen;
                     }
 
                     vec3 worldPos = pos + offset;
