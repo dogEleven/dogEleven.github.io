@@ -1605,9 +1605,47 @@
         }, 100);
 
 
+        const flyingItems = [];
+
+        function updateFlyingItems(dt) {
+            for (let i = flyingItems.length - 1; i >= 0; i--) {
+                const item = flyingItems[i];
+                const speed = 15.0;
+
+                const dir = new THREE.Vector3().subVectors(item.target, item.mesh.position);
+                const distSq = dir.lengthSq();
+
+                // Move closer
+                if (distSq > 0.5) {
+                    dir.data = null; // safe
+                    dir.normalize();
+                    item.mesh.position.add(dir.multiplyScalar(speed * dt));
+                    // Scale down effect
+                    item.mesh.scale.multiplyScalar(0.92);
+                }
+                else {
+                    // Arrived
+                    if (chestInventory.hasOwnProperty(item.type)) {
+                        chestInventory[item.type]++;
+                    } else {
+                        chestInventory[item.type] = 1;
+                    }
+
+                    // Dispose
+                    scene.remove(item.mesh);
+                    if (item.mesh.geometry) item.mesh.geometry.dispose();
+                    flyingItems.splice(i, 1);
+
+                    // Visual Feedback
+                    chestMesh.material.color.setHex(0xA0522D);
+                    setTimeout(() => { chestMesh.material.color.setHex(0x8B4513); }, 200);
+                }
+            }
+        }
+
         function updateChestLogic(playerPos) {
             const dist = playerPos.distanceTo(chestMesh.position);
-            const interactRange = 6.0;
+            const interactRange = 3.0;
 
             if (dist < interactRange) {
                 // Show Bubble
@@ -1633,7 +1671,7 @@
 
                     // Count
                     const txt = document.createElement('span');
-                    txt.textContent = `x ${count}`;
+                    txt.textContent = `${count}`;
                     txt.style.fontSize = '18px'; // Slightly larger font for larger icon
                     txt.style.fontWeight = 'bold';
 
@@ -1660,25 +1698,20 @@
                     const now = clock.getElapsedTime();
                     if (now - lastChestDepositTime > 1.0) {
 
-                        // Increment specific type
-                        if (chestInventory.hasOwnProperty(heldItem.type)) {
-                            chestInventory[heldItem.type]++;
-                        } else {
-                            chestInventory[heldItem.type] = 1;
-                        }
-
-                        // Consume Item
+                        // Transition Effect
                         if (heldItem.mesh) {
-                            characterContainer.remove(heldItem.mesh);
-                            heldItem.mesh.geometry.dispose();
+                            // Transfer to Scene World Space
+                            scene.attach(heldItem.mesh);
+
+                            flyingItems.push({
+                                mesh: heldItem.mesh,
+                                target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
+                                type: heldItem.type
+                            });
                         }
 
                         heldItem = null;
                         lastChestDepositTime = now;
-
-                        // Visual Feedback
-                        chestMesh.material.color.setHex(0xA0522D);
-                        setTimeout(() => { chestMesh.material.color.setHex(0x8B4513); }, 200);
                     }
                 }
 
@@ -2225,6 +2258,7 @@
                 }
 
                 // --- Chest Logic ---
+                updateFlyingItems(dt);
                 updateChestLogic(carPhysics.pos);
 
                 // Update Planet Uniforms
