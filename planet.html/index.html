@@ -1628,6 +1628,8 @@
                     img.style.width = '48px';
                     img.style.height = '48px';
                     img.style.objectFit = 'contain';
+                    img.style.margin = '-8px'; // Reduce whitespace
+
 
                     // Count
                     const txt = document.createElement('span');
@@ -1641,7 +1643,8 @@
 
 
                 // Project Position
-                const bubbleWorldPos = chestMesh.position.clone().add(chestMesh.position.clone().normalize().multiplyScalar(2.5));
+                // Bubble floats above chest (Reduced height from 2.5 to 1.8 to fix "too high")
+                const bubbleWorldPos = chestMesh.position.clone().add(chestMesh.position.clone().normalize().multiplyScalar(1.8));
                 const p = bubbleWorldPos.clone();
                 p.project(camera);
 
