@@ -1815,11 +1815,22 @@
         }
 
         function spawnFollowers(count) {
-            for (let i = 0; i < count; i++) {
+            let spawned = 0;
+            // Safety limit to prevent infinite loops
+            let attempts = 0;
+            const waterHeight = planetRadius + seaLevelRef;
+
+            while (spawned < count && attempts < count * 10) {
+                attempts++;
                 const v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
                 const h = getSurfaceHeight(v.x, v.y, v.z);
-                const pos = v.multiplyScalar(h);
-                followers.push(createFollower(pos));
+
+                // Only spawn if above water
+                if (h > waterHeight + 0.5) {
+                    const pos = v.multiplyScalar(h);
+                    followers.push(createFollower(pos));
+                    spawned++;
+                }
             }
         }
 
