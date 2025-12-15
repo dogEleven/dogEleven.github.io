@@ -1576,6 +1576,7 @@
         let lastDropTime = 0;
         let lastDroppedType = null;
         let lastDroppedIndex = -1;
+        let lastPickupTime = 0;
 
         const pickupDist = 2.5;
 
@@ -1596,41 +1597,60 @@
             const mesh = heldItem.sourceMesh;
 
             // 1. Restore Instance
-            const offsets = mesh.geometry.attributes.offset;
-            const scales = mesh.geometry.attributes.scale;
+            if (mesh && mesh.geometry && mesh.geometry.attributes.offset) {
+                const offsets = mesh.geometry.attributes.offset;
+                const scales = mesh.geometry.attributes.scale;
 
-            // Update Position to Drop Location
-            offsets.setXYZ(instIdx, dropPos.x, dropPos.y, dropPos.z);
-            offsets.needsUpdate = true;
+                // Update Position to Drop Location
+                offsets.setXYZ(instIdx, dropPos.x, dropPos.y, dropPos.z);
+                offsets.needsUpdate = true;
 
-            // Restore Scale
-            scales.setX(instIdx, heldItem.originalScale);
-            scales.needsUpdate = true;
+                // Restore Scale
+                scales.setX(instIdx, heldItem.originalScale);
+                scales.needsUpdate = true;
+            }
 
             // 2. Remove Visual
-            characterContainer.remove(heldItem.mesh);
-            heldItem.mesh.geometry.dispose(); // Cleanup
+            if (heldItem.mesh) {
+                if (heldItem.mesh.parent) heldItem.mesh.parent.remove(heldItem.mesh);
+                if (heldItem.mesh.geometry) heldItem.mesh.geometry.dispose();
+            }
 
             // 3. Mark Cooldown (to avoid immediate re-pickup of same item)
             lastDropTime = clock.getElapsedTime();
             lastDroppedIndex = instIdx;
-            // Record type to be safe if indices overlap across meshes (they shouldn't if we track mesh)
-            // Actually index is unique only per mesh.
             lastDroppedType = heldItem.type;
 
             heldItem = null;
         }
 
         function pickupItem(t, i, currentScale) {
+            // Safety: Update heldItem null state first if we are here (should be null)
+            heldItem = null;
+
             // Hide Original
             const scales = t.mesh.geometry.attributes.scale;
             scales.setX(i, 0);
             scales.needsUpdate = true;
 
+            // SAFETY: Remove any existing pickup visuals (Prevent "holding two" bug or visual ghosts)
+            if (characterContainer && characterContainer.children) {
+                for (let c = characterContainer.children.length - 1; c >= 0; c--) {
+                    const child = characterContainer.children[c];
+                    if (child.userData && child.userData.isPickup) {
+                        characterContainer.remove(child);
+                        if (child.geometry) child.geometry.dispose();
+                    }
+                }
+            }
+
             // Create Visual
             const visGeo = getVisualGeometry(t.geo);
             const visMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
             const visMesh = new THREE.Mesh(visGeo, visMat);
+
+            // Tag it
+            visMesh.userData.isPickup = true;
 
             // Attach
             characterContainer.add(visMesh);
@@ -1640,6 +1660,9 @@
             visMesh.rotation.y = t.mesh.geometry.attributes.rot.getX(i);
             visMesh.scale.setScalar(currentScale);
 
+            // Record Pickup Time
+            lastPickupTime = clock.getElapsedTime();
+
             heldItem = {
                 mesh: visMesh,
                 sourceMesh: t.mesh,
@@ -1647,12 +1670,19 @@
                 type: t.type,
                 originalScale: currentScale,
                 isAnimating: true,
-                animStartTime: clock.getElapsedTime()
+                animStartTime: lastPickupTime
             };
         }
 
         function tryPickup(pos) {
+            // Only pickup if moving (User Request)
+            // Using 0.5 as threshold (matches walk animation)
+            if (!carPhysics.velocity || carPhysics.velocity.length() < 0.5) return;
+
             const now = clock.getElapsedTime();
+            // Global Pickup Cooldown: 1.0s wait after picking up anything
+            if (now - lastPickupTime < 1.0) return;
+
             // Global Cooldown check (short)
             // if (now - lastDropTime < 0.2) return; 
 
