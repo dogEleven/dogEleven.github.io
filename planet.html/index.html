@@ -1674,12 +1674,23 @@
             };
         }
 
-        function tryPickup(pos) {
-            // Only pickup if moving (User Request)
-            // Using 0.5 as threshold (matches walk animation)
-            if (!carPhysics.velocity || carPhysics.velocity.length() < 0.5) return;
+        let lastStandTime = 0; // Track when we last stood still
 
+        function tryPickup(pos) {
             const now = clock.getElapsedTime();
+
+            // Movement Check
+            if (!carPhysics.velocity || carPhysics.velocity.length() < 0.5) {
+                // We are standing still (or moving very slowly)
+                lastStandTime = now;
+                return;
+            } else {
+                // We are moving.
+                // Rule: Cannot pickup if we just started moving (within 1 second)
+                // This prevents picking up the item we just stood on/dropped instantly.
+                if (now - lastStandTime < 1.0) return;
+            }
+
             // Global Pickup Cooldown: 1.0s wait after picking up anything
             if (now - lastPickupTime < 1.0) return;
 
