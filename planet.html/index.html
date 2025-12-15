@@ -1427,7 +1427,7 @@
         chestBubble.style.display = 'none';
         chestBubble.style.color = '#333';
         chestBubble.style.boxShadow = '0 4px 15px rgba(0,0,0,0.15)';
-        chestBubble.style.minWidth = '120px';
+        chestBubble.style.minWidth = 'auto'; // Shrink to fit content
 
         // Add Triangle indicator
         const bubbleArrow = document.createElement('div');
@@ -1446,7 +1446,7 @@
         const inventoryGrid = document.createElement('div');
         inventoryGrid.style.display = 'grid';
         inventoryGrid.style.gridTemplateColumns = 'auto 1fr';
-        inventoryGrid.style.gap = '8px 12px';
+        inventoryGrid.style.gap = '8px 12px'; // Gap between icon and text
         inventoryGrid.style.alignItems = 'center';
         chestBubble.appendChild(inventoryGrid);
 
@@ -1622,17 +1622,17 @@
                 types.forEach(type => {
                     const count = chestInventory[type] || 0;
 
-                    // Icon
+                    // Icon (Doubled Size: 24 -> 48)
                     const img = document.createElement('img');
                     img.src = itemIcons[type] || '';
-                    img.style.width = '24px';
-                    img.style.height = '24px';
+                    img.style.width = '48px';
+                    img.style.height = '48px';
                     img.style.objectFit = 'contain';
 
                     // Count
                     const txt = document.createElement('span');
                     txt.textContent = `x ${count}`;
-                    txt.style.fontSize = '14px';
+                    txt.style.fontSize = '18px'; // Slightly larger font for larger icon
                     txt.style.fontWeight = 'bold';
 
                     inventoryGrid.appendChild(img);
