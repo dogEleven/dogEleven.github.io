@@ -1923,6 +1923,15 @@
                     f.mesh.position.add(f.velocity.clone().multiplyScalar(dt));
                 }
 
+                // Chest Collision (Followers)
+                if (chestMesh) {
+                    const fDist = f.mesh.position.distanceTo(chestMesh.position);
+                    if (fDist < 1.5) { // Match Player Collision Radius
+                        const pushDir = new THREE.Vector3().subVectors(f.mesh.position, chestMesh.position).normalize();
+                        f.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(1.5));
+                    }
+                }
+
                 // ALWAYS Snap & Orient (Fix Lying Down)
                 let h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
 
