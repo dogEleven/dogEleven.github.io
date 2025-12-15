@@ -1420,7 +1420,7 @@
         chestBubble.id = 'chestBubble';
         chestBubble.style.position = 'absolute';
         chestBubble.style.zIndex = '100';
-        chestBubble.style.padding = '10px 14px';
+        chestBubble.style.padding = '4px 10px'; // Reduced padding
         chestBubble.style.background = 'rgba(255, 255, 255, 0.95)';
         chestBubble.style.borderRadius = '12px';
         chestBubble.style.pointerEvents = 'none';
@@ -1446,7 +1446,7 @@
         const inventoryGrid = document.createElement('div');
         inventoryGrid.style.display = 'grid';
         inventoryGrid.style.gridTemplateColumns = 'auto 1fr';
-        inventoryGrid.style.gap = '8px 12px'; // Gap between icon and text
+        inventoryGrid.style.gap = '0px 10px'; // ZERO row gap, tight column gap
         inventoryGrid.style.alignItems = 'center';
         chestBubble.appendChild(inventoryGrid);
 
