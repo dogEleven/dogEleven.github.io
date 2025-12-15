@@ -1847,12 +1847,21 @@
                 const distToPlayer = f.mesh.position.distanceTo(playerPos);
 
                 // Activation
-                if (distToPlayer < 10.0) f.isFollowing = true;
+                if (distToPlayer < 10.0 && !f.isFollowing) {
+                    f.isFollowing = true;
+                    // Trigger Jump
+                    f.jumpTime = 0.0;
+                    f.isJumping = true;
+                }
 
                 // Physics Forces
                 const moveForce = new THREE.Vector3();
 
-                if (f.isFollowing) {
+                // State Logic
+                if (f.isJumping) {
+                    // Wait for jump to finish (MoveForce stays 0)
+                } else if (f.isFollowing) {
+                    // Normal Following Logic
                     // A. Seek Player
                     if (distToPlayer > 3.0) {
                         const up = f.mesh.position.clone().normalize();
@@ -1902,7 +1911,20 @@
                 }
 
                 // ALWAYS Snap & Orient (Fix Lying Down)
-                const h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                let h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+
+                // Jump Animation (Activation)
+                if (f.isJumping) {
+                    f.jumpTime += dt * 5.0; // Jump speed
+                    if (f.jumpTime > Math.PI) {
+                        f.isJumping = false;
+                        f.jumpTime = 0;
+                    } else {
+                        // Jump Height 2.0
+                        h += Math.sin(f.jumpTime) * 2.0;
+                    }
+                }
+
                 f.mesh.position.normalize().multiplyScalar(h);
 
                 const up = f.mesh.position.clone().normalize();
@@ -1946,6 +1968,75 @@
                     // Idle state
                     f.leftLeg.rotation.x = 0;
                     f.rightLeg.rotation.x = 0;
+                }
+
+                // --- Interaction: Pickup & Drop ---
+                if (f.heldItem) {
+                    // Holding Item: Check Chest
+                    if (chestMesh && f.mesh.position.distanceTo(chestMesh.position) < 3.0) {
+                        // Deposit
+                        if (chestInventory.hasOwnProperty(f.heldItem.type)) {
+                            chestInventory[f.heldItem.type]++;
+                        } else {
+                            chestInventory[f.heldItem.type] = 1;
+                        }
+
+                        // Visuals
+                        f.mesh.remove(f.heldItem.mesh);
+                        if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
+                        f.heldItem = null;
+
+                        // Chest Flash
+                        chestMesh.material.color.setHex(0xA0522D);
+                        setTimeout(() => { chestMesh.material.color.setHex(0x8B4513); }, 200);
+
+                        // Flying Item Effect (Score)
+                        // TODO: Create a flying item from chestBubble or similar? 
+                        // Simplified: Just flash chest.
+                    }
+                } else {
+                    // Empty Handed: Check Pickup
+                    const targets = [
+                        { mesh: stones, type: 'stone', geo: stoneGeo },
+                        { mesh: twigs, type: 'twig', geo: twigGeo },
+                        { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
+                    ];
+
+                    for (let t of targets) {
+                        const count = t.mesh.geometry.attributes.scale.count;
+                        const scales = t.mesh.geometry.attributes.scale;
+                        const offsets = t.mesh.geometry.attributes.offset;
+
+                        for (let i = 0; i < count; i++) {
+                            if (scales.getX(i) < 0.01) continue; // Already taken
+
+                            const dx = f.mesh.position.x - offsets.getX(i);
+                            const dy = f.mesh.position.y - offsets.getY(i);
+                            const dz = f.mesh.position.z - offsets.getZ(i);
+                            const dSq = dx * dx + dy * dy + dz * dz;
+
+                            if (dSq < 2.25) { // 1.5 distance
+                                // Pickup!
+                                const currentScale = scales.getX(i);
+                                scales.setX(i, 0);
+                                scales.needsUpdate = true;
+
+                                // Create Visual
+                                const cloneGeo = t.geo.clone();
+                                if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
+                                const valMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+                                const valMesh = new THREE.Mesh(cloneGeo, valMat);
+
+                                f.mesh.add(valMesh);
+                                valMesh.position.set(0, 0.6, 0.4); // Carry position
+                                valMesh.scale.setScalar(currentScale);
+
+                                f.heldItem = { mesh: valMesh, type: t.type };
+                                break;
+                            }
+                        }
+                        if (f.heldItem) break;
+                    }
                 }
             });
         }
