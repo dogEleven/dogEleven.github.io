@@ -1858,12 +1858,29 @@
                     // Wait for jump to finish (MoveForce stays 0)
                 } else if (f.isFollowing) {
                     // Normal Following Logic
-                    // A. Seek Player
-                    if (distToPlayer > 3.0) {
-                        const up = f.mesh.position.clone().normalize();
-                        let dir = new THREE.Vector3().subVectors(playerPos, f.mesh.position).normalize();
+                    const up = f.mesh.position.clone().normalize();
+
+                    let target = playerPos;
+                    let stopDist = 3.0;
+                    let seekWeight = 1.0;
+
+                    // Decision: Seek Chest if holding item and CLOSE enough
+                    if (f.heldItem && chestMesh) {
+                        const distToChest = f.mesh.position.distanceTo(chestMesh.position);
+                        // User Request: "Small people only go to chest if close"
+                        if (distToChest < 12.0) {
+                            target = chestMesh.position;
+                            stopDist = 2.0;
+                            seekWeight = 1.5;
+                        }
+                    }
+
+                    // Execute Seek
+                    const distToTarget = f.mesh.position.distanceTo(target);
+                    if (distToTarget > stopDist) {
+                        let dir = new THREE.Vector3().subVectors(target, f.mesh.position).normalize();
                         dir.projectOnPlane(up).normalize();
-                        moveForce.add(dir.multiplyScalar(1.0)); // Weight 1.0
+                        moveForce.add(dir.multiplyScalar(seekWeight));
                     }
                 }
 
@@ -2525,6 +2542,19 @@
 
                     // Construct New Target Position
                     const finalPos = landPos.clone().normalize().multiplyScalar(newH);
+
+                    // Chest Collision
+                    if (chestMesh) {
+                        const dist = finalPos.distanceTo(chestMesh.position);
+                        const minDist = 1.5; // Increased Collision Radius (User Request)
+                        if (dist < minDist) {
+                            const dir = new THREE.Vector3().subVectors(finalPos, chestMesh.position).normalize();
+                            finalPos.copy(chestMesh.position).add(dir.multiplyScalar(minDist));
+                            // Re-snap height to newH to avoid floating/sinking due to displacement
+                            // Actually better to keep radius consistent:
+                            finalPos.normalize().multiplyScalar(newH);
+                        }
+                    }
 
                     // Update Physics Position
                     carPhysics.pos.copy(finalPos);
