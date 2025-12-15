@@ -1771,6 +1771,171 @@
 
 
 
+        // --- 5. Followers System ---
+        const followers = [];
+        // Geometries (Shared) - Scaled 0.6
+        const fHeadGeo = new THREE.SphereGeometry(0.3, 16, 16);
+        // Chunkier Body (was 0.2)
+        const fBodyGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.4, 8);
+        // Chunkier Legs (was 0.07)
+        const fLegGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.4, 8);
+        fLegGeo.translate(0, -0.2, 0); // Pivot top
+
+        function createFollower(pos) {
+            const group = new THREE.Group();
+            group.position.copy(pos);
+
+            // Color: White
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+            // Scale factor 0.6 relative to player parts
+            // Player: Head 1.7, Body 1.0, Leg 0.7.
+            // Follower: Head 1.0, Body 0.6, Leg 0.4 (approx)
+            const s = 0.6;
+
+            const head = new THREE.Mesh(fHeadGeo, mat);
+            head.position.y = 1.7 * s;
+            group.add(head);
+
+            const body = new THREE.Mesh(fBodyGeo, mat);
+            body.position.y = 1.0 * s;
+            group.add(body);
+
+            const leftLeg = new THREE.Mesh(fLegGeo, mat);
+            leftLeg.position.set(-0.2 * s, 0.7 * s, 0);
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(fLegGeo, mat);
+            rightLeg.position.set(0.2 * s, 0.7 * s, 0);
+            group.add(rightLeg);
+
+            scene.add(group);
+
+            return { mesh: group, leftLeg, rightLeg, velocity: new THREE.Vector3(), isFollowing: false };
+        }
+
+        function spawnFollowers(count) {
+            for (let i = 0; i < count; i++) {
+                const v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                const h = getSurfaceHeight(v.x, v.y, v.z);
+                const pos = v.multiplyScalar(h);
+                followers.push(createFollower(pos));
+            }
+        }
+
+        spawnFollowers(50); // Increased count to 50
+
+        function updateFollowers(dt) {
+            const playerPos = carGroup.position;
+
+            // 1. Separation Force (Avoid Overlap)
+            // Simple O(N^2) check is fine for 50 entities
+            const separationRadius = 1.5;
+
+            followers.forEach(f => {
+                const distToPlayer = f.mesh.position.distanceTo(playerPos);
+
+                // Activation
+                if (distToPlayer < 20.0) f.isFollowing = true;
+
+                // Physics Forces
+                const moveForce = new THREE.Vector3();
+
+                if (f.isFollowing) {
+                    // A. Seek Player
+                    if (distToPlayer > 3.0) {
+                        const up = f.mesh.position.clone().normalize();
+                        let dir = new THREE.Vector3().subVectors(playerPos, f.mesh.position).normalize();
+                        dir.projectOnPlane(up).normalize();
+                        moveForce.add(dir.multiplyScalar(1.0)); // Weight 1.0
+                    }
+                }
+
+                // B. Separation (Swarm)
+                let sepForce = new THREE.Vector3();
+                let neighborCount = 0;
+
+                followers.forEach(neighbor => {
+                    if (f === neighbor) return;
+                    const d = f.mesh.position.distanceTo(neighbor.mesh.position);
+                    if (d < separationRadius) {
+                        const push = new THREE.Vector3().subVectors(f.mesh.position, neighbor.mesh.position).normalize();
+                        // Weight by distance (closer = stronger)
+                        push.divideScalar(d + 0.1);
+                        sepForce.add(push);
+                        neighborCount++;
+                    }
+                });
+
+                if (neighborCount > 0) {
+                    // Strong separation weight to guarantee space
+                    moveForce.add(sepForce.normalize().multiplyScalar(2.5));
+                }
+
+                // Apply to Velocity
+                const maxSpeed = 14.0;
+
+                // If we have any desire to move
+                if (moveForce.lengthSq() > 0.01) {
+                    moveForce.normalize().multiplyScalar(maxSpeed);
+                    // Smooth visual acceleration
+                    f.velocity.lerp(moveForce, 2.0 * dt);
+                } else {
+                    // Stop
+                    f.velocity.lerp(new THREE.Vector3(0, 0, 0), 2.0 * dt);
+                }
+
+                // Move
+                if (f.velocity.lengthSq() > 0.01) {
+                    f.mesh.position.add(f.velocity.clone().multiplyScalar(dt));
+                }
+
+                // ALWAYS Snap & Orient (Fix Lying Down)
+                const h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                f.mesh.position.normalize().multiplyScalar(h);
+
+                const up = f.mesh.position.clone().normalize();
+
+                // Determine Forward
+                let forward;
+                if (f.velocity.lengthSq() > 0.05) {
+                    forward = f.velocity.clone().normalize();
+                } else {
+                    // Fallback to current rotation's forward (Z)
+                    forward = new THREE.Vector3(0, 0, 1).applyQuaternion(f.mesh.quaternion);
+                }
+
+                // Ensure Orthogonal
+                forward.projectOnPlane(up);
+
+                // Robust Fallback (Fix Pole/Zero Singularity)
+                if (forward.lengthSq() < 0.0001) {
+                    forward.set(1, 0, 0).projectOnPlane(up);
+                    if (forward.lengthSq() < 0.0001) forward.set(0, 0, 1).projectOnPlane(up);
+                }
+                forward.normalize();
+
+                // Rotation using LookAt (Robust)
+                const _dummy = new THREE.Object3D();
+                _dummy.position.copy(f.mesh.position);
+                _dummy.up.copy(up);
+                _dummy.lookAt(f.mesh.position.clone().add(forward));
+
+                f.mesh.quaternion.slerp(_dummy.quaternion, 5.0 * dt);
+
+                // Animation
+                if (f.velocity.lengthSq() > 0.05) {
+                    const t = clock.getElapsedTime() * 20.0;
+                    f.leftLeg.rotation.x = Math.sin(t) * 1.5;
+                    f.rightLeg.rotation.x = -Math.sin(t) * 1.5;
+                } else {
+                    // Idle state
+                    f.leftLeg.rotation.x = 0;
+                    f.rightLeg.rotation.x = 0;
+                }
+            });
+        }
+
         // --- Mobile Control Logic (Decoupled) ---
         const MobileController = {
             isMobile: false,
@@ -2308,6 +2473,7 @@
                 // --- Chest Logic ---
                 updateFlyingItems(dt);
                 updateChestLogic(carPhysics.pos);
+                updateFollowers(dt);
 
                 // Update Planet Uniforms
                 if (planet.material.uniforms && planet.material.uniforms.time) {
