@@ -1284,8 +1284,10 @@
                         scale = 0.8 + seededRandom() * 0.5; // Visible mushrooms
                     } else if (type === 'flower') {
                         if (h < -0.5 || h > 15.0) valid = false;
-                        if (noise(_v3.x * 15.0, _v3.y * 15.0, _v3.z * 15.0) < 0.2) valid = false;
-                        scale = 0.8 + seededRandom() * 0.5; // Visible flowers
+                        // Clumpier distribution: Higher frequency, higher threshold
+                        if (noise(_v3.x * 25.0, _v3.y * 25.0, _v3.z * 25.0) < 0.35) valid = false;
+                        // Reduced Size 30%: 0.56 to 0.91 (Original was 0.8 to 1.3)
+                        scale = 0.56 + seededRandom() * 0.35;
                     }
                     // Stones & Twigs Logic
                     else if (type === 'stone') {
@@ -1329,7 +1331,7 @@
         seed = 12345; // Reset seed
         const trees = scatterObjects(treeGeo, 117, 'tree', 3.0); // Reduced count 117 (Target 40% reduction), MinDist 3.0
         const mushrooms = scatterObjects(mushGeo, 200, 'mushroom'); // Reduced 200
-        const flowers = scatterObjects(flowerGeo, 500, 'flower'); // Reduced 50% again (1000 -> 500)
+        const flowers = scatterObjects(flowerGeo, 250, 'flower'); // Reduced 50% again (500 -> 250)
 
         // Add Stones and Twigs
         const stones = scatterObjects(stoneGeo, 25, 'stone');
