@@ -1959,9 +1959,10 @@
                 // Animation
                 // Animation
                 const speed = f.velocity.length();
-                if (speed > 0.05) {
-                    // Accumulate local timer
-                    f.walkTime = (f.walkTime || 0) + dt * speed * 1.5;
+                if (speed > 0.5) {
+                    // Minimum cadence: ensure legs swing at least once per 0.5s
+                    const animSpeed = Math.max(speed, 8.0);
+                    f.walkTime = (f.walkTime || 0) + dt * animSpeed * 1.5;
                     f.leftLeg.rotation.x = Math.sin(f.walkTime) * 1.5;
                     f.rightLeg.rotation.x = -Math.sin(f.walkTime) * 1.5;
                 } else {
@@ -2434,7 +2435,8 @@
                 // 2. Walk Cycle (Legs)
                 if (speed > 0.5) {
                     // Accumulate time based on speed (Fixes strobing and inverse speed illusion)
-                    playerWalkTime += dt * speed * 1.5;
+                    const animSpeed = Math.max(speed, 8.0);
+                    playerWalkTime += dt * animSpeed * 1.5;
                     const amp = 0.8;
                     leftLeg.rotation.x = Math.sin(playerWalkTime) * amp;
                     rightLeg.rotation.x = -Math.sin(playerWalkTime) * amp;
