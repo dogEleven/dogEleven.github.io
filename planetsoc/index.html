@@ -2169,7 +2169,9 @@
                 combatState: 'wander',
                 combatState: 'wander',
                 stateTimer: 0,
+                stateTimer: 0,
                 attackDir: new THREE.Vector3(),
+                hasHitTarget: false,
                 orbitDir: Math.random() < 0.5 ? 1 : -1
             };
         }
@@ -2276,6 +2278,7 @@
                             w.stateTimer = 0;
                             // Lock Attack Direction!
                             w.attackDir.copy(dirToPlayer);
+                            w.hasHitTarget = false; // Reset hit flag for this attack
                         } else if (w.stateTimer > 2.0) {
                             // Missed -> Reset cycle
                             w.combatState = 'circle_fast';
@@ -2310,10 +2313,11 @@
                             w.head.rotation.y = Math.sin(w.stateTimer * 40.0) * 0.6; // Violent shake
 
                             // 3. DAMAGE CHECK (Only active here)
-                            if (distToPlayer < 1.25) {
+                            if (!w.hasHitTarget && distToPlayer < 1.25) {
                                 if (now - lastHitTime > 1.0) {
                                     lastHitTime = now;
                                     damageCount++;
+                                    w.hasHitTarget = true; // Mark attack as consumed
 
                                     const g = Math.max(0, 1.0 - damageCount * 0.2);
                                     charMat.color.setRGB(1.0, g, g);
@@ -2376,8 +2380,25 @@
 
                     // KILL CHECK: If wolf is biting and close
                     if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
-                        if (d < 1.5) {
+                        if (!w.hasHitTarget && d < 1.5) {
                             f.isDead = true;
+                            w.hasHitTarget = true; // Mark attack as consumed
+
+                            // Prop Drop Logic: Restore held item to ground
+                            if (f.heldItem) {
+                                const item = f.heldItem;
+                                const mesh = item.sourceMesh;
+                                if (mesh && mesh.geometry) {
+                                    const offsets = mesh.geometry.attributes.offset;
+                                    const scales = mesh.geometry.attributes.scale;
+                                    // Drop at follower's current position
+                                    offsets.setXYZ(item.sourceIndex, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                                    offsets.needsUpdate = true;
+                                    // Restore scale
+                                    scales.setX(item.sourceIndex, item.originalScale);
+                                    scales.needsUpdate = true;
+                                }
+                            }
                         }
                     }
                 });
