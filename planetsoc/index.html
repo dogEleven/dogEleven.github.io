@@ -1836,7 +1836,7 @@
 
             // 1. Separation Force (Avoid Overlap)
             // Simple O(N^2) check is fine for 50 entities
-            const separationRadius = 1.5;
+            const separationRadius = 0.75;
 
             followers.forEach(f => {
                 const distToPlayer = f.mesh.position.distanceTo(playerPos);
@@ -2009,10 +2009,7 @@
                         if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
                         f.heldItem = null;
 
-                        // Visuals
-                        f.mesh.remove(f.heldItem.mesh);
-                        if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
-                        f.heldItem = null;
+
 
                         // Chest Flash Removed as per user request
 
@@ -2093,24 +2090,37 @@
 
             // 2. Head
             const headGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
-            const head = new THREE.Mesh(headGeo, mat);
-            head.position.set(0, 2.2, 1.2); // Up and FWD
-            wolfMesh.add(head);
+            const headGroup = new THREE.Group(); // Create a Group for the head to allow rotation
+            headGroup.position.set(0, 2.2, 1.2); // Up and FWD
 
-            // 3. Snout
+            const headMesh = new THREE.Mesh(headGeo, mat);
+            headGroup.add(headMesh);
+            wolfMesh.add(headGroup);
+
+            // 3. Snout - Attach to HeadGroup
             const snoutGeo = new THREE.BoxGeometry(0.5, 0.4, 0.5);
             const snout = new THREE.Mesh(snoutGeo, mat);
-            snout.position.set(0, 2.0, 1.95);
-            wolfMesh.add(snout);
+            snout.position.set(0, -0.2, 0.75); // Relative to HeadGroup
+            headGroup.add(snout);
 
-            // 4. Ears
+            // 4. Ears - Attach to HeadGroup
             const earGeo = new THREE.BoxGeometry(0.3, 0.4, 0.2);
             const leftEar = new THREE.Mesh(earGeo, mat);
-            leftEar.position.set(-0.3, 3.0, 1.2);
-            wolfMesh.add(leftEar);
+            leftEar.position.set(-0.3, 0.8, 0); // Relative to HeadGroup
+            headGroup.add(leftEar);
             const rightEar = new THREE.Mesh(earGeo, mat);
-            rightEar.position.set(0.3, 3.0, 1.2);
-            wolfMesh.add(rightEar);
+            rightEar.position.set(0.3, 0.8, 0); // Relative to HeadGroup
+            headGroup.add(rightEar);
+
+            // 6. Eyes - Attach to HeadGroup
+            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.05);
+            const leftEye = new THREE.Mesh(eyeGeo, blackMat);
+            // Move to FRONT face (z ~ 0.5) instead of SIDE (x ~ 0.5)
+            leftEye.position.set(-0.25, 0.1, 0.51);
+            headGroup.add(leftEye);
+            const rightEye = new THREE.Mesh(eyeGeo, blackMat);
+            rightEye.position.set(0.25, 0.1, 0.51);
+            headGroup.add(rightEye);
 
             // 5. Tail
             const tailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.8);
@@ -2118,14 +2128,7 @@
             tail.position.set(0, 1.8, -1.4);
             wolfMesh.add(tail);
 
-            // 6. Eyes
-            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.05);
-            const leftEye = new THREE.Mesh(eyeGeo, blackMat);
-            leftEye.position.set(-0.51, 2.3, 1.4);
-            wolfMesh.add(leftEye);
-            const rightEye = new THREE.Mesh(eyeGeo, blackMat);
-            rightEye.position.set(0.51, 2.3, 1.4);
-            wolfMesh.add(rightEye);
+
 
             // 7. Legs
             const legGeo = new THREE.BoxGeometry(0.35, 1.0, 0.35);
@@ -2150,6 +2153,8 @@
 
             return {
                 mesh: group,
+                head: headGroup, // Expose Head for animation
+                model: wolfMesh, // Expose Model for jumping
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
                 speed: speed,
@@ -2157,7 +2162,9 @@
                 wanderDir: new THREE.Vector3(),
                 walkTime: 0,
                 combatState: 'wander',
+                combatState: 'wander',
                 stateTimer: 0,
+                attackDir: new THREE.Vector3(),
                 orbitDir: Math.random() < 0.5 ? 1 : -1
             };
         }
@@ -2203,7 +2210,7 @@
                 let currentSpeed = w.speed;
 
                 // --- Combat State Machine ---
-                if (distToPlayer < 35.0) {
+                if (distToPlayer < 17.5) {
                     // Enter Combat
                     if (w.combatState === 'wander') {
                         w.combatState = 'circle_fast';
@@ -2256,8 +2263,14 @@
                         // Attack!
                         currentSpeed = 18.0;
 
-                        if (w.stateTimer > 2.0) {
-                            // Missed or Done -> Reset cycle
+                        // Trigger Jump Attack if close
+                        if (distToPlayer < 3.5) {
+                            w.combatState = 'bite_attack';
+                            w.stateTimer = 0;
+                            // Lock Attack Direction!
+                            w.attackDir.copy(dirToPlayer);
+                        } else if (w.stateTimer > 2.0) {
+                            // Missed -> Reset cycle
                             w.combatState = 'circle_fast';
                             w.stateTimer = 0;
                             w.orbitDir *= -1; // Switch direction
@@ -2265,6 +2278,56 @@
 
                         // Pure pursuit
                         moveForce.copy(dirToPlayer);
+
+                    } else if (w.combatState === 'bite_attack') {
+                        // SPECIAL ATTACK: Jump, Shake, Bite
+                        currentSpeed = 22.0; // FAST DASH forward
+
+                        // Force Move towards LOCKED direction (Dash)
+                        moveForce.copy(w.attackDir);
+
+                        // 1. Jump Animation (Parabolic Y offset)
+                        // Duration 0.5s. Jump height 1.0.
+                        // Parabola: 4 * h * t * (1-t)
+                        const jumpDuration = 0.5;
+                        let jumpY = 0;
+                        if (w.stateTimer < jumpDuration) {
+                            const t = w.stateTimer / jumpDuration;
+                            jumpY = 4.0 * 1.0 * t * (1.0 - t);
+                        }
+                        if (w.model) w.model.position.y = jumpY;
+
+                        // 2. Head Shake (The "Tear" action)
+                        // Active window: 0.1 to 0.4
+                        if (w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                            w.head.rotation.y = Math.sin(w.stateTimer * 40.0) * 0.6; // Violent shake
+
+                            // 3. DAMAGE CHECK (Only active here)
+                            if (distToPlayer < 1.25) {
+                                if (now - lastHitTime > 1.0) {
+                                    lastHitTime = now;
+                                    damageCount++;
+
+                                    const g = Math.max(0, 1.0 - damageCount * 0.2);
+                                    charMat.color.setRGB(1.0, g, g);
+
+                                    if (damageCount >= 3) {
+                                        handleDeath();
+                                    }
+                                }
+                            }
+                        } else {
+                            // Reset head
+                            w.head.rotation.y = 0;
+                        }
+
+                        // End of attack
+                        if (w.stateTimer > jumpDuration) {
+                            w.combatState = 'circle_fast';
+                            w.stateTimer = 0;
+                            w.orbitDir *= -1;
+                            if (w.model) w.model.position.y = 0;
+                        }
                     }
 
                 } else {
@@ -2286,7 +2349,7 @@
                 wolves.forEach(neighbor => {
                     if (w === neighbor) return;
                     const d = w.mesh.position.distanceTo(neighbor.mesh.position);
-                    if (d < 2.5) {
+                    if (d < 1.25) {
                         const push = new THREE.Vector3().subVectors(w.mesh.position, neighbor.mesh.position).normalize();
                         moveForce.add(push.multiplyScalar(3.0 / (d + 0.1)));
                     }
@@ -2295,7 +2358,7 @@
                 // Collision: Wolf vs Followers
                 followers.forEach(f => {
                     const d = w.mesh.position.distanceTo(f.mesh.position);
-                    if (d < 1.8) { // Collision Radius
+                    if (d < 0.9) { // Collision Radius
                         const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
                         // Push follower away
                         f.mesh.position.add(pushDir.multiplyScalar(0.1)); // Directly nudge position
@@ -2304,20 +2367,26 @@
                     }
                 });
 
-                // Collision: Wolf vs Player
+                // Collision: Wolf vs Player (PHYSICS ONLY, NO DAMAGE)
+                // Use larger radius for physics collision
                 const dPlayer = w.mesh.position.distanceTo(playerPos);
-                if (dPlayer < 1.8) {
+                if (dPlayer < 1.0) {
                     const pushDir = new THREE.Vector3().subVectors(playerPos, w.mesh.position).normalize();
-                    // Push Player (Simulated via Velocity if possible, or direct nudge)
-                    carPhysics.pos.add(pushDir.multiplyScalar(0.05)); // Subtle nudge to player
-                    // Wolf bounce back
-                    moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
+                    // Push Player 
+                    carPhysics.pos.add(pushDir.multiplyScalar(0.05));
+                    // Wolf bounce back (unless biting)
+                    if (w.combatState !== 'bite_attack') {
+                        moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
+                    }
                 }
 
                 // Apply Physics
+                // Allow movement even during bite_attack (Dash in air)
                 if (moveForce.lengthSq() > 0.01) {
                     moveForce.projectOnPlane(up).normalize().multiplyScalar(currentSpeed);
-                    w.velocity.lerp(moveForce, 3.0 * dt); // Snappier movement
+                    // Less control in air (bite_attack), otherwise snappy
+                    const lerpFactor = w.combatState === 'bite_attack' ? 2.0 * dt : 3.0 * dt;
+                    w.velocity.lerp(moveForce, lerpFactor);
                 } else {
                     w.velocity.lerp(new THREE.Vector3(0, 0, 0), 3.0 * dt);
                 }
@@ -2329,25 +2398,25 @@
                 w.mesh.position.normalize().multiplyScalar(h);
 
                 // Orient
-                let forward = w.velocity.clone().normalize();
-                forward.projectOnPlane(up);
-                if (forward.lengthSq() < 0.001) forward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion).projectOnPlane(up);
-                forward.normalize();
+                // Don't change orientation during jump/bite to keep aiming at player
+                if (w.combatState !== 'bite_attack') {
+                    let forward = w.velocity.clone().normalize();
+                    forward.projectOnPlane(up);
+                    if (forward.lengthSq() < 0.001) forward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion).projectOnPlane(up);
+                    forward.normalize();
 
-                const _dummy = new THREE.Object3D();
-                _dummy.position.copy(w.mesh.position);
-                _dummy.up.copy(up);
-                _dummy.lookAt(w.mesh.position.clone().add(forward));
-                w.mesh.quaternion.slerp(_dummy.quaternion, 8.0 * dt); // Faster turning
+                    const _dummy = new THREE.Object3D();
+                    _dummy.position.copy(w.mesh.position);
+                    _dummy.up.copy(up);
+                    _dummy.lookAt(w.mesh.position.clone().add(forward));
+                    w.mesh.quaternion.slerp(_dummy.quaternion, 8.0 * dt);
+                }
 
                 // Animation
                 const speed = w.velocity.length();
-                if (speed > 0.5) {
+                if (speed > 0.5 && w.combatState !== 'bite_attack') {
                     // Walking speed modulation
                     w.walkTime += dt * speed * 2.0;
-
-                    // Attack stance? Maybe later. 
-                    // Just faster animation for now.
 
                     // Quadruped gait
                     const s = Math.sin(w.walkTime) * 1.0;
@@ -2356,26 +2425,13 @@
                     w.fr.rotation.x = -s;
                     w.bl.rotation.x = -s;
                 } else {
+                    // Legs straight during bite/idle
                     w.fl.rotation.x = 0;
                     w.br.rotation.x = 0;
                     w.fr.rotation.x = 0;
                     w.bl.rotation.x = 0;
                 }
 
-                // Attack Registration
-                if (distToPlayer < 1.4) {
-                    if (now - lastHitTime > 1.0) {
-                        lastHitTime = now;
-                        damageCount++;
-
-                        const g = Math.max(0, 1.0 - damageCount * 0.2);
-                        charMat.color.setRGB(1.0, g, g);
-
-                        if (damageCount >= 3) {
-                            handleDeath();
-                        }
-                    }
-                }
             });
         }
 
