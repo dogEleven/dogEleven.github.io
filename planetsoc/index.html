@@ -2192,7 +2192,7 @@
             }
         }
 
-        spawnWolves(10);
+        spawnWolves(5);
 
         let damageCount = 0;
         let isDead = false;
@@ -2230,7 +2230,7 @@
                     if (w.combatState === 'circle_fast') {
                         // Fast Orbit
                         // Duration: 3.5s
-                        currentSpeed = 14.0;
+                        currentSpeed = 9.0;
 
                         if (w.stateTimer > 3.5) {
                             w.combatState = 'circle_slow';
@@ -2249,7 +2249,7 @@
                     } else if (w.combatState === 'circle_slow') {
                         // Slow Stalk
                         // Duration: 4.0s
-                        currentSpeed = 3.0; // Very slow, creeping
+                        currentSpeed = 3.0; // Very slow, creeping (unchanged)
 
                         if (w.stateTimer > 4.0) {
                             w.combatState = 'dash';
@@ -2264,7 +2264,7 @@
 
                     } else if (w.combatState === 'dash') {
                         // Attack!
-                        currentSpeed = 18.0;
+                        currentSpeed = 12.0;
 
                         // Trigger Jump Attack if close
                         if (distToPlayer < 3.5) {
@@ -2284,7 +2284,7 @@
 
                     } else if (w.combatState === 'bite_attack') {
                         // SPECIAL ATTACK: Jump, Shake, Bite
-                        currentSpeed = 22.0; // FAST DASH forward
+                        currentSpeed = 8.0; // Moderate DASH forward
 
                         // Force Move towards LOCKED direction (Dash)
                         moveForce.copy(w.attackDir);
@@ -2368,6 +2368,13 @@
                         f.mesh.position.add(pushDir.multiplyScalar(0.1)); // Directly nudge position
                         // Wolf also nudged back slightly
                         moveForce.add(pushDir.clone().negate().multiplyScalar(5.0));
+                    }
+
+                    // KILL CHECK: If wolf is biting and close
+                    if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                        if (d < 1.5) {
+                            f.isDead = true;
+                        }
                     }
                 });
 
@@ -2805,6 +2812,16 @@
 
                 // Common Constants
                 const waterRadius = planetRadius + seaLevelRef;
+
+                updateWolves(dt);
+
+                // Cleanup Dead Followers
+                for (let i = followers.length - 1; i >= 0; i--) {
+                    if (followers[i].isDead) {
+                        scene.remove(followers[i].mesh);
+                        followers.splice(i, 1);
+                    }
+                }
 
                 // --- DIRECT MOVEMENT LOGIC (Omnidirectional) ---
                 if (isDead) { // Death Animation
