@@ -2007,20 +2007,22 @@
                     }
 
                     if (f.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 20s
-                        let t = f.waterTime / 20.0;
+                        // Immediate Darkening: 0s -> 60s
+                        let t = f.waterTime / 60.0;
                         if (t > 1.0) t = 1.0;
                         const c = 1.0 - t;
                         f.mat.color.setRGB(c, c, c);
 
-                        if (f.waterTime > 20.0) {
+                        if (f.waterTime > 60.0) {
                             f.isDead = true;
                             dropItemFromDeadFollower(f); // Ensure item drops on water death too
                         }
                     } else {
-                        // Recover color if safe?
+                        // Smooth Recovery
                         if (f.mat.color.r < 1.0) {
-                            f.mat.color.setRGB(1.0, 1.0, 1.0);
+                            let c = f.mat.color.r + dt * 0.5; // Recover over ~2 seconds
+                            if (c > 1.0) c = 1.0;
+                            f.mat.color.setRGB(c, c, c);
                         }
                     }
                 }
@@ -2341,6 +2343,15 @@
                         r.projectOnPlane(up).normalize();
                         w.wanderDir = r;
                     }
+
+                    // Simple Avoidance: Predict if walking into water
+                    const futurePos = w.mesh.position.clone().add(w.wanderDir.clone().multiplyScalar(2.0));
+                    if (isPositionInWater(futurePos, 0.0)) {
+                        // Turn around / Randomize
+                        w.wanderDir.negate().add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.5)).normalize();
+                        w.wanderDir.projectOnPlane(up).normalize();
+                    }
+
                     moveForce.add(w.wanderDir);
                 } else {
                     // COMBAT
@@ -2469,6 +2480,18 @@
                                 handleDeath();
                             }
                         }
+                    }
+                }
+
+                // General Water Avoidance (Reflex)
+                const surfaceH = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
+                if (surfaceH < waterLevel + 0.2) { // Allow getting much closer (0.2 from water)
+                    const lookAhead = w.mesh.position.clone().add(w.velocity.clone().normalize().multiplyScalar(0.5));
+                    const nextH = getSurfaceHeight(lookAhead.x, lookAhead.y, lookAhead.z);
+                    if (nextH < waterLevel) { // Only panic if ACTUALLY entering water
+                        // Reverse hard
+                        const back = w.velocity.clone().negate().normalize().multiplyScalar(15.0);
+                        moveForce.add(back);
                     }
                 }
 
@@ -3184,25 +3207,28 @@
                 if (!isDead) {
                     if (!carPhysics.waterTime) carPhysics.waterTime = 0;
 
-                    if (isPositionInWater(carPhysics.pos, 1.6)) {
+                    if (isPositionInWater(carPhysics.pos, 1.4)) {
                         carPhysics.waterTime += dt;
                     } else {
                         carPhysics.waterTime = 0;
                     }
 
                     if (carPhysics.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 20s
-                        let t = carPhysics.waterTime / 20.0;
+                        // Immediate Darkening: 0s -> 60s
+                        let t = carPhysics.waterTime / 60.0;
                         if (t > 1.0) t = 1.0;
                         const c = 1.0 - t;
                         charMat.color.setRGB(c, c, c);
 
-                        if (carPhysics.waterTime > 20.0) {
+                        if (carPhysics.waterTime > 60.0) {
                             handleDeath();
                         }
                     } else {
+                        // Smooth Recovery
                         if (charMat.color.r < 1.0) {
-                            charMat.color.setRGB(1.0, 1.0, 1.0);
+                            let c = charMat.color.r + dt * 0.5;
+                            if (c > 1.0) c = 1.0;
+                            charMat.color.setRGB(c, c, c);
                         }
                     }
                 }
