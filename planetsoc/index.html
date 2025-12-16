@@ -1910,7 +1910,7 @@
 
                 // Apply to Velocity
                 // Apply to Velocity
-                const maxSpeed = 7.0; // Reduced from 14.0
+                const maxSpeed = 13.65; // Increased by another 30% (10.5 * 1.3)
 
                 // If we have any desire to move
                 if (moveForce.lengthSq() > 0.01) {
@@ -2375,7 +2375,7 @@
 
                 // --- 2. BEHAVIOR STATE MACHINE ---
                 if (w.combatState === 'wander') {
-                    currentSpeed = 6.0;
+                    currentSpeed = 9.6; // 6.0 * 1.6
                     w.wanderTimer -= dt;
                     if (w.wanderTimer <= 0) {
                         w.wanderTimer = 2.0 + Math.random() * 3.0;
@@ -2404,7 +2404,7 @@
                     const tangent = new THREE.Vector3().crossVectors(dirToTarget, up).normalize().multiplyScalar(w.orbitDir);
 
                     if (w.combatState === 'circle_fast') {
-                        currentSpeed = 9.0;
+                        currentSpeed = 14.4; // 9.0 * 1.6
                         if (w.stateTimer > 3.5) {
                             w.combatState = 'circle_slow';
                             w.stateTimer = 0;
@@ -2414,7 +2414,7 @@
                         moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.2));
 
                     } else if (w.combatState === 'circle_slow') {
-                        currentSpeed = 3.0;
+                        currentSpeed = 4.8; // 3.0 * 1.6
                         if (w.stateTimer > 4.0) {
                             w.combatState = 'dash';
                             w.stateTimer = 0;
@@ -2424,7 +2424,7 @@
                         moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.5));
 
                     } else if (w.combatState === 'dash') {
-                        currentSpeed = 12.0;
+                        currentSpeed = 19.2; // 12.0 * 1.6
                         if (w.target && distToTarget < 3.5) {
                             w.combatState = 'bite_attack';
                             w.stateTimer = 0;
@@ -2438,7 +2438,7 @@
                         moveForce.copy(dirToTarget);
 
                     } else if (w.combatState === 'bite_attack') {
-                        currentSpeed = 8.0;
+                        currentSpeed = 12.8; // 8.0 * 1.6
                         moveForce.copy(w.attackDir);
 
                         // Jump Anim
@@ -2525,11 +2525,45 @@
                 }
 
                 // General Water Avoidance (Reflex)
+                // --- Water Logic (Escape & Avoidance) ---
                 const surfaceH = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
-                if (surfaceH < waterLevel + 0.2) { // Allow getting much closer (0.2 from water)
-                    const lookAhead = w.mesh.position.clone().add(w.velocity.clone().normalize().multiplyScalar(0.5));
+
+                if (surfaceH < waterLevel) {
+                    // EMERGENCY: IN WATER -> ESCAPE
+                    w.combatState = 'wander'; // Stop fighting, start swimming
+                    w.target = null;
+
+                    // Find "Uphill" direction (Gradient Ascent)
+                    let bestDir = new THREE.Vector3();
+                    let maxH = -10000;
+                    const sampleDist = 2.0;
+
+                    const dirs = [
+                        new THREE.Vector3(0, 0, 1),
+                        new THREE.Vector3(0, 0, -1),
+                        new THREE.Vector3(1, 0, 0),
+                        new THREE.Vector3(-1, 0, 0)
+                    ];
+
+                    dirs.forEach(d => {
+                        const worldDir = d.clone().applyQuaternion(w.mesh.quaternion).normalize();
+                        const probe = w.mesh.position.clone().add(worldDir.multiplyScalar(sampleDist));
+                        const h = getSurfaceHeight(probe.x, probe.y, probe.z);
+                        if (h > maxH) {
+                            maxH = h;
+                            bestDir = worldDir;
+                        }
+                    });
+
+                    // Apply strong force towards highest ground
+                    moveForce.add(bestDir.multiplyScalar(20.0));
+
+                } else if (surfaceH < waterLevel + 0.5) {
+                    // ON LAND, NEAR WATER -> AVOIDANCE (Reflex)
+                    const lookAhead = w.mesh.position.clone().add(w.velocity.clone().normalize().multiplyScalar(1.0));
                     const nextH = getSurfaceHeight(lookAhead.x, lookAhead.y, lookAhead.z);
-                    if (nextH < waterLevel) { // Only panic if ACTUALLY entering water
+
+                    if (nextH < waterLevel) {
                         // Reverse hard
                         const back = w.velocity.clone().negate().normalize().multiplyScalar(15.0);
                         moveForce.add(back);
