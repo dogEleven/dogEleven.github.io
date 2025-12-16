@@ -2002,19 +2002,20 @@
                     if (isPositionInWater(f.mesh.position, 1.0)) {
                         f.waterTime += dt;
                     } else {
-                        // Heal? Or Reset. Let's reset for now as per "accumulated time in water"
-                        f.waterTime = 0;
+                        // Gradual Oxygen Recovery (Holding Breath Logic)
+                        f.waterTime = Math.max(0, f.waterTime - dt * 10.0);
                     }
 
                     if (f.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 60s
-                        let t = f.waterTime / 60.0;
+                        // Immediate Darkening: 0s -> 20s
+                        let t = f.waterTime / 20.0;
                         if (t > 1.0) t = 1.0;
                         const c = 1.0 - t;
                         f.mat.color.setRGB(c, c, c);
 
-                        if (f.waterTime > 60.0) {
+                        if (f.waterTime > 20.0) {
                             f.isDead = true;
+                            spawnExplosion(f.mesh.position);
                             dropItemFromDeadFollower(f); // Ensure item drops on water death too
                         }
                     } else {
@@ -2275,6 +2276,45 @@
             return (h + heightOffset) < waterLevel;
         }
 
+        // --- Particle Explosion System ---
+        const explosions = [];
+        const particleGeo = new THREE.SphereGeometry(0.15, 6, 6);
+        const particleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        function spawnExplosion(pos) {
+            for (let i = 0; i < 8; i++) {
+                const mesh = new THREE.Mesh(particleGeo, particleMat);
+                mesh.position.copy(pos);
+                // Random offset
+                mesh.position.x += (Math.random() - 0.5) * 0.5;
+                mesh.position.y += (Math.random() - 0.5) * 0.5;
+                mesh.position.z += (Math.random() - 0.5) * 0.5;
+
+                const velocity = new THREE.Vector3(
+                    Math.random() - 0.5,
+                    Math.random() - 0.5,
+                    Math.random() - 0.5
+                ).normalize().multiplyScalar(5.0 + Math.random() * 5.0);
+
+                scene.add(mesh);
+                explosions.push({ mesh, velocity, life: 1.0 });
+            }
+        }
+
+        function updateExplosions(dt) {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const p = explosions[i];
+                p.life -= dt;
+                p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
+                p.mesh.scale.setScalar(p.life); // Shrink
+
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+
         function updateWolves(dt) {
             if (isDead) return;
 
@@ -2453,6 +2493,7 @@
                         if (!w.hasHitTarget && d < 1.5 && !f.isDead) {
                             if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
                                 f.isDead = true;
+                                spawnExplosion(f.mesh.position);
                                 w.hasHitTarget = true;
                                 dropItemFromDeadFollower(f);
                             }
@@ -3170,7 +3211,9 @@
                 // Common Constants
                 const waterRadius = planetRadius + seaLevelRef;
 
+                updateExplosions(dt);
                 updateWolves(dt);
+                updateFollowers(dt);
 
                 // Cleanup Dead Followers
                 for (let i = followers.length - 1; i >= 0; i--) {
@@ -3207,20 +3250,22 @@
                 if (!isDead) {
                     if (!carPhysics.waterTime) carPhysics.waterTime = 0;
 
-                    if (isPositionInWater(carPhysics.pos, 1.4)) {
+                    // Use 1.0 offset (Chest/Waist) to match Follower sensitivity
+                    if (isPositionInWater(carPhysics.pos, 1.0)) {
                         carPhysics.waterTime += dt;
                     } else {
-                        carPhysics.waterTime = 0;
+                        // Gradual Oxygen Recovery (Fast: 2s full recovery)
+                        carPhysics.waterTime = Math.max(0, carPhysics.waterTime - dt * 10.0);
                     }
 
                     if (carPhysics.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 60s
-                        let t = carPhysics.waterTime / 60.0;
+                        // Immediate Darkening: 0s -> 10s (Faster per user feedback)
+                        let t = carPhysics.waterTime / 10.0;
                         if (t > 1.0) t = 1.0;
                         const c = 1.0 - t;
                         charMat.color.setRGB(c, c, c);
 
-                        if (carPhysics.waterTime > 60.0) {
+                        if (carPhysics.waterTime > 10.0) {
                             handleDeath();
                         }
                     } else {
