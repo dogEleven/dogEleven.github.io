@@ -2242,6 +2242,12 @@
 
             const playerPos = carGroup.position;
             const now = clock.getElapsedTime();
+            const waterLevel = planetRadius - 0.5;
+
+            function isPositionInWater(pos) {
+                const h = getSurfaceHeight(pos.x, pos.y, pos.z);
+                return h < waterLevel;
+            }
 
             wolves.forEach(w => {
                 const up = w.mesh.position.clone().normalize();
@@ -2256,7 +2262,7 @@
                     let closestDist = 25.0; // Max aggro range
 
                     // 1a. Check Player
-                    if (!isPositionHidden(playerPos)) {
+                    if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
                         const d = w.mesh.position.distanceTo(playerPos);
                         if (d < 17.5) { // Player Aggro Range
                             closestDist = d;
@@ -2266,7 +2272,7 @@
 
                     // 1b. Check Followers
                     followers.forEach(f => {
-                        if (!f.isDead && !isPositionHidden(f.mesh.position)) {
+                        if (!f.isDead && !isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
                             const d = w.mesh.position.distanceTo(f.mesh.position);
                             if (d < closestDist) { // Strict closest priority
                                 closestDist = d;
@@ -2402,7 +2408,7 @@
                     // Kill Logic
                     if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                         if (!w.hasHitTarget && d < 1.5 && !f.isDead) {
-                            if (!isPositionHidden(f.mesh.position)) {
+                            if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
                                 f.isDead = true;
                                 w.hasHitTarget = true;
                                 dropItemFromDeadFollower(f);
@@ -2424,14 +2430,11 @@
                 // Player Damage Logic
                 if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                     if (!w.hasHitTarget && dPlayer < 1.25) {
-                        if (!isPositionHidden(playerPos)) { // Safe if hidden
+                        if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) { // Safe if hidden or in water
                             if (now - lastHitTime > 1.0) {
                                 lastHitTime = now;
-                                damageCount++;
                                 w.hasHitTarget = true;
-                                const g = Math.max(0, 1.0 - damageCount * 0.2);
-                                charMat.color.setRGB(1.0, g, g);
-                                if (damageCount >= 3) handleDeath();
+                                handleDeath();
                             }
                         }
                     }
