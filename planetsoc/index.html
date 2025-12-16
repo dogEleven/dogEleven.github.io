@@ -2204,7 +2204,281 @@
         let isDead = false;
         let lastHitTime = 0;
 
+        // Check if a position is inside any bush (hidden)
+        function isPositionHidden(pos) {
+            if (!bushes || !bushes.geometry) return false;
+            const offsets = bushes.geometry.attributes.offset;
+            const scales = bushes.geometry.attributes.scale;
+            const count = offsets.count;
+            const r2 = 2.0 * 2.0; // Bush radius squared
+
+            for (let i = 0; i < count; i++) {
+                if (scales.getX(i) < 0.1) continue;
+                const dx = pos.x - offsets.getX(i);
+                const dy = pos.y - offsets.getY(i);
+                const dz = pos.z - offsets.getZ(i);
+                if (dx * dx + dy * dy + dz * dz < r2) return true;
+            }
+            return false;
+        }
+
+        // Helper to drop item from dead follower
+        function dropItemFromDeadFollower(f) {
+            const item = f.heldItem;
+            if (!item) return;
+            const mesh = item.sourceMesh;
+            if (mesh && mesh.geometry) {
+                const offsets = mesh.geometry.attributes.offset;
+                const scales = mesh.geometry.attributes.scale;
+                offsets.setXYZ(item.sourceIndex, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                offsets.needsUpdate = true;
+                scales.setX(item.sourceIndex, item.originalScale);
+                scales.needsUpdate = true;
+            }
+        }
+
         function updateWolves(dt) {
+            if (isDead) return;
+
+            const playerPos = carGroup.position;
+            const now = clock.getElapsedTime();
+
+            wolves.forEach(w => {
+                const up = w.mesh.position.clone().normalize();
+                const moveForce = new THREE.Vector3();
+                let currentSpeed = 0;
+
+                // --- 1. TARGET SELECTION ---
+                const isBiting = w.combatState === 'bite_attack';
+
+                if (!isBiting) {
+                    let bestTarget = null;
+                    let closestDist = 25.0; // Max aggro range
+
+                    // 1a. Check Player
+                    if (!isPositionHidden(playerPos)) {
+                        const d = w.mesh.position.distanceTo(playerPos);
+                        if (d < 17.5) { // Player Aggro Range
+                            closestDist = d;
+                            bestTarget = { type: 'player', pos: playerPos, mesh: carGroup };
+                        }
+                    }
+
+                    // 1b. Check Followers
+                    followers.forEach(f => {
+                        if (!f.isDead && !isPositionHidden(f.mesh.position)) {
+                            const d = w.mesh.position.distanceTo(f.mesh.position);
+                            if (d < closestDist) { // Strict closest priority
+                                closestDist = d;
+                                bestTarget = { type: 'follower', pos: f.mesh.position, mesh: f.mesh, entity: f };
+                            }
+                        }
+                    });
+
+                    w.target = bestTarget;
+
+                    // Sync State
+                    if (!w.target) {
+                        if (w.combatState !== 'wander') {
+                            w.combatState = 'wander';
+                            w.eyesMat.color.setHex(0x000000); // Black
+                        }
+                    } else {
+                        w.eyesMat.color.setHex(0xff0000); // Red
+                        if (w.combatState === 'wander') {
+                            w.combatState = 'circle_fast';
+                            w.stateTimer = 0;
+                            w.orbitDir = Math.random() < 0.5 ? 1 : -1;
+                        }
+                    }
+                }
+
+                // --- 2. BEHAVIOR STATE MACHINE ---
+                if (w.combatState === 'wander') {
+                    currentSpeed = 6.0;
+                    w.wanderTimer -= dt;
+                    if (w.wanderTimer <= 0) {
+                        w.wanderTimer = 2.0 + Math.random() * 3.0;
+                        const r = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                        r.projectOnPlane(up).normalize();
+                        w.wanderDir = r;
+                    }
+                    moveForce.add(w.wanderDir);
+                } else {
+                    // COMBAT
+                    let targetPos = w.target ? w.target.pos : w.mesh.position;
+                    let distToTarget = w.target ? w.mesh.position.distanceTo(targetPos) : 0;
+                    let dirToTarget = w.target ? new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize() : new THREE.Vector3(1, 0, 0);
+
+                    w.stateTimer += dt;
+
+                    const tangent = new THREE.Vector3().crossVectors(dirToTarget, up).normalize().multiplyScalar(w.orbitDir);
+
+                    if (w.combatState === 'circle_fast') {
+                        currentSpeed = 9.0;
+                        if (w.stateTimer > 3.5) {
+                            w.combatState = 'circle_slow';
+                            w.stateTimer = 0;
+                        }
+                        const radiusError = distToTarget - 8.0;
+                        moveForce.copy(tangent).multiplyScalar(1.0);
+                        moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.2));
+
+                    } else if (w.combatState === 'circle_slow') {
+                        currentSpeed = 3.0;
+                        if (w.stateTimer > 4.0) {
+                            w.combatState = 'dash';
+                            w.stateTimer = 0;
+                        }
+                        const radiusError = distToTarget - 7.0;
+                        moveForce.copy(tangent).multiplyScalar(1.0);
+                        moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.5));
+
+                    } else if (w.combatState === 'dash') {
+                        currentSpeed = 12.0;
+                        if (w.target && distToTarget < 3.5) {
+                            w.combatState = 'bite_attack';
+                            w.stateTimer = 0;
+                            w.attackDir.copy(dirToTarget); // Lock direction
+                            w.hasHitTarget = false;
+                        } else if (w.stateTimer > 2.0) {
+                            w.combatState = 'circle_fast';
+                            w.stateTimer = 0;
+                            w.orbitDir *= -1;
+                        }
+                        moveForce.copy(dirToTarget);
+
+                    } else if (w.combatState === 'bite_attack') {
+                        currentSpeed = 8.0;
+                        moveForce.copy(w.attackDir);
+
+                        // Jump Anim
+                        const jumpDuration = 0.5;
+                        let jumpY = 0;
+                        if (w.stateTimer < jumpDuration) {
+                            const t = w.stateTimer / jumpDuration;
+                            jumpY = 4.0 * 1.0 * t * (1.0 - t);
+                        }
+                        if (w.model) w.model.position.y = jumpY;
+
+                        // Shake Head
+                        if (w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                            w.head.rotation.y = Math.sin(w.stateTimer * 40.0) * 0.6;
+                        } else {
+                            w.head.rotation.y = 0;
+                        }
+
+                        // End
+                        if (w.stateTimer > jumpDuration) {
+                            w.combatState = 'circle_fast';
+                            w.stateTimer = 0;
+                            w.orbitDir *= -1;
+                            if (w.model) w.model.position.y = 0;
+                        }
+                    }
+                }
+
+                // --- 3. COLLISIONS & INTERACTION ---
+
+                // Wolf Separation
+                wolves.forEach(neighbor => {
+                    if (w === neighbor) return;
+                    const d = w.mesh.position.distanceTo(neighbor.mesh.position);
+                    if (d < 1.25) {
+                        const push = new THREE.Vector3().subVectors(w.mesh.position, neighbor.mesh.position).normalize();
+                        moveForce.add(push.multiplyScalar(3.0 / (d + 0.1)));
+                    }
+                });
+
+                // Follower Collision
+                followers.forEach(f => {
+                    const d = w.mesh.position.distanceTo(f.mesh.position);
+                    if (d < 0.9) { // Collision Radius
+                        const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
+                        f.mesh.position.add(pushDir.multiplyScalar(0.1));
+                        moveForce.add(pushDir.clone().negate().multiplyScalar(5.0));
+                    }
+
+                    // Kill Logic
+                    if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                        if (!w.hasHitTarget && d < 1.5 && !f.isDead) {
+                            if (!isPositionHidden(f.mesh.position)) {
+                                f.isDead = true;
+                                w.hasHitTarget = true;
+                                dropItemFromDeadFollower(f);
+                            }
+                        }
+                    }
+                });
+
+                // Player Collision
+                const dPlayer = w.mesh.position.distanceTo(playerPos);
+                if (dPlayer < 1.0) {
+                    const pushDir = new THREE.Vector3().subVectors(playerPos, w.mesh.position).normalize();
+                    carPhysics.pos.add(pushDir.multiplyScalar(0.05));
+                    if (w.combatState !== 'bite_attack') {
+                        moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
+                    }
+                }
+
+                // Player Damage Logic
+                if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                    if (!w.hasHitTarget && dPlayer < 1.25) {
+                        if (!isPositionHidden(playerPos)) { // Safe if hidden
+                            if (now - lastHitTime > 1.0) {
+                                lastHitTime = now;
+                                damageCount++;
+                                w.hasHitTarget = true;
+                                const g = Math.max(0, 1.0 - damageCount * 0.2);
+                                charMat.color.setRGB(1.0, g, g);
+                                if (damageCount >= 3) handleDeath();
+                            }
+                        }
+                    }
+                }
+
+                // Apply Physics
+                if (moveForce.lengthSq() > 0.01) {
+                    moveForce.projectOnPlane(up).normalize().multiplyScalar(currentSpeed);
+                    const lerpFactor = w.combatState === 'bite_attack' ? 2.0 * dt : 3.0 * dt;
+                    w.velocity.lerp(moveForce, lerpFactor);
+                } else {
+                    w.velocity.lerp(new THREE.Vector3(0, 0, 0), 3.0 * dt);
+                }
+                w.mesh.position.add(w.velocity.clone().multiplyScalar(dt));
+
+                // Ground Snap & Orient
+                const h = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
+                w.mesh.position.normalize().multiplyScalar(h);
+
+                if (w.combatState !== 'bite_attack') {
+                    let forward = w.velocity.clone().normalize();
+                    forward.projectOnPlane(up);
+                    if (forward.lengthSq() < 0.001) forward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion).projectOnPlane(up);
+                    forward.normalize();
+                    const _dummy = new THREE.Object3D();
+                    _dummy.position.copy(w.mesh.position);
+                    _dummy.up.copy(up);
+                    _dummy.lookAt(w.mesh.position.clone().add(forward));
+                    w.mesh.quaternion.slerp(_dummy.quaternion, 8.0 * dt);
+
+                    // Anim Legs
+                    const speed = w.velocity.length();
+                    if (speed > 0.5) {
+                        w.walkTime += dt * speed * 2.0;
+                        const s = Math.sin(w.walkTime);
+                        w.fl.rotation.x = s; w.br.rotation.x = s;
+                        w.fr.rotation.x = -s; w.bl.rotation.x = -s;
+                    } else {
+                        w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
+                    }
+                } else {
+                    w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
+                }
+            });
+        }
+
+        function updateWolvesLegacy(dt) {
             if (isDead) return;
 
             const playerPos = carGroup.position;
