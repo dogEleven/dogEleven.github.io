@@ -1806,7 +1806,7 @@
 
             scene.add(group);
 
-            return { mesh: group, leftLeg, rightLeg, velocity: new THREE.Vector3(), isFollowing: false };
+            return { mesh: group, leftLeg, rightLeg, velocity: new THREE.Vector3(), isFollowing: false, waterTime: 0, mat: mat };
         }
 
         function spawnFollowers(count) {
@@ -1995,6 +1995,34 @@
                     // Idle state
                     f.leftLeg.rotation.x = 0;
                     f.rightLeg.rotation.x = 0;
+                }
+
+                // --- Follower Water Logic ---
+                if (!f.isDead) { // Only living followers check water
+                    if (isPositionInWater(f.mesh.position, 1.0)) {
+                        f.waterTime += dt;
+                    } else {
+                        // Heal? Or Reset. Let's reset for now as per "accumulated time in water"
+                        f.waterTime = 0;
+                    }
+
+                    if (f.waterTime > 0.0) {
+                        // Immediate Darkening: 0s -> 20s
+                        let t = f.waterTime / 20.0;
+                        if (t > 1.0) t = 1.0;
+                        const c = 1.0 - t;
+                        f.mat.color.setRGB(c, c, c);
+
+                        if (f.waterTime > 20.0) {
+                            f.isDead = true;
+                            dropItemFromDeadFollower(f); // Ensure item drops on water death too
+                        }
+                    } else {
+                        // Recover color if safe?
+                        if (f.mat.color.r < 1.0) {
+                            f.mat.color.setRGB(1.0, 1.0, 1.0);
+                        }
+                    }
                 }
 
                 // --- Interaction: Pickup & Drop ---
@@ -2237,17 +2265,21 @@
             }
         }
 
+        const waterLevel = planetRadius - 0.5;
+
+        // Global Helper: Check if position is in water
+        function isPositionInWater(pos, heightOffset = 0) {
+            const h = getSurfaceHeight(pos.x, pos.y, pos.z);
+            return (h + heightOffset) < waterLevel;
+        }
+
         function updateWolves(dt) {
             if (isDead) return;
 
             const playerPos = carGroup.position;
             const now = clock.getElapsedTime();
-            const waterLevel = planetRadius - 0.5;
+            // waterLevel and isPositionInWater are now global
 
-            function isPositionInWater(pos) {
-                const h = getSurfaceHeight(pos.x, pos.y, pos.z);
-                return h < waterLevel;
-            }
 
             wolves.forEach(w => {
                 const up = w.mesh.position.clone().normalize();
@@ -3147,6 +3179,33 @@
 
                 // Declare isJumpActive HERE to fix ReferenceError
                 let isJumpActive = false;
+
+                // --- Player Water Logic ---
+                if (!isDead) {
+                    if (!carPhysics.waterTime) carPhysics.waterTime = 0;
+
+                    if (isPositionInWater(carPhysics.pos, 1.6)) {
+                        carPhysics.waterTime += dt;
+                    } else {
+                        carPhysics.waterTime = 0;
+                    }
+
+                    if (carPhysics.waterTime > 0.0) {
+                        // Immediate Darkening: 0s -> 20s
+                        let t = carPhysics.waterTime / 20.0;
+                        if (t > 1.0) t = 1.0;
+                        const c = 1.0 - t;
+                        charMat.color.setRGB(c, c, c);
+
+                        if (carPhysics.waterTime > 20.0) {
+                            handleDeath();
+                        }
+                    } else {
+                        if (charMat.color.r < 1.0) {
+                            charMat.color.setRGB(1.0, 1.0, 1.0);
+                        }
+                    }
+                }
 
                 if (!isDead) {
                     if (keys.w) moveDir.z += 1;
