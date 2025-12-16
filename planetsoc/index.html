@@ -3259,13 +3259,13 @@
                     }
 
                     if (carPhysics.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 10s (Faster per user feedback)
-                        let t = carPhysics.waterTime / 10.0;
+                        // Immediate Darkening: 0s -> 20s
+                        let t = carPhysics.waterTime / 20.0;
                         if (t > 1.0) t = 1.0;
                         const c = 1.0 - t;
                         charMat.color.setRGB(c, c, c);
 
-                        if (carPhysics.waterTime > 10.0) {
+                        if (carPhysics.waterTime > 20.0) {
                             handleDeath();
                         }
                     } else {
