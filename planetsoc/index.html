@@ -1,0 +1,3107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Planet Demo</title>
+    <link rel="icon" href="../favicon.png" type="image/png">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            /* Space Background: Black to Deep Galaxy Blue */
+            background: linear-gradient(to top, #000000 0%, #191970 100%);
+            /* Space Background: Black to Deep Galaxy Blue */
+            background: linear-gradient(to top, #000000 0%, #191970 100%);
+        }
+    </style>
+    <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Post-Processing Dependencies (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/shaders/BokehShader.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/EffectComposer.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/RenderPass.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/postprocessing/BokehPass.js"></script>
+</head>
+
+<body>
+    <div style="position: absolute; top: 20px; width: 100%; text-align: center; z-index: 9999; pointer-events: none;">
+        <a href="../index.html/index.html"
+            style="color: white; text-decoration: none; font-size: 24px; font-weight: bold; font-family: 'Arial', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;">tofusoup.cc</a>
+    </div>
+    <script> // --- 1. Noise Implementation ---
+        const p = [151,
+            160,
+            137,
+            91,
+            90,
+            15,
+            131,
+            13,
+            201,
+            95,
+            96,
+            53,
+            194,
+            233,
+            7,
+            225,
+            140,
+            36,
+            103,
+            30,
+            69,
+            142,
+            8,
+            99,
+            37,
+            240,
+            21,
+            10,
+            23,
+            190,
+            6,
+            148,
+            247,
+            120,
+            234,
+            75,
+            0,
+            26,
+            197,
+            62,
+            94,
+            252,
+            219,
+            203,
+            117,
+            35,
+            11,
+            32,
+            57,
+            177,
+            33,
+            88,
+            237,
+            149,
+            56,
+            87,
+            174,
+            20,
+            125,
+            136,
+            171,
+            168,
+            68,
+            175,
+            74,
+            165,
+            71,
+            134,
+            139,
+            48,
+            27,
+            166,
+            77,
+            146,
+            158,
+            231,
+            83,
+            111,
+            229,
+            122,
+            60,
+            211,
+            133,
+            230,
+            220,
+            105,
+            92,
+            41,
+            55,
+            46,
+            245,
+            40,
+            244,
+            102,
+            143,
+            54,
+            65,
+            25,
+            63,
+            161,
+            1,
+            216,
+            80,
+            73,
+            209,
+            76,
+            132,
+            187,
+            208,
+            89,
+            18,
+            169,
+            200,
+            196,
+            135,
+            130,
+            116,
+            188,
+            159,
+            86,
+            164,
+            100,
+            109,
+            198,
+            173,
+            186,
+            3,
+            64,
+            52,
+            217,
+            226,
+            250,
+            124,
+            123,
+            5,
+            202,
+            38,
+            147,
+            118,
+            126,
+            255,
+            82,
+            85,
+            212,
+            207,
+            206,
+            59,
+            227,
+            47,
+            16,
+            58,
+            17,
+            182,
+            189,
+            28,
+            42,
+            223,
+            183,
+            170,
+            213,
+            119,
+            248,
+            152,
+            2,
+            44,
+            154,
+            163,
+            70,
+            221,
+            153,
+            101,
+            155,
+            167,
+            43,
+            172,
+            9,
+            129,
+            22,
+            39,
+            253,
+            19,
+            98,
+            108,
+            110,
+            79,
+            113,
+            224,
+            232,
+            178,
+            185,
+            112,
+            104,
+            218,
+            246,
+            97,
+            228,
+            251,
+            34,
+            242,
+            193,
+            238,
+            210,
+            144,
+            12,
+            191,
+            179,
+            162,
+            241,
+            81,
+            51,
+            145,
+            235,
+            249,
+            14,
+            239,
+            107,
+            49,
+            192,
+            214,
+            31,
+            181,
+            199,
+            106,
+            157,
+            184,
+            84,
+            204,
+            176,
+            115,
+            121,
+            50,
+            45,
+            127,
+            4,
+            150,
+            254,
+            138,
+            236,
+            205,
+            93,
+            222,
+            114,
+            67,
+            29,
+            24,
+            72,
+            243,
+            141,
+            128,
+            195,
+            78,
+            66,
+            215,
+            61,
+            156,
+            180];
+        const perm = new Uint8Array(512);
+        for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+
+        function fade(t) {
+            return t * t * t * (t * (t * 6 - 15) + 10);
+        }
+
+        function lerp(t, a, b) {
+            return a + t * (b - a);
+        }
+
+        function grad(hash, x, y, z) {
+            const h = hash & 15;
+            const u = h < 8 ? x : y;
+            const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+            return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+        }
+
+        function noise(x, y, z) {
+            const X = Math.floor(x) & 255;
+            const Y = Math.floor(y) & 255;
+            const Z = Math.floor(z) & 255;
+            x -= Math.floor(x);
+            y -= Math.floor(y);
+            z -= Math.floor(z);
+            const u = fade(x);
+            const v = fade(y);
+            const w = fade(z);
+            const A = perm[X] + Y,
+                AA = perm[A] + Z,
+                AB = perm[A + 1] + Z,
+                B = perm[X + 1] + Y,
+                BA = perm[B] + Z,
+                BB = perm[B + 1] + Z;
+            return lerp(w, lerp(v, lerp(u, grad(perm[AA], x, y, z),
+                grad(perm[BA], x - 1, y, z)),
+                lerp(u, grad(perm[AB], x, y - 1, z),
+                    grad(perm[BB], x - 1, y - 1, z))),
+                lerp(v, lerp(u, grad(perm[AA + 1], x, y, z - 1),
+                    grad(perm[BA + 1], x - 1, y, z - 1)),
+                    lerp(u, grad(perm[AB + 1], x, y - 1, z - 1),
+                        grad(perm[BB + 1], x - 1, y - 1, z - 1))));
+        }
+
+        // --- 2. Scene Setup ---
+        const scene = new THREE.Scene();
+        // scene.background = new THREE.Color(0x87CEEB); // Removed for CSS Gradient
+        // Match Fog to the bottom color of the gradient (#000000 - Space)
+        scene.fog = new THREE.Fog(0x000000, 20, 150);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        // Enable alpha to let CSS background show through
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true, alpha: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- 3. Planet Generation ---
+        const planetRadius = 40;
+        const geometry = new THREE.SphereGeometry(planetRadius, 128, 128);
+
+        const count = geometry.attributes.position.count;
+        const positions = geometry.attributes.position;
+        const v3 = new THREE.Vector3();
+
+        // Deform Geometry on CPU (so physics raycaster matches visual)
+        for (let i = 0; i < count; i++) {
+            v3.fromBufferAttribute(positions, i);
+            const dir = v3.clone().normalize();
+
+            // 1. Structure Noise (Large features)
+            // Smoother terrain: base freq 1.0
+            let n = noise(dir.x * 1.0, dir.y * 1.0, dir.z * 1.0);
+
+            // Reduced detail noise amplitude (0.25) and frequency (3.0)
+            n += 0.25 * noise(dir.x * 3.0, dir.y * 3.0, dir.z * 3.0);
+
+            // Terrain Logic
+            // Apply Power Curve for "Flat Plains, High Peaks"
+            // Use Math.pow(abs(n), 2.5) * sign(n)
+            const power = 3.0;
+            const sign = n < 0 ? -1 : 1;
+            let shapedN = sign * Math.pow(Math.abs(n), power);
+
+            // Scale up significantly because pow(x, 3) makes values much smaller
+            const heightScale = 30.0;
+            let h = shapedN * heightScale;
+
+            // --- ROAD GENERATION START ---
+            // Normalized Y is roughly dir.y
+            // Road Width definition
+            const roadHalfWidth = 2.0; // Half width in world units approx
+
+            // Distance from equator on surface ~= planetRadius * abs(dir.y) (approx)
+            // Arc length = R * angle. angle = asin(y). linear approx y works for small y.
+            const distFromEquator = planetRadius * Math.abs(dir.y);
+
+            const roadBandWidth = 3.0; // The flat area width (Narrowed to match)
+            const roadTransition = 3.0; // The blend area
+
+            // If within road band, flatten to constant height
+            if (distFromEquator < (roadBandWidth + roadTransition)) {
+                // Road Height: slightly above sea level (0.0) 
+                // Sea Level is -1.0. Let's make it 0.5 for a nice causeway.
+                const roadHeight = 0.5;
+
+                let t = 0.0;
+
+                if (distFromEquator < roadBandWidth) {
+                    t = 1.0;
+                }
+
+                else {
+                    // Linear transition? Or smoothstep.
+                    // normalized edge distance: 0 (at band) to 1 (at band+trans)
+                    let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
+                    t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist)); // smoothstep logic manually
+                }
+
+                // Blend h towards roadHeight
+                // h = h + (roadHeight - h) * t;
+                h = h * (1.0 - t) + roadHeight * t;
+            }
+
+            // --- ROAD GENERATION END ---
+
+            // Flatten Water removed, just natural terrain
+            let finalRadius = planetRadius + h;
+
+            // --- DEEP TERRAIN ADJUSTMENT (User Request) ---
+            // If terrain is below 80% radius ( < 32.0 ), raise it to random 80-90% (32.0 - 36.0)
+            if (finalRadius < planetRadius * 0.8) {
+                // FLATTENING FIX (User Request): 
+                // Reduced frequency (8.0 -> 1.5) and amplitude (0.1 -> 0.05) for smooth floor
+                // Use dir scaled up significantly
+                let rNoise = noise(dir.x * 1.5, dir.y * 1.5, dir.z * 1.5);
+                // Map from -1..1 (approx) to 0..1 magnitude
+                // Math.abs might create creases, let's use 0.5 * (n + 1)
+                let normNoise = 0.5 * (rNoise + 1.0);
+
+                // Map to 80% - 90% range -> Reduced to 82.5% - 87.5%
+                let factor = 0.825 + normNoise * 0.05;
+                finalRadius = planetRadius * factor;
+
+                // Recalculate h for consistency if needed elsewhere (though mostly used for position)
+                h = finalRadius - planetRadius;
+            }
+
+            dir.multiplyScalar(finalRadius);
+            positions.setXYZ(i, dir.x, dir.y, dir.z);
+        }
+
+        geometry.computeVertexNormals();
+        geometry.attributes.position.needsUpdate = true;
+
+        // Procedural Shader for sharp details
+        const material = new THREE.ShaderMaterial({
+            vertexShader: ` varying vec3 vPosition;
+            varying vec3 vNormal;
+
+            void main() {
+                vPosition=position; // Local position (includes CPU deformation)
+                vNormal=normal;
+                gl_Position=projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+
+            `,
+            fragmentShader: ` varying vec3 vPosition;
+            varying vec3 vNormal;
+            uniform float time;
+
+
+            // Simple pseudo-random for noise
+            float noise(vec3 p) {
+                return fract(sin(dot(p, vec3(12.9898, 78.233, 128.85))) * 43758.5453);
+            }
+
+            // Smooth mixing function
+            vec3 softMix(vec3 a, vec3 b, float val, float edge0, float edge1) {
+                float t=smoothstep(edge0, edge1, val);
+                return mix(a, b, t);
+            }
+
+            void main() {
+                // Calculate height relative to base radius
+                float r=length(vPosition);
+                float baseRadius=40.0;
+                float h=r - baseRadius;
+
+                // Bolder, Saturated Colors
+                vec3 cDeepWater=vec3(0.05, 0.2, 0.4); // Darker Deep Blue (50% darker)
+                vec3 cWater=vec3(0.2, 0.7, 0.95); // Lighter Cyan (was 0.0, 0.8, 1.0)
+                vec3 cWetSand=vec3(0.8, 0.6, 0.3); // Darker/Wet Sand
+                vec3 cSand=vec3(1.0, 0.85, 0.5); // Bright Sand
+                vec3 cGrass=vec3(0.4, 0.8, 0.2); // Vibrant Light Green
+                vec3 cForest=vec3(0.1, 0.5, 0.15); // Rich Green (not black)
+                vec3 cRock=vec3(0.5, 0.5, 0.55); // Neutral Grey
+                vec3 cSnow=vec3(0.9, 0.95, 1.0); // White with hint of blue
+
+                // Noise grain for texture
+                float grain=noise(vPosition * 8.0) * 0.08;
+                float sh=h + grain; // Noisy height for terrain transitions
+
+                // Adjust Sea Level for new scale
+                float seaLevel=-1.0;
+
+                // 2. Land Layer (Restored)
+                // Start with Deep Water Color (Darker)
+                vec3 landCol = cDeepWater;
+
+                 // Deep Water -> Wet Sand
+                // Expanded Gradient (User Request): -6.0 to +0.5 (Into Shallow Water)
+                landCol = softMix(landCol, cWetSand, sh, seaLevel - 6.0, seaLevel + 0.5);
+
+                // Wet Sand -> Dry Sand
+                // Below seaLevel it is wet, dries as it goes up
+                // User Request: Lower it so gradient matches water line.
+                // Water Level is -1.0. 
+                // Let's transition from -2.0 (Deep Wet) to 0.0 (Dry).
+                // Midpoint is -1.0 (Water Line).
+                landCol=softMix(landCol, cSand, sh, seaLevel - 1.0, seaLevel + 1.0);
+
+                // Sand -> Grass 
+                // EXPANDED GREEN ZONE: Start very close to water
+                landCol=softMix(landCol, cGrass, sh, seaLevel + 0.2, seaLevel + 0.8);
+                // Grass -> Forest 
+                // Smoother/Wider Transition: 0.0 to 12.0 (was -1.5 to 4.0)
+                // Eliminates "dead green" block by mixing earlier and longer
+                landCol=softMix(landCol, cForest, sh, 0.0, 12.0);
+                // Forest -> Rock 
+                // Overlap with Forest: 8.0 to 25.0 (was 15.0 to 22.0)
+                // Starts fading to rock while still in forest zone
+                landCol=softMix(landCol, cRock, sh, 8.0, 25.0);
+                // Rock -> Snow 
+                // Higher peaks: 20.0 to 32.0 (was 24.0 to 32.0)
+                landCol=softMix(landCol, cSnow, sh, 20.0, 32.0);
+
+                // --- ROAD RENDERING ---
+                // vPosition.y is distance from equator plane.
+                // Flattened area is where abs(vPosition.y) < roadBandWidth approx.
+                // Because we deformed the mesh, vPosition reflects that.
+                // However, 'vPosition' in FS is interpolated. 
+                float distFromEq=abs(vPosition.y);
+                const float roadBandW=3.0; // Narrowed by 40% (was 5.0)
+
+
+                if (distFromEq < roadBandW) {
+                    // Soft edge for texture
+                    float edgeDist=roadBandW - distFromEq;
+                    // Sharpened Road Edge: 0.0 to 0.2 (was 1.0)
+                    float roadMix=smoothstep(0.0, 0.2, edgeDist);
+
+                    vec3 cRoad=vec3(0.3, 0.3, 0.3); // Lighter Asphalt (was 0.15)
+
+                    // White Dashed Lines
+                    float roadWidth=roadBandW * 2.0;
+                    // Center line:
+                    // angle = atan(z, x)
+                    float angle=atan(vPosition.z, vPosition.x);
+                    float dash=sin(angle * 40.0); // Frequency lowered (was 80) -> Larger Gaps
+
+                    // Line thickened by 40% (0.2 -> 0.28)
+                    // THEN Narrowed by 30% (0.28 -> 0.2)
+                    if (distFromEq < 0.2 && dash > 0.0) {
+                        cRoad=vec3(0.9, 0.9, 0.9); // White
+                    }
+
+                    landCol=mix(landCol, cRoad, roadMix);
+                }
+
+                // --- ROAD END ---
+
+
+
+                // --- ROAD END ---
+
+
+                // --- FOAM REMOVED (User Request) ---
+
+
+                // 3. Final Color (No Water Mix)
+                vec3 finalColor=landCol;
+
+                gl_FragColor=vec4(finalColor, 1.0);
+            }
+
+            `,
+            uniforms: {
+                time: {
+                    value: 0.0
+                }
+            }
+        });
+
+        const planet = new THREE.Mesh(geometry, material);
+        scene.add(planet);
+
+        // --- 3.5 Water Sphere ---
+        const seaLevelRef = -0.5; // Slightly deeper
+        const waterGeo = new THREE.SphereGeometry(planetRadius + seaLevelRef, 96, 96);
+
+        const waterMat = new THREE.MeshBasicMaterial({
+            color: 0x00ccff, // Cyan-Blue (User Request)
+            transparent: true,
+            opacity: 0.68,
+            side: THREE.FrontSide
+        });
+        const waterSphere = new THREE.Mesh(waterGeo, waterMat);
+        scene.add(waterSphere);
+
+        // Add a directional light so the water shines
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        sunLight.position.set(50, 50, 50);
+        scene.add(sunLight);
+        const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+        scene.add(ambientLight);
+
+        // --- 3.6 Star Field ---
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 3000;
+        const starPos = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount; i++) {
+            // Spherical distribution to keep away from planet
+            // User Request: Much further away to reduce parallax/movement speed
+            const r = 1000 + Math.random() * 1500; // Min radius 1000, Max 2500
+            const theta = Math.random() * Math.PI * 2; // Azimuth
+            const phi = Math.acos(2 * Math.random() - 1); // Polar
+
+            starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+            starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            starPos[i * 3 + 2] = r * Math.cos(phi);
+        }
+
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+
+        const starMat = new THREE.PointsMaterial({
+            color: 0xffffff, size: 5.0
+        });
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+        // --- 3.8 Interactive Grass ---
+        // --- 3.8 Interactive Grass ---
+        const grassCount = 80000;
+        // Reduced Size: Wide Base (0.3), tapered by shader
+        // Height 1.2 (was 0.8), Translate 0.2 (was 0.3)
+        // Original: Base -0.1, Top 0.7
+        // New: 1.2 height -> [-0.6, 0.6]. +0.2Y -> [-0.4, 0.8].
+        // Result: Deeper underground (-0.4) and taller (+0.8).
+        // Height 2.2 (was 1.2) to sink roots deeper and prevent floating
+        // Translate -0.3: Bottom at -1.4, Top at 0.8
+        const grassGeo = new THREE.PlaneGeometry(0.3, 2.2);
+        grassGeo.translate(0, -0.3, 0); // Pivot logic
+
+        const grassMat = new THREE.ShaderMaterial({
+            uniforms: {
+                time: {
+                    value: 0
+                }
+
+                ,
+                carPos: { value: new THREE.Vector3() },
+                cameraPos: {
+                    value: new THREE.Vector3()
+                }
+            }
+
+            ,
+            vertexShader: ` uniform float time;
+            uniform vec3 carPos;
+            attribute vec3 offset;
+            attribute vec3 instanceNormal;
+            attribute float scale;
+            attribute float rot;
+
+            varying vec2 vUv;
+            varying float vAltitude; // Pass height to fragment
+            varying vec3 vPos; // World position for noise
+
+            // Quaternion rotation utility
+            vec3 rotateVector(vec4 q, vec3 v) {
+                return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+            }
+
+            vec4 axisAngleToQuaternion(vec3 axis, float angle) {
+                float halfAngle=angle * 0.5;
+                float s=sin(halfAngle);
+                return vec4(axis * s, cos(halfAngle));
+            }
+
+            void main() {
+                vUv=uv;
+
+                // Calculate Altitude for coloring
+                // Planet Radius is 40.0
+                vAltitude=length(offset) - 40.0;
+                vPos=offset;
+
+                // 1. Base Geometry
+                vec3 pos=position;
+                pos.y *=scale;
+                // Width Logic: CONSTANT WIDTH (for rounded top via Fragment Shader)
+                // User Request: Round top (not pointy)
+                // We remove the taper here and handle the shape in Fragment Shader.
+                pos.x *=(scale * 0.5 + 0.5);
+
+                // Capture length to restore later
+                float originalLen=length(pos);
+
+                // --- Wind Sway ---
+                // Combine sine waves for random-ish motion
+                // Phase depends on world position (offset) so they don't sway together
+                float wind=sin(time * 3.0 + offset.x * 0.5) + sin(time * 1.5 + offset.z * 0.5) * 0.5;
+                // Apply to top only (uv.y), scaled STRONGER (was 0.05)
+                // User Request: Stronger wind feel.
+                pos.x +=wind * 0.15 * uv.y;
+
+                // 2. Random Rotation (Y-axis)
+                vec4 qRand=axisAngleToQuaternion(vec3(0, 1, 0), rot);
+                pos=rotateVector(qRand, pos);
+
+                // 3. Align to Surface Normal
+                vec3 up=vec3(0, 1, 0); // Grass local up
+                vec3 normal=normalize(instanceNormal);
+
+                // Rotation from Up to Normal
+                vec3 axis=cross(up, normal);
+                float cosA=dot(up, normal);
+
+                // Simple alignment
+                vec4 qAlign=vec4(0, 0, 0, 1);
+
+                if (cosA > -0.99) {
+                    qAlign=normalize(vec4(axis, 1.0 + cosA));
+                }
+
+                else {
+                    qAlign=vec4(1, 0, 0, 0); // Flip
+                }
+
+                pos=rotateVector(qAlign, pos);
+
+                // --- 4. Car Interaction ---
+                {
+                    vec3 totalPush = vec3(0.0);
+                    
+                    // Player (Radius 1.4)
+                    float dCar = distance(offset, carPos);
+                    if (dCar < 1.4) {
+                        totalPush += normalize(offset - carPos) * (1.0 - dCar/1.4);
+                    }
+
+                    pos += totalPush * 1.0 * uv.y;
+                }
+
+                // --- Fix Stretching ---
+                // Force the bent grass to maintain its original length (relative to its pivot)
+                // This naturally lowers the Y as it bends X/Z, preventing the "rubber" look.
+                if (originalLen > 0.001) {
+                    pos=normalize(pos) * originalLen;
+                }
+
+                // 5. Translate
+                vec3 worldPos=pos + offset;
+
+                gl_Position=projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+            }
+
+            `,
+            fragmentShader: ` varying vec2 vUv;
+            varying float vAltitude;
+            varying vec3 vPos;
+
+            // Simple pseudo-random for noise (Same as Planet Shader)
+            float noise(vec3 p) {
+                return fract(sin(dot(p, vec3(12.9898, 78.233, 128.85))) * 43758.5453);
+            }
+
+            // Smooth mixing function
+            vec3 softMix(vec3 a, vec3 b, float val, float edge0, float edge1) {
+                float t=smoothstep(edge0, edge1, val);
+                return mix(a, b, t);
+            }
+
+            void main() {
+                // Simple Alpha Cutoff (Side Margins)
+                if (vUv.x < 0.1 || vUv.x > 0.9) discard;
+                if (vUv.y < 0.0) discard;
+
+                // ROUNDED TOP LOGIC
+                // Aspect ratio correction: Geo is 0.3 x 1.2 (Ratio ~0.25)
+                // Effective width in UV is 0.8 (0.1 to 0.9).
+                // To get a circle, RadiusY should vary.
+                // Let's assume a semi-circle cap at the top 10% (0.9 to 1.0)
+                if (vUv.y > 0.9) {
+                    float nx=(vUv.x - 0.5) / 0.4; // Map 0.1..0.9 to -1..1
+                    float ny=(vUv.y - 0.9) / 0.1; // Map 0.9..1.0 to 0..1
+                    if (nx*nx + ny*ny > 1.0) discard;
+                }
+
+                // Exact Color Match with Planet Shader
+                vec3 cGrass=vec3(0.4, 0.8, 0.2); // Vibrant Light Green
+                vec3 cForest=vec3(0.1, 0.5, 0.15); // Rich Green
+                vec3 cRock=vec3(0.5, 0.5, 0.55); // Neutral Grey
+
+                // Add noise to altitude just like planet shader
+                float grain=noise(vPos * 8.0) * 0.08;
+                float sh=vAltitude + grain;
+
+                // Base Color: Grass
+                // Gradient: Darker base to Lighter tip
+                vec3 cGrassTop=vec3(0.42, 0.82, 0.22); // Very subtle gradient vs base (0.4, 0.8, 0.2)
+                // Use pow(vUv.y) to control gradient curve if needed, linear for now
+                vec3 col=mix(cGrass, cGrassTop, vUv.y);
+
+                // Transition: Grass -> Forest (Match Planet 0.0 -> 12.0)
+                // Start mixing forest at 0.0 (near sea level)
+                // Widen range to eliminate "dead green"
+                col=softMix(col, cForest, sh, 0.0, 12.0);
+
+                // Transition: Forest -> Rock (Match Planet 8.0 -> 25.0)
+                // High altitude grass will blend into the rock color
+                col=softMix(col, cRock, sh, 8.0, 25.0);
+
+                gl_FragColor=vec4(col, 1.0);
+            }
+
+            `,
+            side: THREE.DoubleSide
+        });
+
+        const grassMesh = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
+
+        // Populate Grass Instances
+        const dummy = new THREE.Object3D();
+        const _v3 = new THREE.Vector3();
+        const _normal = new THREE.Vector3();
+
+        // Arrays for attributes
+        const offsets = new Float32Array(grassCount * 3);
+        const normals = new Float32Array(grassCount * 3);
+        const scales = new Float32Array(grassCount);
+        const rots = new Float32Array(grassCount);
+
+        let grassIdx = 0;
+
+        // Try up to X times to find valid spots
+        for (let i = 0; i < grassCount * 3 && grassIdx < grassCount; i++) {
+            // Random point on sphere surface
+            _v3.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+
+            // Re-calculate noise height for this point
+            // Re-calculate noise height for this point
+            // Copy logic from planet generation loop EXACTLY
+            // 1. Structure Noise (Large features)
+            // Smoother terrain: base freq 1.0
+            let n = noise(_v3.x * 1.0, _v3.y * 1.0, _v3.z * 1.0);
+            // Reduced detail noise amplitude (0.25) and frequency (3.0)
+            n += 0.25 * noise(_v3.x * 3.0, _v3.y * 3.0, _v3.z * 3.0);
+
+            // Terrain Logic
+            // Apply Power Curve for "Flat Plains, High Peaks"
+            const power = 3.0;
+            const sign = n < 0 ? -1 : 1;
+            let shapedN = sign * Math.pow(Math.abs(n), power);
+
+            const heightScale = 30.0;
+            let h = shapedN * heightScale;
+
+            // Green Zone Criteria
+            const seaLevel = -0.5;
+
+            // Define Road Zone (Must match Planet Generation)
+            const distFromEquator = planetRadius * Math.abs(_v3.y);
+            // Road Band (3.0)
+            // User Request: Grow closer to road.
+            // Buffer 0.5 -> Limit 3.5
+            const roadZoneLimit = 3.5;
+            const isRoad = distFromEquator < roadZoneLimit;
+
+            // --- SYNC HEIGHT WITH ROAD SHADER ---
+            // The shader flattens the geometry near the road, but 'h' here is the raw noisy height.
+            // We must replicate the shader's height modification so grass sits ON the flattened ground.
+
+            const roadBandWidth = 3.0; // Matches Shader
+            const roadTransition = 3.0; // Matches Shader (assumed default)
+
+            if (distFromEquator < (roadBandWidth + roadTransition)) {
+                const roadHeight = 0.5; // Matches Shader
+                let t = 0.0;
+
+                if (distFromEquator < roadBandWidth) {
+                    t = 1.0;
+                }
+
+                else {
+                    // Smoothstep logic from shader
+                    let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
+                    t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist));
+                }
+
+                // Blend height towards roadHeight
+                h = h * (1.0 - t) + roadHeight * t;
+            }
+
+            // --- END SYNC ---
+
+            // --- DEEP TERRAIN SYNC (User Request) ---
+            // Must match Planet Generation Logic EXACTLY or grass will float/bury
+            let finalRadius = planetRadius + h;
+            if (finalRadius < planetRadius * 0.8) {
+                // FLATTENING FIX (User Request): 
+                // Reduced frequency (8.0 -> 1.5) and amplitude (0.1 -> 0.05) for smooth floor
+                let rNoise = noise(_v3.x * 1.5, _v3.y * 1.5, _v3.z * 1.5);
+                let normNoise = 0.5 * (rNoise + 1.0);
+                let factor = 0.825 + normNoise * 0.05; // Range: 0.825 to 0.875
+                finalRadius = planetRadius * factor;
+                h = finalRadius - planetRadius;
+            }
+            // --- END DEEP TERRAIN SYNC ---
+
+
+            // Green Height Range: 
+            // -1.0 is water line. 
+            // EXPANDED: Spawn closer to water (was 0.5, now -0.2) because green starts earlier
+            // 8.0 is start of rock. -> Raised to 24.0 (start of snow/rock transition)
+            const isGreenHeight = (h > -0.2) && (h < 24.0);
+
+            // Density Noise REMOVED for Uniform Distribution
+            // User Request: Uniformly dense grass (no clumps)
+            // let density = noise(_v3.x * 8.0, _v3.y * 8.0, _v3.z * 8.0);
+
+            // Allow if satisfies criteria (removed density check)
+            if (!isRoad && isGreenHeight) {
+                // Determine Position
+                const r = planetRadius + h;
+                const pos = _v3.clone().multiplyScalar(r);
+
+                offsets[grassIdx * 3 + 0] = pos.x;
+                offsets[grassIdx * 3 + 1] = pos.y;
+                offsets[grassIdx * 3 + 2] = pos.z;
+
+                // Normal is direction from center
+                normals[grassIdx * 3 + 0] = _v3.x;
+                normals[grassIdx * 3 + 1] = _v3.y;
+                normals[grassIdx * 3 + 2] = _v3.z;
+
+                // Reverted Size Logic
+                scales[grassIdx] = 0.5 + Math.random() * 0.5;
+                rots[grassIdx] = Math.random() * Math.PI * 2;
+
+                grassIdx++;
+            }
+        }
+
+        // --- Bind Attributes (Outside Loop) ---
+        grassMesh.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(offsets, 3));
+        grassMesh.geometry.setAttribute('instanceNormal', new THREE.InstancedBufferAttribute(normals, 3));
+        grassMesh.geometry.setAttribute('scale', new THREE.InstancedBufferAttribute(scales, 1));
+        grassMesh.geometry.setAttribute('rot', new THREE.InstancedBufferAttribute(rots, 1));
+
+        // Fix: User reported invisible grass.
+        // InstancedMesh bounding sphere might not be computed correctly for all instances automatically.
+        // Disabling frustum culling to ensure it's always rendered.
+        grassMesh.frustumCulled = false;
+
+        scene.add(grassMesh);
+
+        // --- 3.9 Additional Vegetation (Trees, Flowers, Mushrooms) ---
+
+        // Helper to merge geometries with baked vertex colors (Support Gradient)
+        function createColoredGeometry(parts) {
+            let totalVerts = 0;
+            const unindexedParts = parts.map(p => ({
+                geo: p.geo.toNonIndexed(),
+                color: p.color,
+                gradient: p.gradient // { from: hex, to: hex }
+            }));
+
+            unindexedParts.forEach(p => totalVerts += p.geo.attributes.position.count);
+
+            const positions = new Float32Array(totalVerts * 3);
+            const normals = new Float32Array(totalVerts * 3);
+            const colors = new Float32Array(totalVerts * 3);
+            const uvs = new Float32Array(totalVerts * 2);
+
+            let offset = 0;
+            const _col = new THREE.Color();
+            const _colStart = new THREE.Color();
+            const _colEnd = new THREE.Color();
+
+            unindexedParts.forEach(p => {
+                const geo = p.geo;
+                const pos = geo.attributes.position;
+                const norm = geo.attributes.normal;
+                const uv = geo.attributes.uv;
+                const count = pos.count;
+
+                let useGradient = false;
+                let yMin = 0, yRange = 1;
+
+                if (p.gradient) {
+                    useGradient = true;
+                    _colStart.setHex(p.gradient.from);
+                    _colEnd.setHex(p.gradient.to);
+
+                    geo.computeBoundingBox();
+                    yMin = geo.boundingBox.min.y;
+                    yRange = geo.boundingBox.max.y - yMin;
+                    if (yRange < 0.001) yRange = 1.0;
+                } else {
+                    _col.setHex(p.color);
+                }
+
+                for (let i = 0; i < count; i++) {
+                    // Position
+                    const px = pos.getX(i);
+                    const py = pos.getY(i);
+                    const pz = pos.getZ(i);
+
+                    positions[(offset + i) * 3 + 0] = px;
+                    positions[(offset + i) * 3 + 1] = py;
+                    positions[(offset + i) * 3 + 2] = pz;
+
+                    // Color Logic
+                    if (useGradient) {
+                        // t = 0 (bottom) to 1 (top)
+                        let t = (py - yMin) / yRange;
+                        // Lerp
+                        _col.lerpColors(_colStart, _colEnd, t);
+                    }
+
+                    colors[(offset + i) * 3 + 0] = _col.r;
+                    colors[(offset + i) * 3 + 1] = _col.g;
+                    colors[(offset + i) * 3 + 2] = _col.b;
+
+                    if (norm) {
+                        normals[(offset + i) * 3 + 0] = norm.getX(i);
+                        normals[(offset + i) * 3 + 1] = norm.getY(i);
+                        normals[(offset + i) * 3 + 2] = norm.getZ(i);
+                    }
+
+                    if (uv) {
+                        uvs[(offset + i) * 2 + 0] = uv.getX(i);
+                        uvs[(offset + i) * 2 + 1] = uv.getY(i);
+                    }
+                }
+                offset += count;
+                geo.dispose();
+            });
+
+            const finalGeo = new THREE.BufferGeometry();
+            finalGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            finalGeo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+            finalGeo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+            finalGeo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+            return finalGeo;
+        }
+
+        // 1. Tree Geometry (Trunk + 2 Cones) with Gradients
+        const treeParts = [
+            { geo: new THREE.CylinderGeometry(0.2, 0.3, 1.0, 7).translate(0, 0.5, 0), color: 0x5C4033 }, // Trunk (Solid)
+            // Base Leaves: Dark Green to Mid Green
+            { geo: new THREE.ConeGeometry(1.2, 2.0, 7).translate(0, 2.0, 0), gradient: { from: 0x004d00, to: 0x228B22 } },
+            // Top Leaves: Mid Green to Lighter Green
+            { geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 2.8, 0), gradient: { from: 0x228B22, to: 0x66cc44 } }
+        ];
+        const treeGeo = createColoredGeometry(treeParts);
+
+        // 2. Mushroom Geometry (Stem + Cap)
+        const mushParts = [
+            // Stem: Shortened to 0.35 height, Tapered top to 0.1 to fit inside cap
+            { geo: new THREE.CylinderGeometry(0.12, 0.1, 0.35, 6).translate(0, 0.175, 0), color: 0xFFF8DC },
+            // Cap: Lowered to 0.3 to fully cover stem top
+            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.3, 0), gradient: { from: 0xFF0000, to: 0x8B0000 } }
+        ];
+        const mushGeo = createColoredGeometry(mushParts);
+
+        // 3. Flower Geometry (Yellow Heart, White Petals)
+        const flowerParts = [
+            { geo: new THREE.CylinderGeometry(0.04, 0.04, 0.4, 4).translate(0, 0.2, 0), color: 0x006400 }, // Stem
+            { geo: new THREE.SphereGeometry(0.12, 4, 4).translate(0, 0.45, 0), color: 0xFFD700 }, // Center (Yellow)
+            // Petals as a flat circle/cone
+            { geo: new THREE.CircleGeometry(0.28, 6).rotateX(-Math.PI / 2).translate(0, 0.42, 0), color: 0xFFFFFF } // White Petals
+        ];
+        const flowerGeo = createColoredGeometry(flowerParts);
+
+        // 4. Stone Geometry (Low-poly Dodecahedron, flattened)
+        const stoneParts = [
+            // User Request: Double Size (0.3 -> 0.6)
+            { geo: new THREE.DodecahedronGeometry(0.6, 0).scale(1.0, 0.6, 1.0).translate(0, 0.3, 0), gradient: { from: 0x505050, to: 0xAAAAAA } }
+        ];
+        const stoneGeo = createColoredGeometry(stoneParts);
+
+        // 5. Twig Geometry (Thin, rotated Cylinder)
+        const twigParts = [
+            // Main branch: Thicker & Longer (2x)
+            // 0.07->0.14, 0.09->0.18, 0.6->1.2. Translate Y doubled 0.05->0.1.
+            { geo: new THREE.CylinderGeometry(0.14, 0.18, 1.2, 5).rotateZ(Math.PI / 2.5).translate(0, 0.1, 0), color: 0x5C4033 },
+            // Side branch: Thicker & Longer (2x)
+            // 0.05->0.10, 0.3->0.6. Translate 0.1->0.2.
+            { geo: new THREE.CylinderGeometry(0.10, 0.10, 0.6, 4).rotateZ(-Math.PI / 3).translate(0.2, 0.1, 0), color: 0x5C4033 }
+        ];
+        const twigGeo = createColoredGeometry(twigParts);
+
+        // 6. Bush Geometry (Sphere + Leaves)
+        const bushParts = [];
+        // Core (Lighter Green: 0x4CA64C) matching leaves
+        bushParts.push({ geo: new THREE.SphereGeometry(1.3, 10, 10).translate(0, 1.0, 0), color: 0x4CA64C });
+
+        // Leaves (Round headed, same color 0x4CA64C)
+        const _bushDummy = new THREE.Object3D();
+        // Increased leaf count (50 -> 150)
+        for (let i = 0; i < 150; i++) {
+            // Round head: Shorter (0.5) and Thicker (0.3 width)
+            const leafGeo = new THREE.SphereGeometry(0.25, 6, 6);
+            leafGeo.scale(0.6, 1.0, 0.6);
+            leafGeo.translate(0, 0.25, 0); // Bottom of sphere at 0
+
+            const u = Math.random();
+            const v = Math.random();
+            const theta = 2 * Math.PI * u;
+            const phi = Math.acos(2 * v - 1);
+
+            // Radius further inside (1.0) was 1.2
+            const r = 1.0;
+            const x = r * Math.sin(phi) * Math.cos(theta);
+            const y = r * Math.sin(phi) * Math.sin(theta);
+            const z = r * Math.cos(phi);
+
+            _bushDummy.position.set(x, y + 1.0, z); // +1.0 Y offset matching sphere core
+            _bushDummy.rotation.set(0, 0, 0);
+            _bushDummy.scale.set(1, 1, 1);
+
+            const normal = new THREE.Vector3(x, y, z).normalize();
+            _bushDummy.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+
+            _bushDummy.rotateX((Math.random() - 0.5) * 1.0); // Increased spread
+            _bushDummy.rotateZ((Math.random() - 0.5) * 1.0);
+
+            _bushDummy.updateMatrix();
+
+            leafGeo.applyMatrix4(_bushDummy.matrix);
+            bushParts.push({ geo: leafGeo, color: 0x4CA64C }); // Match Core Color
+        }
+        const bushGeo = createColoredGeometry(bushParts);
+        // Move down by 20% of height (Height ~2.5 -> move 0.5)
+        bushGeo.translate(0, -0.5, 0);
+        const vegMaterial = new THREE.ShaderMaterial({
+            vertexColors: true,
+            uniforms: {
+                time: { value: 0 },
+                carPos: { value: new THREE.Vector3() },
+            },
+            vertexShader: `
+                uniform float time;
+                uniform vec3 carPos;
+                attribute vec3 offset;
+                attribute vec3 instanceNormal;
+                attribute float scale;
+                attribute float rot;
+                attribute vec3 aColor; // Renamed from 'color' to avoid collisions
+                attribute float isStatic;
+
+                varying vec3 vColor;
+                
+                vec3 rotateVector(vec4 q, vec3 v) {
+                    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+                }
+                vec4 axisAngleToQuaternion(vec3 axis, float angle) {
+                    float halfAngle = angle * 0.5;
+                    float s = sin(halfAngle);
+                    return vec4(axis * s, cos(halfAngle));
+                }
+
+                void main() {
+                    vColor = aColor;
+                    vec3 pos = position;
+                    pos *= scale;
+
+                    // WIND SWAY
+                    float h = position.y; // Local height
+                    // Sway more at top
+                    if(h > 0.3) {
+                         float wind = sin(time * 2.0 + offset.x * 0.5) + sin(time * 1.5 + offset.z * 0.5);
+                         pos.x += wind * 0.1 * h; 
+                         pos.z += wind * 0.05 * h;
+                    }
+
+                    // Rotation
+                    vec4 qRand = axisAngleToQuaternion(vec3(0, 1, 0), rot);
+                    pos = rotateVector(qRand, pos);
+
+                    // Align to Normal
+                    vec3 up = vec3(0, 1, 0);
+                    vec3 normal = normalize(instanceNormal);
+                    vec3 axis = cross(up, normal);
+                    float cosA = dot(up, normal);
+                    vec4 qAlign = vec4(0, 0, 0, 1);
+                    if (cosA > -0.99) qAlign = normalize(vec4(axis, 1.0 + cosA));
+                    else qAlign = vec4(1, 0, 0, 0);
+                    pos = rotateVector(qAlign, pos);
+
+                    // Interaction
+                    if (isStatic < 0.5) {
+                         vec3 worldOffset = offset;
+                         vec3 totalDisp = vec3(0.0);
+                         float originalLen = length(pos);
+
+                         // Player
+                         float dCar = distance(worldOffset, carPos);
+                         if(dCar < 1.6) {
+                            totalDisp += normalize(worldOffset - carPos) * (1.0 - dCar/1.6);
+                         }
+
+                         pos += totalDisp * 1.0 * (h > 0.1 ? 1.0 : 0.0);
+                         
+                         // Consistency
+                         if(originalLen > 0.001) pos = normalize(pos) * originalLen;
+                    }
+
+                    vec3 worldPos = pos + offset;
+                    gl_Position = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vColor;
+                void main() {
+                    gl_FragColor = vec4(vColor, 1.0);
+                }
+            `,
+            side: THREE.DoubleSide
+        });
+
+        let debugVegCount = 0;
+
+        let seed = 12345;
+        function seededRandom() {
+            seed = (seed * 9301 + 49297) % 233280;
+            return seed / 233280;
+        }
+
+        function scatterObjects(geo, count, type, minDistance = 0) {
+            const mesh = new THREE.InstancedMesh(geo, vegMaterial, count);
+            const offsets = new Float32Array(count * 3);
+            const normals = new Float32Array(count * 3);
+            const scales = new Float32Array(count);
+            const rots = new Float32Array(count);
+            const isStaticArr = new Float32Array(count);
+
+            const _v3 = new THREE.Vector3();
+            let idx = 0;
+
+            // Try more attempts
+            for (let i = 0; i < count * 20 && idx < count; i++) {
+                _v3.set(seededRandom() - 0.5, seededRandom() - 0.5, seededRandom() - 0.5).normalize();
+
+                let n = noise(_v3.x, _v3.y, _v3.z);
+                n += 0.25 * noise(_v3.x * 3.0, _v3.y * 3.0, _v3.z * 3.0);
+                // n range roughly -1.25 to 1.25
+
+                const sign = n < 0 ? -1 : 1;
+                let shapedN = sign * Math.pow(Math.abs(n), 3.0);
+                let h = shapedN * 30.0;
+
+                // Road Avoidance
+                const distEq = 40.0 * Math.abs(_v3.y);
+                if (distEq < 5.0) continue;
+
+                // Deep Terrain Sync (Simplified Check)
+                let finalR = 40.0 + h;
+                // If very low, it's water/trench.
+                // Apply specific Flattening Logic if needed, but for vegetation just check height.
+                // Re-apply logic to get correct surface H
+                if (finalR < 32.0) {
+                    let rNoise = noise(_v3.x * 1.5, _v3.y * 1.5, _v3.z * 1.5);
+                    let factor = 0.825 + (0.5 * (rNoise + 1.0)) * 0.05;
+                    finalR = 40.0 * factor;
+                    h = finalR - 40.0;
+                }
+
+                let valid = false;
+                let scale = 1.0;
+
+                // Min Distance Check (Optimization: only if minDistance > 0)
+                if (minDistance > 0) {
+                    // Check against already placed objects in this batch
+                    // Note: This only checks against objects of the SAME type in this scatter call
+                    // To be perfect, we'd need a global list, but self-spacing is usually enough.
+                    let tooClose = false;
+                    const candidatePos = _v3.clone().multiplyScalar(40.0 + h); // Approx position
+
+                    // Simple O(N) check - sufficient for N < 1000
+                    for (let d = 0; d < idx; d++) {
+                        const px = offsets[d * 3];
+                        const py = offsets[d * 3 + 1];
+                        const pz = offsets[d * 3 + 2];
+                        // Squared distance check is faster
+                        const dx = px - candidatePos.x;
+                        const dy = py - candidatePos.y;
+                        const dz = pz - candidatePos.z;
+                        if (dx * dx + dy * dy + dz * dz < minDistance * minDistance) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (tooClose) continue;
+                }
+
+                // SIMPLIFIED ZONING (Debug)
+                // Valid if above Water (-1.0) and below High Peaks (25.0)
+                if (h > -0.5 && h < 25.0) {
+                    valid = true;
+
+                    if (type === 'tree') {
+                        // Allow trees in 0..18
+                        if (h < 0.0 || h > 18.0) valid = false;
+                        // Simple Density Check
+                        if (noise(_v3.x * 5.0, _v3.y * 5.0, _v3.z * 5.0) < 0.0) valid = false;
+                        scale = 1.2 + seededRandom() * 1.0; // Larger trees
+                    } else if (type === 'mushroom') {
+                        if (h < 1.0 || h > 15.0) valid = false;
+                        // Clumps
+                        if (noise(_v3.x * 10.0 + 10.0, _v3.y * 10.0, _v3.z * 10.0) > -0.2) valid = false;
+                        scale = 0.8 + seededRandom() * 0.5; // Visible mushrooms
+                    } else if (type === 'flower') {
+                        if (h < -0.5 || h > 15.0) valid = false;
+                        // Clumpier distribution: Higher frequency, higher threshold
+                        if (noise(_v3.x * 25.0, _v3.y * 25.0, _v3.z * 25.0) < 0.35) valid = false;
+                        // Reduced Size 30%: 0.56 to 0.91 (Original was 0.8 to 1.3)
+                        scale = 0.56 + seededRandom() * 0.35;
+                    }
+                    // Stones & Twigs Logic
+                    else if (type === 'stone') {
+                        if (h < -1.0 || h > 28.0) valid = false; // Anywhere on land
+                        scale = 0.5 + seededRandom() * 0.8;
+                    } else if (type === 'twig') {
+                        if (h < 0.0 || h > 18.0) valid = false; // Near trees (approx forest height)
+                        scale = 0.6 + seededRandom() * 0.6;
+                    } else if (type === 'bush') {
+                        if (h < -0.5 || h > 22.0) valid = false;
+                        // Increased Size 20%: 1.0 -> 1.2
+                        scale = 1.2 + seededRandom() * 0.6;
+                    }
+                }
+
+                if (valid) {
+                    const pos = _v3.clone().multiplyScalar(40.0 + h);
+                    offsets[idx * 3] = pos.x;
+                    offsets[idx * 3 + 1] = pos.y;
+                    offsets[idx * 3 + 2] = pos.z;
+
+                    normals[idx * 3] = _v3.x;
+                    normals[idx * 3 + 1] = _v3.y;
+                    normals[idx * 3 + 2] = _v3.z;
+
+                    scales[idx] = scale;
+                    rots[idx] = seededRandom() * Math.PI * 2;
+                    isStaticArr[idx] = (type === 'stone' || type === 'twig') ? 1.0 : 0.0;
+                    idx++;
+                }
+            }
+
+            debugVegCount += idx;
+
+            mesh.geometry.setAttribute('offset', new THREE.InstancedBufferAttribute(offsets, 3));
+            mesh.geometry.setAttribute('instanceNormal', new THREE.InstancedBufferAttribute(normals, 3));
+            mesh.geometry.setAttribute('scale', new THREE.InstancedBufferAttribute(scales, 1));
+            mesh.geometry.setAttribute('rot', new THREE.InstancedBufferAttribute(rots, 1));
+            mesh.geometry.setAttribute('isStatic', new THREE.InstancedBufferAttribute(isStaticArr, 1));
+            mesh.frustumCulled = false;
+            scene.add(mesh);
+            return mesh;
+        }
+
+        seed = 12345; // Reset seed
+        const trees = scatterObjects(treeGeo, 117, 'tree', 3.0); // Reduced count 117 (Target 40% reduction), MinDist 3.0
+        const mushrooms = scatterObjects(mushGeo, 200, 'mushroom'); // Reduced 200
+        const flowers = scatterObjects(flowerGeo, 250, 'flower'); // Reduced 50% again (500 -> 250)
+
+        // Add Stones, Twigs, and Bushes
+        const stones = scatterObjects(stoneGeo, 25, 'stone');
+        const twigs = scatterObjects(twigGeo, 25, 'twig');
+        const bushes = scatterObjects(bushGeo, 25, 'bush');
+
+        document.title = `Veg: ${debugVegCount}`;
+
+
+        // --- 4. Character (Humanoid) ---
+        const carGroup = new THREE.Group();
+        carGroup.position.set(0, planetRadius + 10, 0);
+
+        // Character Container (For local rotation/animation)
+        const characterContainer = new THREE.Group();
+        carGroup.add(characterContainer);
+
+        // Material (White)
+        // Material (White, Flat, No Shadow)
+        const charMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.5, 32, 32);
+        const headMesh = new THREE.Mesh(headGeo, charMat);
+        headMesh.position.y = 1.7;
+        characterContainer.add(headMesh);
+
+        // Body (Capsule-ish: Cylinder with rounded feel, or just Cylinder)
+        // Image shows a simple shape. Let's make it a slightly tapered cylinder.
+        const bodyGeo = new THREE.CylinderGeometry(0.35, 0.45, 0.7, 16);
+        const bodyMesh = new THREE.Mesh(bodyGeo, charMat);
+        bodyMesh.position.y = 1.0;
+        characterContainer.add(bodyMesh);
+
+        // Legs
+        // Pivot at the hips (top of leg)
+        const legGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.7, 12);
+        legGeo.translate(0, -0.35, 0); // Shift so origin is at top
+
+        // Left Leg
+        const leftLeg = new THREE.Mesh(legGeo, charMat);
+        leftLeg.position.set(-0.2, 0.7, 0); // Hip position
+        characterContainer.add(leftLeg);
+
+        // Right Leg
+        const rightLeg = new THREE.Mesh(legGeo, charMat);
+        rightLeg.position.set(0.2, 0.7, 0); // Hip position
+        characterContainer.add(rightLeg);
+
+        scene.add(carGroup);
+
+
+
+
+        const carPhysics = {
+            pos: new THREE.Vector3(0, planetRadius + 10, 0),
+            quat: new THREE.Quaternion(),
+            speed: 0,
+            up: new THREE.Vector3(0, 1, 0),
+            smoothedUp: new THREE.Vector3(0, 1, 0)
+        }
+
+            ;
+
+        const keys = {
+            w: false, a: false, s: false, d: false, " ": false
+        };
+
+        let playerWalkTime = 0;
+
+        const handleKeyDown = (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+        }
+
+            ;
+
+        const handleKeyUp = (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+        }
+
+            ;
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+        // --- Chest Implementation ---
+
+        // 1. UI Bubble
+        const chestBubble = document.createElement('div');
+        chestBubble.id = 'chestBubble';
+        chestBubble.style.position = 'absolute';
+        chestBubble.style.zIndex = '100';
+        chestBubble.style.padding = '2px 5px'; // Reduced 50%
+        chestBubble.style.background = 'rgba(255, 255, 255, 0.95)';
+        chestBubble.style.borderRadius = '6px'; // Reduced 50%
+        chestBubble.style.pointerEvents = 'none';
+        chestBubble.style.display = 'none';
+        chestBubble.style.color = '#333';
+        chestBubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'; // Reduced shadow
+        chestBubble.style.minWidth = 'auto'; // Shrink to fit content
+
+        // Add Triangle indicator
+        const bubbleArrow = document.createElement('div');
+        bubbleArrow.style.position = 'absolute';
+        bubbleArrow.style.bottom = '-2px'; // Reduced 50% (adjusted to -2px to fix gap)
+        bubbleArrow.style.left = '50%';
+        bubbleArrow.style.marginLeft = '-3px'; // Reduced 50%
+        bubbleArrow.style.width = '0';
+        bubbleArrow.style.height = '0';
+        bubbleArrow.style.borderLeft = '3px solid transparent'; // Reduced 50%
+        bubbleArrow.style.borderRight = '3px solid transparent'; // Reduced 50%
+        bubbleArrow.style.borderTop = '3px solid rgba(255, 255, 255, 0.95)'; // Reduced 50%
+        chestBubble.appendChild(bubbleArrow);
+
+        // Inventory Container
+        const inventoryGrid = document.createElement('div');
+        inventoryGrid.style.display = 'grid';
+        inventoryGrid.style.gridTemplateColumns = 'auto 1fr';
+        inventoryGrid.style.gap = '0px 5px'; // Reduced 50%
+        inventoryGrid.style.alignItems = 'center';
+        chestBubble.appendChild(inventoryGrid);
+
+        document.body.appendChild(chestBubble);
+
+        // 2. Chest State
+        const chestInventory = {
+            stone: 0,
+            twig: 0,
+            mushroom: 0
+        };
+        let lastChestDepositTime = 0;
+        const chestPos = new THREE.Vector3(0, planetRadius, 15.0); // Z+15
+
+        // 3. Chest Mesh
+        const chestGeo = new THREE.BoxGeometry(2.0, 1.5, 1.5);
+        const chestMat = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
+        const chestMesh = new THREE.Mesh(chestGeo, chestMat);
+        scene.add(chestMesh);
+
+        // 4. Precise Terrain Height Logic (Copied from Terrain Pipeline)
+        function getSurfaceHeight(x, y, z) {
+            const dir = new THREE.Vector3(x, y, z).normalize();
+
+            // 1. Structure Noise
+            let n = noise(dir.x * 1.0, dir.y * 1.0, dir.z * 1.0);
+            n += 0.25 * noise(dir.x * 3.0, dir.y * 3.0, dir.z * 3.0);
+
+            // 2. Power Curve
+            const power = 3.0;
+            const sign = n < 0 ? -1 : 1;
+            let shapedN = sign * Math.pow(Math.abs(n), power);
+            let h = shapedN * 30.0;
+
+            // 3. Road Zone
+            const roadBandWidth = 3.0;
+            const roadTransition = 3.0;
+            const distFromEquator = planetRadius * Math.abs(dir.y);
+
+            if (distFromEquator < (roadBandWidth + roadTransition)) {
+                const roadHeight = 0.5;
+                let t = 0.0;
+                if (distFromEquator < roadBandWidth) t = 1.0;
+                else {
+                    let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
+                    t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist));
+                }
+                h = h * (1.0 - t) + roadHeight * t;
+            }
+
+            // 4. Deep Terrain Flattening
+            let finalRadius = planetRadius + h;
+            if (finalRadius < planetRadius * 0.8) {
+                let rNoise = noise(dir.x * 1.5, dir.y * 1.5, dir.z * 1.5);
+                let normNoise = 0.5 * (rNoise + 1.0);
+                let factor = 0.825 + normNoise * 0.05;
+                finalRadius = planetRadius * factor;
+                h = finalRadius - planetRadius;
+            }
+            return planetRadius + h;
+        }
+
+        // Init Chest Pos
+        const groundH = getSurfaceHeight(chestPos.x, chestPos.y, chestPos.z);
+        chestPos.normalize().multiplyScalar(groundH + 0.75);
+        chestMesh.position.copy(chestPos);
+        chestMesh.lookAt(new THREE.Vector3(0, 0, 0));
+
+        // 5. Icon Generation
+        const itemIcons = {};
+        function generateIcon(geo, color) {
+            const size = 64;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+
+            // Create mini scene
+            const iconScene = new THREE.Scene();
+            // iconScene.background = new THREE.Color(0xffffff); // Transparent preferable?
+            const iconCam = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
+            iconCam.position.z = 2.5; // Adjust based on object size
+
+            const iconLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            iconLight.position.set(1, 1, 1);
+            iconScene.add(iconLight);
+            iconScene.add(new THREE.AmbientLight(0x404040));
+
+            // Mesh
+            // Use VertexColors if geometry has them, else use color
+            let mat;
+            if (geo.attributes.aColor) {
+                // Clone geo to safely set color attribute? 
+                // Actually for icons we can just use the provided color fallback or force vertex colors
+                // But standard MeshBasicMaterial might look flat. Let's use Lambert for icon depth.
+                const iconGeo = geo.clone();
+                iconGeo.setAttribute('color', iconGeo.attributes.aColor);
+                // Center geometry
+                iconGeo.computeBoundingBox();
+                const center = iconGeo.boundingBox.getCenter(new THREE.Vector3());
+                iconGeo.translate(-center.x, -center.y, -center.z);
+
+                mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+                const m = new THREE.Mesh(iconGeo, mat);
+                iconScene.add(m);
+            } else {
+                // Fallback geometry center
+                const iconGeo = geo.clone();
+                iconGeo.computeBoundingBox();
+                const center = iconGeo.boundingBox.getCenter(new THREE.Vector3());
+                iconGeo.translate(-center.x, -center.y, -center.z);
+
+                mat = new THREE.MeshLambertMaterial({ color: color });
+                const m = new THREE.Mesh(iconGeo, mat);
+                iconScene.add(m);
+            }
+
+            // Render
+            renderer.render(iconScene, iconCam);
+            return renderer.domElement.toDataURL();
+        }
+
+        // Generate Icons (Delayed slightly to ensure renderer is ready? No, renderer exists)
+        // Store geometries to use. 
+        // Note: stoneGeo, twigGeo have aColor? Stone does. Twig does. Mushroom has parts.
+        // For mushroom, we need to combine parts or just pick the cap?
+        // Let's approximate.
+
+        // Wait, Mushroom is complex (cap + stipe). We don't have a single merged geometry variable easily accessible 
+        // except the InstancedMesh's geometry? No, we used 'mushGeo' which was an array of parts? 
+        // Let's see: const mushrooms = scatterObjects(mushGeo, ...)
+        // 'mushGeo' passed to scatterObjects is expected to be a single geometry (BufferGeometry).
+
+        setTimeout(() => {
+            // Safe delay to ensure context is clean
+            const currentClearColor = renderer.getClearColor(new THREE.Color());
+            const currentClearAlpha = renderer.getClearAlpha();
+            const currentSize = new THREE.Vector2();
+            renderer.getSize(currentSize);
+
+            // Temp resize for icon
+            renderer.setSize(64, 64);
+            renderer.setClearColor(0x000000, 0); // Transparent background
+
+            itemIcons['stone'] = generateIcon(stoneGeo, 0x888888);
+            itemIcons['twig'] = generateIcon(twigGeo, 0x5C4033);
+
+            // For mushroom, stick to a simple proxy if complex, or try mushGeo if it is a geometry
+            // If mushGeo is array of parts, we need to construct a group.
+            // Looking at scatterObjects usage: `scatterObjects(mushGeo, ...)`
+            // This implies `mushGeo` IS a Geometry (BufferGeometry).
+            itemIcons['mushroom'] = generateIcon(mushGeo, 0xff0000);
+
+            // Restore
+            renderer.setSize(currentSize.x, currentSize.y);
+            renderer.setClearColor(currentClearColor, currentClearAlpha);
+        }, 100);
+
+
+        const flyingItems = [];
+
+        function updateFlyingItems(dt) {
+            for (let i = flyingItems.length - 1; i >= 0; i--) {
+                const item = flyingItems[i];
+                const speed = 15.0;
+
+                const dir = new THREE.Vector3().subVectors(item.target, item.mesh.position);
+                const distSq = dir.lengthSq();
+
+                // Move closer
+                if (distSq > 0.5) {
+                    dir.data = null; // safe
+                    dir.normalize();
+                    item.mesh.position.add(dir.multiplyScalar(speed * dt));
+                    // Scale down effect
+                    item.mesh.scale.multiplyScalar(0.92);
+                }
+                else {
+                    // Arrived
+                    if (chestInventory.hasOwnProperty(item.type)) {
+                        chestInventory[item.type]++;
+                    } else {
+                        chestInventory[item.type] = 1;
+                    }
+
+                    // Dispose
+                    scene.remove(item.mesh);
+                    if (item.mesh.geometry) item.mesh.geometry.dispose();
+                    flyingItems.splice(i, 1);
+
+                    // Visual Feedback Removed
+                }
+            }
+        }
+
+        function updateChestLogic(playerPos) {
+            const dist = playerPos.distanceTo(chestMesh.position);
+            const interactRange = 3.0;
+
+            if (dist < interactRange) {
+                // Show Bubble
+                chestBubble.style.display = 'block';
+
+                // Rebuild Inventory Grid Content
+                // Clear current
+                inventoryGrid.innerHTML = '';
+
+                // For each item type
+                const types = ['stone', 'twig', 'mushroom'];
+                types.forEach(type => {
+                    const count = chestInventory[type] || 0;
+
+                    // Icon (Reduced Size: 48 -> 24)
+                    const img = document.createElement('img');
+                    img.src = itemIcons[type] || '';
+                    img.style.width = '24px'; // Reduced 50%
+                    img.style.height = '24px'; // Reduced 50%
+                    img.style.objectFit = 'contain';
+                    img.style.margin = '-4px'; // Reduced 50%
+
+
+                    // Count
+                    const txt = document.createElement('span');
+                    txt.textContent = `${count}`;
+                    txt.style.fontSize = '9px'; // Reduced 50% (18 -> 9)
+                    txt.style.fontWeight = 'bold';
+
+                    inventoryGrid.appendChild(img);
+                    inventoryGrid.appendChild(txt);
+                });
+
+
+                // Project Position
+                // Bubble floats above chest (Reduced height from 2.5 to 1.8 to fix "too high")
+                const bubbleWorldPos = chestMesh.position.clone().add(chestMesh.position.clone().normalize().multiplyScalar(1.8));
+                const p = bubbleWorldPos.clone();
+                p.project(camera);
+
+                const x = (p.x * 0.5 + 0.5) * window.innerWidth;
+                const y = -(p.y * 0.5 - 0.5) * window.innerHeight;
+
+                chestBubble.style.left = x + 'px';
+                chestBubble.style.top = y + 'px';
+                chestBubble.style.transform = 'translate(-50%, -100%)';
+
+                // Interaction: Deposit
+                if (heldItem) {
+                    const now = clock.getElapsedTime();
+                    if (now - lastChestDepositTime > 1.0) {
+
+                        // Transition Effect
+                        if (heldItem.mesh) {
+                            // Transfer to Scene World Space
+                            scene.attach(heldItem.mesh);
+
+                            flyingItems.push({
+                                mesh: heldItem.mesh,
+                                target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
+                                type: heldItem.type
+                            });
+                        }
+
+                        heldItem = null;
+                        lastChestDepositTime = now;
+                    }
+                }
+
+            } else {
+                chestBubble.style.display = 'none';
+            }
+        }
+
+
+
+
+        // --- 5. Followers System ---
+        const followers = [];
+        // Geometries (Shared) - Scaled 0.6
+        const fHeadGeo = new THREE.SphereGeometry(0.3, 16, 16);
+        // Chunkier Body (was 0.2)
+        const fBodyGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.4, 8);
+        // Chunkier Legs (was 0.07)
+        const fLegGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.4, 8);
+        fLegGeo.translate(0, -0.2, 0); // Pivot top
+
+        function createFollower(pos) {
+            const group = new THREE.Group();
+            group.position.copy(pos);
+
+            // Color: White
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+            // Scale factor 0.6 relative to player parts
+            // Player: Head 1.7, Body 1.0, Leg 0.7.
+            // Follower: Head 1.0, Body 0.6, Leg 0.4 (approx)
+            const s = 0.6;
+
+            const head = new THREE.Mesh(fHeadGeo, mat);
+            head.position.y = 1.7 * s;
+            group.add(head);
+
+            const body = new THREE.Mesh(fBodyGeo, mat);
+            body.position.y = 1.0 * s;
+            group.add(body);
+
+            const leftLeg = new THREE.Mesh(fLegGeo, mat);
+            leftLeg.position.set(-0.2 * s, 0.7 * s, 0);
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(fLegGeo, mat);
+            rightLeg.position.set(0.2 * s, 0.7 * s, 0);
+            group.add(rightLeg);
+
+            scene.add(group);
+
+            return { mesh: group, leftLeg, rightLeg, velocity: new THREE.Vector3(), isFollowing: false };
+        }
+
+        function spawnFollowers(count) {
+            let spawned = 0;
+            // Safety limit to prevent infinite loops
+            let attempts = 0;
+            const waterHeight = planetRadius + seaLevelRef;
+
+            while (spawned < count && attempts < count * 10) {
+                attempts++;
+                const v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                const h = getSurfaceHeight(v.x, v.y, v.z);
+
+                // Only spawn if above water
+                if (h > waterHeight + 0.5) {
+                    const pos = v.multiplyScalar(h);
+                    followers.push(createFollower(pos));
+                    spawned++;
+                }
+            }
+        }
+
+        spawnFollowers(50); // Increased count to 50
+
+        function updateFollowers(dt) {
+            const playerPos = carGroup.position;
+
+            // 1. Separation Force (Avoid Overlap)
+            // Simple O(N^2) check is fine for 50 entities
+            const separationRadius = 1.5;
+
+            followers.forEach(f => {
+                const distToPlayer = f.mesh.position.distanceTo(playerPos);
+
+                // Activation
+                if (distToPlayer < 10.0 && !f.isFollowing) {
+                    f.isFollowing = true;
+                    // Trigger Jump
+                    f.jumpTime = 0.0;
+                    f.isJumping = true;
+                }
+
+                // Physics Forces
+                const moveForce = new THREE.Vector3();
+
+                // State Logic
+                if (f.isJumping) {
+                    // Wait for jump to finish (MoveForce stays 0)
+                } else if (f.isFollowing) {
+                    // Normal Following Logic
+                    const up = f.mesh.position.clone().normalize();
+
+                    let target = playerPos;
+                    let stopDist = 3.0;
+                    let seekWeight = 1.0;
+
+                    // Decision: Seek Chest if holding item and CLOSE enough
+                    if (f.heldItem && chestMesh) {
+                        const distToChest = f.mesh.position.distanceTo(chestMesh.position);
+                        // User Request: "Small people only go to chest if close"
+                        if (distToChest < 12.0) {
+                            target = chestMesh.position;
+                            stopDist = 2.0;
+                            seekWeight = 1.5;
+                        }
+                    }
+
+                    // Execute Seek
+                    const distToTarget = f.mesh.position.distanceTo(target);
+                    if (distToTarget > stopDist) {
+                        let dir = new THREE.Vector3().subVectors(target, f.mesh.position).normalize();
+                        dir.projectOnPlane(up).normalize();
+                        moveForce.add(dir.multiplyScalar(seekWeight));
+                    }
+                }
+
+                // B. Separation (Swarm)
+                let sepForce = new THREE.Vector3();
+                let neighborCount = 0;
+
+                followers.forEach(neighbor => {
+                    if (f === neighbor) return;
+                    const d = f.mesh.position.distanceTo(neighbor.mesh.position);
+                    if (d < separationRadius) {
+                        const push = new THREE.Vector3().subVectors(f.mesh.position, neighbor.mesh.position).normalize();
+                        // Weight by distance (closer = stronger)
+                        push.divideScalar(d + 0.1);
+                        sepForce.add(push);
+                        neighborCount++;
+                    }
+                });
+
+                if (neighborCount > 0) {
+                    // Strong separation weight to guarantee space
+                    moveForce.add(sepForce.normalize().multiplyScalar(2.5));
+                }
+
+                // Apply to Velocity
+                // Apply to Velocity
+                const maxSpeed = 7.0; // Reduced from 14.0
+
+                // If we have any desire to move
+                if (moveForce.lengthSq() > 0.01) {
+                    moveForce.normalize().multiplyScalar(maxSpeed);
+                    // Smooth visual acceleration
+                    f.velocity.lerp(moveForce, 2.0 * dt);
+                } else {
+                    // Stop
+                    f.velocity.lerp(new THREE.Vector3(0, 0, 0), 2.0 * dt);
+                }
+
+                // Move
+                if (f.velocity.lengthSq() > 0.01) {
+                    f.mesh.position.add(f.velocity.clone().multiplyScalar(dt));
+                }
+
+                // Chest Collision (Followers)
+                if (chestMesh) {
+                    const fDist = f.mesh.position.distanceTo(chestMesh.position);
+                    if (fDist < 1.5) { // Match Player Collision Radius
+                        const pushDir = new THREE.Vector3().subVectors(f.mesh.position, chestMesh.position).normalize();
+                        f.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(1.5));
+                    }
+                }
+
+                // ALWAYS Snap & Orient (Fix Lying Down)
+                let h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+
+                // Jump Animation (Activation)
+                if (f.isJumping) {
+                    f.jumpTime += dt * 5.0; // Jump speed
+                    if (f.jumpTime > Math.PI) {
+                        f.isJumping = false;
+                        f.jumpTime = 0;
+                    } else {
+                        // Jump Height 2.0
+                        h += Math.sin(f.jumpTime) * 2.0;
+                    }
+                }
+
+                f.mesh.position.normalize().multiplyScalar(h);
+
+                const up = f.mesh.position.clone().normalize();
+
+                // Determine Forward
+                let forward;
+                if (f.velocity.lengthSq() > 0.05) {
+                    forward = f.velocity.clone().normalize();
+                } else {
+                    // Fallback to current rotation's forward (Z)
+                    forward = new THREE.Vector3(0, 0, 1).applyQuaternion(f.mesh.quaternion);
+                }
+
+                // Ensure Orthogonal
+                forward.projectOnPlane(up);
+
+                // Robust Fallback (Fix Pole/Zero Singularity)
+                if (forward.lengthSq() < 0.0001) {
+                    forward.set(1, 0, 0).projectOnPlane(up);
+                    if (forward.lengthSq() < 0.0001) forward.set(0, 0, 1).projectOnPlane(up);
+                }
+                forward.normalize();
+
+                // Rotation using LookAt (Robust)
+                const _dummy = new THREE.Object3D();
+                _dummy.position.copy(f.mesh.position);
+                _dummy.up.copy(up);
+                _dummy.lookAt(f.mesh.position.clone().add(forward));
+
+                f.mesh.quaternion.slerp(_dummy.quaternion, 5.0 * dt);
+
+                // Animation
+                // Animation
+                const speed = f.velocity.length();
+                if (speed > 0.5) {
+                    // Minimum cadence: ensure legs swing at least once per 0.5s
+                    const animSpeed = Math.max(speed, 8.0);
+                    f.walkTime = (f.walkTime || 0) + dt * animSpeed * 1.5;
+                    f.leftLeg.rotation.x = Math.sin(f.walkTime) * 1.5;
+                    f.rightLeg.rotation.x = -Math.sin(f.walkTime) * 1.5;
+                } else {
+                    // Idle state
+                    f.leftLeg.rotation.x = 0;
+                    f.rightLeg.rotation.x = 0;
+                }
+
+                // --- Interaction: Pickup & Drop ---
+                if (f.heldItem) {
+                    // Holding Item: Check Chest
+                    if (chestMesh && f.mesh.position.distanceTo(chestMesh.position) < 3.0) {
+                        // Deposit
+                        if (chestInventory.hasOwnProperty(f.heldItem.type)) {
+                            chestInventory[f.heldItem.type]++;
+                        } else {
+                            chestInventory[f.heldItem.type] = 1;
+                        }
+
+                        // Visuals
+                        f.mesh.remove(f.heldItem.mesh);
+                        if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
+                        f.heldItem = null;
+
+                        // Visuals
+                        f.mesh.remove(f.heldItem.mesh);
+                        if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
+                        f.heldItem = null;
+
+                        // Chest Flash Removed as per user request
+
+                        // Flying Item Effect (Score)
+                        // TODO: Create a flying item from chestBubble or similar? 
+                        // Simplified: Just flash chest.
+                    }
+                } else {
+                    // Empty Handed: Check Pickup
+                    const targets = [
+                        { mesh: stones, type: 'stone', geo: stoneGeo },
+                        { mesh: twigs, type: 'twig', geo: twigGeo },
+                        { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
+                    ];
+
+                    for (let t of targets) {
+                        const count = t.mesh.geometry.attributes.scale.count;
+                        const scales = t.mesh.geometry.attributes.scale;
+                        const offsets = t.mesh.geometry.attributes.offset;
+
+                        for (let i = 0; i < count; i++) {
+                            if (scales.getX(i) < 0.01) continue; // Already taken
+
+                            const dx = f.mesh.position.x - offsets.getX(i);
+                            const dy = f.mesh.position.y - offsets.getY(i);
+                            const dz = f.mesh.position.z - offsets.getZ(i);
+                            const dSq = dx * dx + dy * dy + dz * dz;
+
+                            if (dSq < 2.25) { // 1.5 distance
+                                // Pickup!
+                                const currentScale = scales.getX(i);
+                                scales.setX(i, 0);
+                                scales.needsUpdate = true;
+
+                                // Create Visual
+                                const cloneGeo = t.geo.clone();
+                                if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
+                                const valMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+                                const valMesh = new THREE.Mesh(cloneGeo, valMat);
+
+                                f.mesh.add(valMesh);
+                                valMesh.position.set(0, 0.6, 0.4); // Carry position
+                                valMesh.scale.setScalar(currentScale);
+
+                                f.heldItem = { mesh: valMesh, type: t.type };
+                                break;
+                            }
+                        }
+                        if (f.heldItem) break;
+                    }
+                }
+            });
+        }
+
+        // --- 6. Wolf System ---
+        const wolves = [];
+
+        function createWolf(pos) {
+            const group = new THREE.Group();
+            group.position.copy(pos);
+
+            // Voxel Style Wolf (Grey-ish)
+            const mat = new THREE.MeshBasicMaterial({ color: 0x6e7e85 });
+            const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+            const s = 0.6; // Scale
+            const wolfMesh = new THREE.Group();
+            wolfMesh.scale.set(s, s, s);
+            // Pivot adjustment: center of legs (y=0.5 approx) to ground (0)
+            wolfMesh.position.y = 0;
+            group.add(wolfMesh);
+
+            // 1. Body
+            const bodyGeo = new THREE.BoxGeometry(1.0, 1.0, 2.0);
+            const body = new THREE.Mesh(bodyGeo, mat);
+            body.position.set(0, 1.5, 0);
+            wolfMesh.add(body);
+
+            // 2. Head
+            const headGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+            const head = new THREE.Mesh(headGeo, mat);
+            head.position.set(0, 2.2, 1.2); // Up and FWD
+            wolfMesh.add(head);
+
+            // 3. Snout
+            const snoutGeo = new THREE.BoxGeometry(0.5, 0.4, 0.5);
+            const snout = new THREE.Mesh(snoutGeo, mat);
+            snout.position.set(0, 2.0, 1.95);
+            wolfMesh.add(snout);
+
+            // 4. Ears
+            const earGeo = new THREE.BoxGeometry(0.3, 0.4, 0.2);
+            const leftEar = new THREE.Mesh(earGeo, mat);
+            leftEar.position.set(-0.3, 3.0, 1.2);
+            wolfMesh.add(leftEar);
+            const rightEar = new THREE.Mesh(earGeo, mat);
+            rightEar.position.set(0.3, 3.0, 1.2);
+            wolfMesh.add(rightEar);
+
+            // 5. Tail
+            const tailGeo = new THREE.BoxGeometry(0.3, 0.3, 0.8);
+            const tail = new THREE.Mesh(tailGeo, mat);
+            tail.position.set(0, 1.8, -1.4);
+            wolfMesh.add(tail);
+
+            // 6. Eyes
+            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.05);
+            const leftEye = new THREE.Mesh(eyeGeo, blackMat);
+            leftEye.position.set(-0.51, 2.3, 1.4);
+            wolfMesh.add(leftEye);
+            const rightEye = new THREE.Mesh(eyeGeo, blackMat);
+            rightEye.position.set(0.51, 2.3, 1.4);
+            wolfMesh.add(rightEye);
+
+            // 7. Legs
+            const legGeo = new THREE.BoxGeometry(0.35, 1.0, 0.35);
+            function createLeg(x, z) {
+                const pivot = new THREE.Group();
+                pivot.position.set(x, 1.0, z);
+                const mesh = new THREE.Mesh(legGeo, mat);
+                mesh.position.y = -0.5;
+                pivot.add(mesh);
+                wolfMesh.add(pivot);
+                return pivot;
+            }
+
+            const fl = createLeg(-0.35, 0.8);
+            const fr = createLeg(0.35, 0.8);
+            const bl = createLeg(-0.35, -0.8);
+            const br = createLeg(0.35, -0.8);
+
+            scene.add(group);
+
+            const speed = 7.0 + Math.random() * 3.0;
+
+            return {
+                mesh: group,
+                fl, fr, bl, br,
+                velocity: new THREE.Vector3(),
+                speed: speed,
+                wanderTimer: 0,
+                wanderDir: new THREE.Vector3(),
+                walkTime: 0,
+                combatState: 'wander',
+                stateTimer: 0,
+                orbitDir: Math.random() < 0.5 ? 1 : -1
+            };
+        }
+
+        function spawnWolves(count) {
+            let spawned = 0;
+            let attempts = 0;
+            const waterHeight = planetRadius + seaLevelRef;
+
+            while (spawned < count && attempts < count * 20) {
+                attempts++;
+                const v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+
+                // Avoid spawning too close to top (spawn point)
+                if (v.distanceTo(new THREE.Vector3(0, 1, 0)) < 0.2) continue;
+
+                const h = getSurfaceHeight(v.x, v.y, v.z);
+
+                if (h > waterHeight + 1.0) {
+                    const pos = v.multiplyScalar(h);
+                    wolves.push(createWolf(pos));
+                    spawned++;
+                }
+            }
+        }
+
+        spawnWolves(10);
+
+        let damageCount = 0;
+        let isDead = false;
+        let lastHitTime = 0;
+
+        function updateWolves(dt) {
+            if (isDead) return;
+
+            const playerPos = carGroup.position;
+            const now = clock.getElapsedTime();
+
+            wolves.forEach(w => {
+                const distToPlayer = w.mesh.position.distanceTo(playerPos);
+                const moveForce = new THREE.Vector3();
+                const up = w.mesh.position.clone().normalize();
+                let currentSpeed = w.speed;
+
+                // --- Combat State Machine ---
+                if (distToPlayer < 35.0) {
+                    // Enter Combat
+                    if (w.combatState === 'wander') {
+                        w.combatState = 'circle_fast';
+                        w.stateTimer = 0;
+                        w.orbitDir = Math.random() < 0.5 ? 1 : -1; // Pick direction
+                    }
+
+                    w.stateTimer += dt;
+                    const vecToPlayer = new THREE.Vector3().subVectors(playerPos, w.mesh.position);
+                    const dirToPlayer = vecToPlayer.clone().normalize();
+                    // Tangent for orbiting (Cross Up)
+                    const tangent = new THREE.Vector3().crossVectors(dirToPlayer, up).normalize().multiplyScalar(w.orbitDir);
+
+                    if (w.combatState === 'circle_fast') {
+                        // Fast Orbit
+                        // Duration: 3.5s
+                        currentSpeed = 14.0;
+
+                        if (w.stateTimer > 3.5) {
+                            w.combatState = 'circle_slow';
+                            w.stateTimer = 0;
+                        }
+
+                        // Orbit movement (Spiral in slightly to ~8.0 distance)
+                        const desiredRadius = 8.0;
+                        const radiusError = distToPlayer - desiredRadius;
+
+                        // Mix Tangent + Radial
+                        // If far, pull in. If close, push out.
+                        moveForce.copy(tangent).multiplyScalar(1.0);
+                        moveForce.add(dirToPlayer.multiplyScalar(radiusError * 0.2));
+
+                    } else if (w.combatState === 'circle_slow') {
+                        // Slow Stalk
+                        // Duration: 4.0s
+                        currentSpeed = 3.0; // Very slow, creeping
+
+                        if (w.stateTimer > 4.0) {
+                            w.combatState = 'dash';
+                            w.stateTimer = 0;
+                        }
+
+                        // Maintain distance tightly
+                        const desiredRadius = 7.0;
+                        const radiusError = distToPlayer - desiredRadius;
+                        moveForce.copy(tangent).multiplyScalar(1.0);
+                        moveForce.add(dirToPlayer.multiplyScalar(radiusError * 0.5));
+
+                    } else if (w.combatState === 'dash') {
+                        // Attack!
+                        currentSpeed = 18.0;
+
+                        if (w.stateTimer > 2.0) {
+                            // Missed or Done -> Reset cycle
+                            w.combatState = 'circle_fast';
+                            w.stateTimer = 0;
+                            w.orbitDir *= -1; // Switch direction
+                        }
+
+                        // Pure pursuit
+                        moveForce.copy(dirToPlayer);
+                    }
+
+                } else {
+                    // Out of range -> Wander
+                    w.combatState = 'wander';
+                    currentSpeed = 6.0;
+
+                    w.wanderTimer -= dt;
+                    if (w.wanderTimer <= 0) {
+                        w.wanderTimer = 2.0 + Math.random() * 3.0;
+                        const r = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                        r.projectOnPlane(up).normalize();
+                        w.wanderDir = r;
+                    }
+                    moveForce.add(w.wanderDir);
+                }
+
+                // Separation (Wolves vs Wolves)
+                wolves.forEach(neighbor => {
+                    if (w === neighbor) return;
+                    const d = w.mesh.position.distanceTo(neighbor.mesh.position);
+                    if (d < 2.5) {
+                        const push = new THREE.Vector3().subVectors(w.mesh.position, neighbor.mesh.position).normalize();
+                        moveForce.add(push.multiplyScalar(3.0 / (d + 0.1)));
+                    }
+                });
+
+                // Collision: Wolf vs Followers
+                followers.forEach(f => {
+                    const d = w.mesh.position.distanceTo(f.mesh.position);
+                    if (d < 1.8) { // Collision Radius
+                        const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
+                        // Push follower away
+                        f.mesh.position.add(pushDir.multiplyScalar(0.1)); // Directly nudge position
+                        // Wolf also nudged back slightly
+                        moveForce.add(pushDir.clone().negate().multiplyScalar(5.0));
+                    }
+                });
+
+                // Collision: Wolf vs Player
+                const dPlayer = w.mesh.position.distanceTo(playerPos);
+                if (dPlayer < 1.8) {
+                    const pushDir = new THREE.Vector3().subVectors(playerPos, w.mesh.position).normalize();
+                    // Push Player (Simulated via Velocity if possible, or direct nudge)
+                    carPhysics.pos.add(pushDir.multiplyScalar(0.05)); // Subtle nudge to player
+                    // Wolf bounce back
+                    moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
+                }
+
+                // Apply Physics
+                if (moveForce.lengthSq() > 0.01) {
+                    moveForce.projectOnPlane(up).normalize().multiplyScalar(currentSpeed);
+                    w.velocity.lerp(moveForce, 3.0 * dt); // Snappier movement
+                } else {
+                    w.velocity.lerp(new THREE.Vector3(0, 0, 0), 3.0 * dt);
+                }
+
+                w.mesh.position.add(w.velocity.clone().multiplyScalar(dt));
+
+                // Ground Snap
+                const h = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
+                w.mesh.position.normalize().multiplyScalar(h);
+
+                // Orient
+                let forward = w.velocity.clone().normalize();
+                forward.projectOnPlane(up);
+                if (forward.lengthSq() < 0.001) forward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion).projectOnPlane(up);
+                forward.normalize();
+
+                const _dummy = new THREE.Object3D();
+                _dummy.position.copy(w.mesh.position);
+                _dummy.up.copy(up);
+                _dummy.lookAt(w.mesh.position.clone().add(forward));
+                w.mesh.quaternion.slerp(_dummy.quaternion, 8.0 * dt); // Faster turning
+
+                // Animation
+                const speed = w.velocity.length();
+                if (speed > 0.5) {
+                    // Walking speed modulation
+                    w.walkTime += dt * speed * 2.0;
+
+                    // Attack stance? Maybe later. 
+                    // Just faster animation for now.
+
+                    // Quadruped gait
+                    const s = Math.sin(w.walkTime) * 1.0;
+                    w.fl.rotation.x = s;
+                    w.br.rotation.x = s;
+                    w.fr.rotation.x = -s;
+                    w.bl.rotation.x = -s;
+                } else {
+                    w.fl.rotation.x = 0;
+                    w.br.rotation.x = 0;
+                    w.fr.rotation.x = 0;
+                    w.bl.rotation.x = 0;
+                }
+
+                // Attack Registration
+                if (distToPlayer < 1.4) {
+                    if (now - lastHitTime > 1.0) {
+                        lastHitTime = now;
+                        damageCount++;
+
+                        const g = Math.max(0, 1.0 - damageCount * 0.2);
+                        charMat.color.setRGB(1.0, g, g);
+
+                        if (damageCount >= 3) {
+                            handleDeath();
+                        }
+                    }
+                }
+            });
+        }
+
+        function handleDeath() {
+            isDead = true;
+            charMat.color.setRGB(1.0, 0, 0); // Fully Red
+
+            const div = document.createElement('div');
+            div.style.position = 'fixed';
+            div.style.top = '50%';
+            div.style.left = '50%';
+            div.style.transform = 'translate(-50%, -50%)';
+            div.style.color = 'red';
+            div.style.fontSize = '64px';
+            div.style.fontWeight = 'bold';
+            div.style.fontFamily = 'Arial, sans-serif';
+            div.style.textShadow = '0 0 10px black';
+            div.innerHTML = 'YOU DIED';
+            div.style.zIndex = '100000';
+            document.body.appendChild(div);
+
+            setTimeout(() => {
+                location.reload();
+            }, 4000); // Increased wait for animation
+        }
+
+        // --- Mobile Control Logic (Decoupled) ---
+        const MobileController = {
+            isMobile: false,
+            active: false,
+            moveVector: new THREE.Vector3(0, 0, 0),
+            jumpTrigger: false,
+
+            init: function () {
+                // Detect Mobile (Phones/Tablets)
+                this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent)); // iPad Pro often reports as Mac but has touch points
+
+                if (!this.isMobile) return;
+
+                console.log("Mobile device detected. Initializing controls...");
+
+                // Inject CSS
+                const style = document.createElement('style');
+                style.innerHTML = `
+            .joystick-base {
+                position: absolute;
+                width: 120px;
+                height: 120px;
+                background: rgba(255, 255, 255, 0.15);
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                border-radius: 50%;
+                display: none;
+                z-index: 9999;
+                pointer-events: none; /* User touches screen, we track via window but this visual should not block */
+                touch-action: none;
+                backdrop-filter: blur(4px);
+                box-sizing: border-box;
+            }
+            .joystick-knob {
+                position: absolute;
+                width: 50px;
+                height: 50px;
+                background: rgba(255, 255, 255, 0.8);
+                border-radius: 50%;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                pointer-events: none;
+            }
+        `;
+                document.head.appendChild(style);
+
+                // Create Elements
+                this.base = document.createElement('div');
+                this.base.className = 'joystick-base';
+                this.knob = document.createElement('div');
+                this.knob.className = 'joystick-knob';
+                this.base.appendChild(this.knob);
+                document.body.appendChild(this.base);
+
+                // Attach Events
+                this.attachEvents();
+            },
+
+            attachEvents: function () {
+                let startX = 0, startY = 0;
+                const maxDist = 60; // Max radius (120px / 2)
+
+                // Use 'touchstart' on window to catch tapping anywhere
+                window.addEventListener('touchstart', (e) => {
+                    // Prevent default if it's a multi-touch gesture to avoid zooming, 
+                    // but we want to allow scrolling if not on joystick? 
+                    // Actually, "Touch Drag Move" implies a game-like full screen control.
+                    // We prevent default to stop scrolling/zooming/selection.
+                    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+                        e.preventDefault();
+                    }
+
+                    this.active = true;
+                    this.jumpTrigger = false;
+
+                    const t = e.changedTouches[0];
+                    startX = t.clientX;
+                    startY = t.clientY;
+
+                    // Show Joystick at touch point
+                    this.base.style.left = (startX - 60) + 'px';
+                    this.base.style.top = (startY - 60) + 'px';
+                    this.base.style.display = 'block';
+                    this.knob.style.transform = `translate(-50%, -50%)`;
+
+                    this.moveVector.set(0, 0, 0);
+                }, { passive: false });
+
+                window.addEventListener('touchmove', (e) => {
+                    if (!this.active) return;
+                    e.preventDefault();
+
+                    const t = e.changedTouches[0];
+                    const dx = t.clientX - startX;
+                    const dy = t.clientY - startY;
+
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    let moveX = dx;
+                    let moveY = dy;
+
+                    // Clamp visual knob
+                    if (dist > maxDist) {
+                        const ratio = maxDist / dist;
+                        moveX *= ratio;
+                        moveY *= ratio;
+                    }
+
+                    this.knob.style.transform = `translate(-50%, -50%) translate(${moveX}px, ${moveY}px)`;
+
+                    // Map to Logic Vector
+                    // Visual Up (-dy) -> Logic Forward (+z)
+                    // Visual Right (+dx) -> Logic Left (+x is left in our strange key mapping: A->+x)
+                    // Wait, let's re-verify key mapping in animate:
+                    // keys.a (Left) -> moveDir.x += 1.
+                    // keys.d (Right) -> moveDir.x -= 1.
+                    // keys.w (Forward) -> moveDir.z += 1.
+                    // keys.s (Backward) -> moveDir.z -= 1.
+
+                    // Joystick Up (dy < 0) -> Need Z > 0 -> z = -dy
+                    // Joystick Right (dx > 0) -> Need X < 0 -> x = -dx
+
+                    this.moveVector.set(-(dx / maxDist), 0, -(dy / maxDist));
+
+                    // Clamp vector magnitude to 1.0 for consistency
+                    if (this.moveVector.length() > 1) this.moveVector.normalize();
+
+                }, { passive: false });
+
+                window.addEventListener('touchend', (e) => {
+                    if (!this.active) return;
+                    this.active = false;
+                    this.base.style.display = 'none';
+                    this.moveVector.set(0, 0, 0);
+
+                    // Trigger Jump on release
+                    this.jumpTrigger = true;
+                });
+            },
+
+            consumeJump: function () {
+                if (this.jumpTrigger) {
+                    this.jumpTrigger = false;
+                    return true;
+                }
+                return false;
+            }
+        };
+
+        MobileController.init();
+
+
+        const raycaster = new THREE.Raycaster();
+        const cameraLookAtCurrent = new THREE.Vector3(0, 0, 0);
+        const clock = new THREE.Clock();
+
+        // --- Pickup System ---
+        let heldItem = null;
+        let lastDropTime = 0;
+        let lastDroppedType = null;
+        let lastDroppedIndex = -1;
+        let lastPickupTime = 0;
+
+        const pickupDist = 1.25;
+
+        function getVisualGeometry(originalGeo) {
+            const clone = originalGeo.clone();
+            // Map 'aColor' (Vertex Colors) to 'color' attribute for MeshBasicMaterial
+            if (clone.attributes.aColor) {
+                clone.setAttribute('color', clone.attributes.aColor);
+            }
+            return clone;
+        }
+
+        // Drop currently held item at specific position (or current feet)
+        function dropItem(dropPos, isSwap = false) {
+            if (!heldItem) return;
+
+            const instIdx = heldItem.sourceIndex;
+            const mesh = heldItem.sourceMesh;
+
+            // 1. Restore Instance
+            if (mesh && mesh.geometry && mesh.geometry.attributes.offset) {
+                const offsets = mesh.geometry.attributes.offset;
+                const scales = mesh.geometry.attributes.scale;
+
+                // Update Position to Drop Location
+                offsets.setXYZ(instIdx, dropPos.x, dropPos.y, dropPos.z);
+                offsets.needsUpdate = true;
+
+                // Restore Scale
+                scales.setX(instIdx, heldItem.originalScale);
+                scales.needsUpdate = true;
+            }
+
+            // 2. Remove Visual
+            if (heldItem.mesh) {
+                if (heldItem.mesh.parent) heldItem.mesh.parent.remove(heldItem.mesh);
+                if (heldItem.mesh.geometry) heldItem.mesh.geometry.dispose();
+            }
+
+            // 3. Mark Cooldown (to avoid immediate re-pickup of same item)
+            lastDropTime = clock.getElapsedTime();
+            lastDroppedIndex = instIdx;
+            lastDroppedType = heldItem.type;
+
+            heldItem = null;
+        }
+
+        function pickupItem(t, i, currentScale) {
+            // Safety: Update heldItem null state first if we are here (should be null)
+            heldItem = null;
+
+            // Hide Original
+            const scales = t.mesh.geometry.attributes.scale;
+            scales.setX(i, 0);
+            scales.needsUpdate = true;
+
+            // SAFETY: Remove any existing pickup visuals (Prevent "holding two" bug or visual ghosts)
+            if (characterContainer && characterContainer.children) {
+                for (let c = characterContainer.children.length - 1; c >= 0; c--) {
+                    const child = characterContainer.children[c];
+                    if (child.userData && child.userData.isPickup) {
+                        characterContainer.remove(child);
+                        if (child.geometry) child.geometry.dispose();
+                    }
+                }
+            }
+
+            // Create Visual
+            const visGeo = getVisualGeometry(t.geo);
+            const visMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+            const visMesh = new THREE.Mesh(visGeo, visMat);
+
+            // Tag it
+            visMesh.userData.isPickup = true;
+
+            // Attach
+            characterContainer.add(visMesh);
+
+            // Setup Animation State
+            visMesh.position.set(0, 0.5, 1.5); // Start low/forward
+            visMesh.rotation.y = t.mesh.geometry.attributes.rot.getX(i);
+            visMesh.scale.setScalar(currentScale);
+
+            // Record Pickup Time
+            lastPickupTime = clock.getElapsedTime();
+
+            heldItem = {
+                mesh: visMesh,
+                sourceMesh: t.mesh,
+                sourceIndex: i,
+                type: t.type,
+                originalScale: currentScale,
+                isAnimating: true,
+                animStartTime: lastPickupTime
+            };
+        }
+
+        let lastStandTime = 0; // Track when we last stood still
+
+        function tryPickup(pos) {
+            const now = clock.getElapsedTime();
+
+            // Movement Check
+            if (!carPhysics.velocity || carPhysics.velocity.length() < 0.5) {
+                // We are standing still (or moving very slowly)
+                lastStandTime = now;
+                return;
+            } else {
+                // We are moving.
+                // Rule: Cannot pickup if we just started moving (within 1 second)
+                // This prevents picking up the item we just stood on/dropped instantly.
+                if (now - lastStandTime < 1.0) return;
+            }
+
+            // Global Pickup Cooldown: 1.0s wait after picking up anything
+            if (now - lastPickupTime < 1.0) return;
+
+            // Global Cooldown check (short)
+            // if (now - lastDropTime < 0.2) return; 
+
+            const targets = [
+                { mesh: stones, type: 'stone', geo: stoneGeo },
+                { mesh: twigs, type: 'twig', geo: twigGeo },
+                { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
+            ];
+
+            // Find closest candidate
+            let closestDist = pickupDist;
+            let candidate = null;
+
+            for (let t of targets) {
+                const mesh = t.mesh;
+                const count = mesh.geometry.attributes.scale.count;
+                const offsets = mesh.geometry.attributes.offset;
+                const scales = mesh.geometry.attributes.scale;
+
+                for (let i = 0; i < count; i++) {
+                    // 1. Skip if hidden (already held by someone/us)
+                    if (scales.getX(i) < 0.01) continue;
+
+                    // 2. Skip if we just dropped this specific instance (Cooldown)
+                    // Prevent "Swap -> Pick up old one immediately" loop
+                    if (now - lastDropTime < 1.0) {
+                        if (lastDroppedIndex === i && lastDroppedType === t.type) continue;
+                    }
+
+                    const ox = offsets.getX(i);
+                    const oy = offsets.getY(i);
+                    const oz = offsets.getZ(i);
+                    // Distance Sq for speed?
+                    const dx = pos.x - ox;
+                    const dy = pos.y - oy;
+                    const dz = pos.z - oz;
+                    const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                    if (d < closestDist) {
+                        closestDist = d;
+                        candidate = { t: t, i: i, scale: scales.getX(i) };
+                    }
+                }
+            }
+
+            if (candidate) {
+                // If we are holding something, swap it!
+                if (heldItem) {
+                    // Drop current item AT CURRENT FEET
+                    dropItem(pos, true);
+                }
+                // Pick up new item
+                pickupItem(candidate.t, candidate.i, candidate.scale);
+            }
+        }
+
+        const animate = () => {
+            try {
+                requestAnimationFrame(animate);
+                const dt = Math.min(clock.getDelta(), 0.1);
+
+
+                // Common Constants
+                const waterRadius = planetRadius + seaLevelRef;
+
+                // --- DIRECT MOVEMENT LOGIC (Omnidirectional) ---
+                if (isDead) { // Death Animation
+                    keys.w = keys.s = keys.a = keys.d = keys[" "] = false; // Disable Input logic
+
+                    // Init death timer
+                    if (!carPhysics.deathTime) carPhysics.deathTime = 0;
+                    carPhysics.deathTime += dt;
+
+                    if (carPhysics.deathTime < 2.0) { // Spin 2s
+                        // Spin 
+                        characterContainer.rotation.y += dt * 10.0;
+                    } else if (carPhysics.deathTime < 3.0) { // Fall
+                        // Fall to X = 90 deg (PI/2)
+                        if (characterContainer.rotation.x > -Math.PI / 2) {
+                            characterContainer.rotation.x -= dt * 3.0;
+                        }
+                    }
+
+                    // Stop movement
+                    carPhysics.velocity.set(0, 0, 0);
+                }
+
+                const targetSpeed = 10.0;
+                const moveDir = new THREE.Vector3(0, 0, 0);
+
+                // Declare isJumpActive HERE to fix ReferenceError
+                let isJumpActive = false;
+
+                if (!isDead) {
+                    if (keys.w) moveDir.z += 1;
+                    if (keys.s) moveDir.z -= 1;
+                    if (keys.a) moveDir.x += 1;
+                    if (keys.d) moveDir.x -= 1;
+
+                    // --- Mobile Input Integration ---
+                    isJumpActive = keys[" "];
+                    if (MobileController.isMobile) {
+                        moveDir.add(MobileController.moveVector);
+                        if (MobileController.consumeJump()) {
+                            isJumpActive = true;
+                        }
+                    }
+                }
+
+                if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+                // Direct Velocity Control with Inertia
+                const targetVel = moveDir.multiplyScalar(targetSpeed);
+
+                if (!carPhysics.velocity) carPhysics.velocity = new THREE.Vector3();
+
+                const lerpFactorVal = 5.0 * dt;
+                carPhysics.velocity.lerp(targetVel, lerpFactorVal);
+
+                const distinctVel = carPhysics.velocity.clone();
+                distinctVel.multiplyScalar(dt); // Displacement
+
+                // Character Animation Logic
+                const speed = carPhysics.velocity.length();
+
+                // 1. Face Direction
+                if (moveDir.lengthSq() > 0.1) {
+                    const targetAngle = Math.atan2(moveDir.x, moveDir.z);
+                    const currentRotation = characterContainer.rotation.y;
+                    let diff = targetAngle - currentRotation;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    characterContainer.rotation.y += diff * 15.0 * dt;
+                }
+
+                // 2. Walk Cycle (Legs)
+                // 2. Walk Cycle (Legs)
+                if (speed > 0.5) {
+                    // Accumulate time based on speed (Fixes strobing and inverse speed illusion)
+                    const animSpeed = Math.max(speed, 8.0);
+                    playerWalkTime += dt * animSpeed * 1.5;
+                    const amp = 0.8;
+                    leftLeg.rotation.x = Math.sin(playerWalkTime) * amp;
+                    rightLeg.rotation.x = -Math.sin(playerWalkTime) * amp;
+                } else {
+                    const t = dt * 10.0;
+                    leftLeg.rotation.x = leftLeg.rotation.x * (1.0 - t);
+                    rightLeg.rotation.x = rightLeg.rotation.x * (1.0 - t);
+                }
+
+                // Global Movement
+                const globalMove = distinctVel.clone();
+                globalMove.applyQuaternion(carGroup.quaternion);
+
+                // Resistance / Drag when in water
+                const distCenter = carPhysics.pos.length();
+                if (distCenter < waterRadius) {
+                    globalMove.multiplyScalar(0.6);
+                }
+
+                carPhysics.pos.add(globalMove);
+
+                // DEBUG: Title
+                document.title = `CarPos: ${carPhysics.pos.x.toFixed(1)}, ${carPhysics.pos.y.toFixed(1)}, ${carPhysics.pos.z.toFixed(1)}`;
+
+                const skyPos = carPhysics.pos.clone().normalize().multiplyScalar(planetRadius + 50);
+                const rayDir = new THREE.Vector3(0, 0, 0).sub(skyPos).normalize();
+
+                raycaster.set(skyPos, rayDir);
+                const intersects = raycaster.intersectObject(planet);
+
+                if (intersects.length > 0) {
+                    const hit = intersects[0];
+                    const landPos = hit.point.clone();
+
+                    // Initialize physics Vertical Speed
+                    if (carPhysics.vSpeed === undefined) carPhysics.vSpeed = 0;
+
+                    // --- UPDATE FOLLOWERS & WOLVES ---
+                    updateFollowers(dt);
+                    updateWolves(dt);
+
+                    const currentHeight = carPhysics.pos.length();
+                    const groundH = landPos.length();
+
+                    // Physics Constants
+                    const gravity = -50.0;
+                    const waterGravity = -4.5;
+                    const swimForce = 15.0;
+                    const drag = 0.92;
+
+                    let activeGravity = gravity;
+                    let isUnderwater = false;
+
+                    // Water Check
+                    if (currentHeight < waterRadius) {
+                        isUnderwater = true;
+                        activeGravity = waterGravity;
+                        carPhysics.vSpeed *= drag;
+
+                        // Swim Up
+                        if (isJumpActive) {
+                            carPhysics.vSpeed += swimForce * dt;
+                        }
+                    }
+
+                    // Apply Gravity
+                    carPhysics.vSpeed += activeGravity * dt;
+
+                    // Calculate New Height
+                    let newH = currentHeight + carPhysics.vSpeed * dt;
+
+                    // Ground Collision
+                    if (newH < groundH) {
+                        newH = groundH;
+
+                        if (isJumpActive) {
+                            carPhysics.vSpeed = 15.0;
+                            // DROP ITEM ON JUMP
+                            dropItem(carPhysics.pos);
+                        } else {
+                            carPhysics.vSpeed = 0;
+                        }
+                    }
+
+                    // Water Surface Collision (Ceiling)
+                    const surfaceLimit = waterRadius - 1.2;
+                    if (groundH < surfaceLimit && newH > surfaceLimit) {
+                        newH = surfaceLimit;
+                        if (carPhysics.vSpeed > 0) carPhysics.vSpeed = 0;
+                    }
+
+                    // Construct New Target Position
+                    const finalPos = landPos.clone().normalize().multiplyScalar(newH);
+
+                    // Chest Collision
+                    if (chestMesh) {
+                        const dist = finalPos.distanceTo(chestMesh.position);
+                        const minDist = 1.5; // Increased Collision Radius (User Request)
+                        if (dist < minDist) {
+                            const dir = new THREE.Vector3().subVectors(finalPos, chestMesh.position).normalize();
+                            finalPos.copy(chestMesh.position).add(dir.multiplyScalar(minDist));
+                            // Re-snap height to newH to avoid floating/sinking due to displacement
+                            // Actually better to keep radius consistent:
+                            finalPos.normalize().multiplyScalar(newH);
+                        }
+                    }
+
+                    // Update Physics Position
+                    carPhysics.pos.copy(finalPos);
+
+                    // --- Orientation Logic ---
+                    const distToGround = newH - groundH;
+                    const sphereNormal = finalPos.clone().normalize();
+                    const floorNormal = hit.face ? hit.face.normal.clone().transformDirection(planet.matrixWorld) : sphereNormal;
+
+                    let airFactor = Math.min(distToGround / 2.0, 1.0);
+                    if (isUnderwater) airFactor = Math.max(airFactor, 0.5);
+
+                    const blendedTargetUp = new THREE.Vector3().addVectors(
+                        floorNormal.multiplyScalar(1.0 - airFactor),
+                        sphereNormal.multiplyScalar(airFactor)
+                    ).normalize();
+
+                    carPhysics.smoothedUp.lerp(blendedTargetUp, 5.0 * dt);
+                    carPhysics.smoothedUp.normalize();
+                    const targetUp = carPhysics.smoothedUp;
+
+                    const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(carGroup.quaternion);
+                    const qAlign = new THREE.Quaternion().setFromUnitVectors(currentUp, targetUp);
+                    const targetQ = carGroup.quaternion.clone().premultiply(qAlign);
+                    carGroup.quaternion.slerp(targetQ, 10.0 * dt);
+
+                    // Position Sync
+                    const lerpPosFactor = 0.2;
+                    if (carGroup.position.distanceTo(finalPos) > 10) carGroup.position.copy(finalPos);
+                    else carGroup.position.lerp(finalPos, lerpPosFactor);
+                }
+
+                // Update Uniforms
+                // Update Uniforms
+                grassMat.uniforms.carPos.value.copy(carGroup.position);
+                grassMat.uniforms.time.value = clock.getElapsedTime();
+                vegMaterial.uniforms.carPos.value.copy(carGroup.position);
+                vegMaterial.uniforms.time.value = clock.getElapsedTime();
+
+                // --- Pickup Animation & Logic ---
+                // Add Try-Catch for pickup specifically if it's suspicious
+                try {
+                    tryPickup(carPhysics.pos);
+                } catch (e) { console.error("Pickup Error", e); }
+
+                if (heldItem && heldItem.isAnimating) {
+                    const t = (clock.getElapsedTime() - heldItem.animStartTime) / 0.3; // 0.3s transition
+                    if (t >= 1.0) {
+                        heldItem.mesh.position.set(0, 2.5, 0);
+                        heldItem.isAnimating = false;
+                    } else {
+                        heldItem.mesh.position.lerpVectors(new THREE.Vector3(0, 0.5, 1.5), new THREE.Vector3(0, 2.5, 0), t);
+                    }
+                }
+
+                // --- Chest Logic ---
+                updateFlyingItems(dt);
+                updateChestLogic(carPhysics.pos);
+                updateFollowers(dt);
+
+                // Update Planet Uniforms
+                if (planet.material.uniforms && planet.material.uniforms.time) {
+                    planet.material.uniforms.time.value = clock.getElapsedTime();
+                }
+
+                // --- Camera Logic ---
+                const playerDir = carGroup.position.clone().normalize();
+                const pivotPoint = playerDir.clone().multiplyScalar(planetRadius);
+                const stableUp = playerDir.clone();
+                const carForward = new THREE.Vector3(0, 0, 1).applyQuaternion(carGroup.quaternion);
+                const projForward = carForward.clone().sub(stableUp.clone().multiplyScalar(carForward.dot(stableUp))).normalize();
+                const stableRight = new THREE.Vector3().crossVectors(stableUp, projForward).normalize();
+                const stableForward = new THREE.Vector3().crossVectors(stableRight, stableUp).normalize();
+                const stableMat = new THREE.Matrix4().makeBasis(stableRight, stableUp, stableForward);
+                const stableQuat = new THREE.Quaternion().setFromRotationMatrix(stableMat);
+
+                const localOffset = new THREE.Vector3(0, 26.4, -12.0);
+                localOffset.applyQuaternion(stableQuat);
+
+                const idealCameraPos = pivotPoint.clone().add(localOffset);
+
+                const lookTargetOffset = new THREE.Vector3(0, 2, -2.0);
+                lookTargetOffset.applyQuaternion(carGroup.quaternion);
+                const idealLookAt = carGroup.position.clone().add(lookTargetOffset);
+
+                const camPosLerp = 0.05;
+
+                if (camera.position.length() < 10) {
+                    camera.position.copy(idealCameraPos);
+                    cameraLookAtCurrent.copy(idealLookAt);
+                } else {
+                    camera.position.lerp(idealCameraPos, camPosLerp);
+                    cameraLookAtCurrent.lerp(idealLookAt, 0.05);
+                }
+
+                camera.up.copy(stableUp);
+                camera.lookAt(cameraLookAtCurrent);
+
+                // --- Camera Ground Collision ---
+                const camDir = camera.position.clone().normalize();
+                let cn = noise(camDir.x * 1.5, camDir.y * 1.5, camDir.z * 1.5);
+                cn += 0.5 * noise(camDir.x * 5, camDir.y * 5, camDir.z * 5);
+                const cheight = cn * 10.0;
+                const groundRad = planetRadius + cheight;
+                const minCamDist = groundRad + 2.0;
+
+                if (camera.position.length() < minCamDist) {
+                    camera.position.normalize().multiplyScalar(minCamDist);
+                }
+
+                // Underwater Fog
+                const camDist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+                if (camDist < waterRadius) {
+                    scene.fog.color.setHex(0x006677);
+                    scene.fog.near = 1;
+                    scene.fog.far = 30;
+                } else {
+                    scene.fog.color.setHex(0x000000);
+                    scene.fog.near = 20;
+                    scene.fog.far = 150;
+                }
+
+                if (stars) stars.rotation.y += 0.0003;
+
+                renderer.render(scene, camera);
+
+            } catch (err) {
+                console.error("Animate Loop Error: ", err);
+                const div = document.createElement('div');
+                div.style.position = 'fixed';
+                div.style.top = '10px';
+                div.style.left = '10px';
+                div.style.color = 'red';
+                div.style.background = 'rgba(255,255,255,0.9)';
+                div.style.padding = '10px';
+                div.style.fontSize = '16px';
+                div.innerText = "Runtime Error: " + err.message + "\n" + (err.stack ? err.stack.substr(0, 300) : "");
+                div.style.zIndex = 999999;
+                document.body.appendChild(div);
+
+                // Break loop on error to avoid freeze
+                return;
+            }
+        }
+
+
+            ;
+
+        // --- Post-Processing Setup (DISABLED) ---
+        /*
+        const composer = new THREE.EffectComposer(renderer);
+        const renderPass = new THREE.RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        const bokehPass = new THREE.BokehPass(scene, camera, {
+            focus: 35.0,      
+            aperture: 0.0001, 
+            maxblur: 0.01,    
+            width: window.innerWidth,
+            height: window.innerHeight
+        });
+        composer.addPass(bokehPass);
+        */
+
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            // composer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>
