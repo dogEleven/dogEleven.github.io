@@ -2007,13 +2007,13 @@
                     }
 
                     if (f.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 20s
-                        let t = f.waterTime / 20.0;
+                        // Immediate Darkening: 0s -> 10s
+                        let t = f.waterTime / 10.0;
                         if (t > 1.0) t = 1.0;
                         const c = 1.0 - t;
                         f.mat.color.setRGB(c, c, c);
 
-                        if (f.waterTime > 20.0) {
+                        if (f.waterTime > 10.0) {
                             f.isDead = true;
                             spawnExplosion(f.mesh.position);
                             dropItemFromDeadFollower(f); // Ensure item drops on water death too
@@ -3259,13 +3259,13 @@
                     }
 
                     if (carPhysics.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 20s
-                        let t = carPhysics.waterTime / 20.0;
+                        // Immediate Darkening: 0s -> 10s
+                        let t = carPhysics.waterTime / 10.0;
                         if (t > 1.0) t = 1.0;
                         const c = 1.0 - t;
                         charMat.color.setRGB(c, c, c);
 
-                        if (carPhysics.waterTime > 20.0) {
+                        if (carPhysics.waterTime > 10.0) {
                             handleDeath();
                         }
                     } else {
@@ -3364,8 +3364,7 @@
                     if (carPhysics.vSpeed === undefined) carPhysics.vSpeed = 0;
 
                     // --- UPDATE FOLLOWERS & WOLVES ---
-                    updateFollowers(dt);
-                    updateWolves(dt);
+
 
                     const currentHeight = carPhysics.pos.length();
                     const groundH = landPos.length();
@@ -3490,7 +3489,7 @@
                 // --- Chest Logic ---
                 updateFlyingItems(dt);
                 updateChestLogic(carPhysics.pos);
-                updateFollowers(dt);
+
 
                 // Update Planet Uniforms
                 if (planet.material.uniforms && planet.material.uniforms.time) {
