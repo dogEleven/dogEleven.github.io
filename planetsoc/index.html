@@ -2154,6 +2154,7 @@
             return {
                 mesh: group,
                 head: headGroup, // Expose Head for animation
+                eyesMat: blackMat, // Expose Eyes Material for color change
                 model: wolfMesh, // Expose Model for jumping
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
@@ -2212,6 +2213,8 @@
                 // --- Combat State Machine ---
                 if (distToPlayer < 17.5) {
                     // Enter Combat
+                    w.eyesMat.color.setHex(0xff0000); // Red Eyes
+
                     if (w.combatState === 'wander') {
                         w.combatState = 'circle_fast';
                         w.stateTimer = 0;
@@ -2333,6 +2336,7 @@
                 } else {
                     // Out of range -> Wander
                     w.combatState = 'wander';
+                    w.eyesMat.color.setHex(0x000000); // Black Eyes
                     currentSpeed = 6.0;
 
                     w.wanderTimer -= dt;
@@ -2810,14 +2814,9 @@
                     if (!carPhysics.deathTime) carPhysics.deathTime = 0;
                     carPhysics.deathTime += dt;
 
-                    if (carPhysics.deathTime < 2.0) { // Spin 2s
-                        // Spin 
-                        characterContainer.rotation.y += dt * 10.0;
-                    } else if (carPhysics.deathTime < 3.0) { // Fall
-                        // Fall to X = 90 deg (PI/2)
-                        if (characterContainer.rotation.x > -Math.PI / 2) {
-                            characterContainer.rotation.x -= dt * 3.0;
-                        }
+                    // Fall directly
+                    if (characterContainer.rotation.x > -Math.PI / 2) {
+                        characterContainer.rotation.x -= dt * 5.0; // Faster fall
                     }
 
                     // Stop movement
