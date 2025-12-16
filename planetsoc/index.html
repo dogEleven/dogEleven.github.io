@@ -1378,7 +1378,7 @@
         // Add Stones, Twigs, and Bushes
         const stones = scatterObjects(stoneGeo, 25, 'stone');
         const twigs = scatterObjects(twigGeo, 25, 'twig');
-        const bushes = scatterObjects(bushGeo, 25, 'bush');
+        const bushes = scatterObjects(bushGeo, 50, 'bush');
 
         document.title = `Veg: ${debugVegCount}`;
 
@@ -1810,23 +1810,27 @@
         }
 
         function spawnFollowers(count) {
+            // Spawn followers exactly at Bush locations
+            const bushOffsets = bushes.geometry.attributes.offset;
+            // Get actual number of valid bushes (scales > 0, or just check position magnitude)
+            // scatterObjects fills sequentially, so we just iterate up to count or valid bushes.
+
+            const limit = Math.min(count, bushOffsets.count);
             let spawned = 0;
-            // Safety limit to prevent infinite loops
-            let attempts = 0;
-            const waterHeight = planetRadius + seaLevelRef;
 
-            while (spawned < count && attempts < count * 10) {
-                attempts++;
-                const v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-                const h = getSurfaceHeight(v.x, v.y, v.z);
+            for (let i = 0; i < limit; i++) {
+                const x = bushOffsets.getX(i);
+                const y = bushOffsets.getY(i);
+                const z = bushOffsets.getZ(i);
 
-                // Only spawn if above water
-                if (h > waterHeight + 0.5) {
-                    const pos = v.multiplyScalar(h);
-                    followers.push(createFollower(pos));
-                    spawned++;
-                }
+                // Validation: Ensure bush exists (not 0,0,0)
+                if (Math.abs(x) < 0.1 && Math.abs(y) < 0.1 && Math.abs(z) < 0.1) continue;
+
+                const pos = new THREE.Vector3(x, y, z);
+                followers.push(createFollower(pos));
+                spawned++;
             }
+            console.log("Spawned " + spawned + " followers in bushes.");
         }
 
         spawnFollowers(50); // Increased count to 50
