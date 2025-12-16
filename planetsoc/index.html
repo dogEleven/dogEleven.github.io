@@ -1856,6 +1856,13 @@
                 // Physics Forces
                 const moveForce = new THREE.Vector3();
 
+                // Player Collision
+                if (distToPlayer < 1.0) {
+                    const pushDir = new THREE.Vector3().subVectors(playerPos, f.mesh.position).normalize();
+                    carPhysics.pos.add(pushDir.multiplyScalar(0.05)); // Push Player
+                    moveForce.add(pushDir.clone().negate().multiplyScalar(5.0)); // Push Follower
+                }
+
                 // State Logic
                 if (f.isJumping) {
                     // Wait for jump to finish (MoveForce stays 0)
