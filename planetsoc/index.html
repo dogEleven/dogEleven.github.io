@@ -31,9 +31,9 @@
 </head>
 
 <body>
-    <div style="position: absolute; top: 20px; width: 100%; text-align: center; z-index: 9999; pointer-events: none;">
+    <div style="position: absolute; top: 20px; left: 20px; z-index: 9999; pointer-events: none;">
         <a href="../index.html/index.html"
-            style="color: white; text-decoration: none; font-size: 24px; font-weight: bold; font-family: 'Arial', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;">tofusoup.cc</a>
+            style="color: white; text-decoration: none; font-size: 14px; font-weight: bold; font-family: 'Arial', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;">tofusoup.cc</a>
     </div>
     <script> // --- 1. Noise Implementation ---
         const p = [151,
@@ -2154,7 +2154,7 @@
             const mat = new THREE.MeshBasicMaterial({ color: 0x6e7e85 });
             const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-            const s = 0.6; // Scale
+            const s = 0.84; // Scale reduced by 30% (1.2 -> 0.84)
             const wolfMesh = new THREE.Group();
             wolfMesh.scale.set(s, s, s);
             // Pivot adjustment: center of legs (y=0.5 approx) to ground (0)
