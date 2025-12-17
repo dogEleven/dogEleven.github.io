@@ -2037,6 +2037,7 @@
                 if (window.playerDidJumpGlobal && f.isFollowing && f.yOffset <= 0.5) {
                     f.vSpeed = 20.0; // Increased Jump Force
                     f.yOffset = 0.1; // Lift off
+                    spawnJumpDust(f.mesh.position);
                 }
 
                 // 2. Apply Gravity
@@ -2413,6 +2414,26 @@
 
                 scene.add(mesh);
                 explosions.push({ mesh, velocity, life: 1.0 });
+            }
+        }
+        function spawnJumpDust(pos) {
+            for (let i = 0; i < 6; i++) {
+                const mesh = new THREE.Mesh(particleGeo, particleMat);
+                mesh.position.copy(pos);
+
+                // Spread out at feet
+                const offset = new THREE.Vector3(
+                    (Math.random() - 0.5) * 1.0,
+                    (Math.random() - 0.5) * 1.0,
+                    (Math.random() - 0.5) * 1.0
+                );
+                mesh.position.add(offset);
+
+                // Velocity: Slower
+                const velocity = offset.clone().normalize().multiplyScalar(0.5 + Math.random() * 0.5);
+
+                scene.add(mesh);
+                explosions.push({ mesh, velocity, life: 1.5 });
             }
         }
 
@@ -3605,10 +3626,14 @@
                             window.playerDidJumpGlobal = true;
                             // DROP ITEM ON JUMP
                             dropItem(carPhysics.pos);
+                            // DUST FX
+                            spawnJumpDust(carPhysics.pos);
                         } else {
                             carPhysics.vSpeed = 0;
                         }
                     }
+
+
 
                     // Water Surface Collision (Ceiling)
                     const surfaceLimit = waterRadius - 1.2;
