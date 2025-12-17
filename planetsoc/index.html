@@ -1877,8 +1877,42 @@
                     let stopDist = 3.0;
                     let seekWeight = 1.0;
 
-                    // Decision: Seek Chest if holding item and CLOSE enough
-                    if (f.heldItem && chestMesh) {
+                    // Priority 1: Mimic Hiding (If Player is in a Bush AND Standing Still)
+                    if (isPositionHidden(playerPos) && carPhysics.velocity.length() < 0.5) {
+                        let bestBush = null;
+                        let minDSq = Infinity;
+                        // Search for nearest bush
+                        if (bushes && bushes.geometry) {
+                            const bOff = bushes.geometry.attributes.offset;
+                            const bSc = bushes.geometry.attributes.scale;
+                            const count = bOff.count;
+
+                            for (let i = 0; i < count; i++) {
+                                // Skip deleted/invalid bushes
+                                if (bSc.getX(i) < 0.1) continue;
+
+                                const dx = bOff.getX(i) - f.mesh.position.x;
+                                const dy = bOff.getY(i) - f.mesh.position.y;
+                                const dz = bOff.getZ(i) - f.mesh.position.z;
+                                const dSq = dx * dx + dy * dy + dz * dz;
+
+                                if (dSq < minDSq) {
+                                    minDSq = dSq;
+                                    // Store coordinates to avoid object creation in loop
+                                    bestBush = { x: bOff.getX(i), y: bOff.getY(i), z: bOff.getZ(i) };
+                                }
+                            }
+                        }
+
+                        if (bestBush) {
+                            target = new THREE.Vector3(bestBush.x, bestBush.y, bestBush.z);
+                            stopDist = 0.5; // Hide deep inside
+                            seekWeight = 3.0; // High urgency
+                        }
+                    }
+
+                    // Priority 2: Seek Chest if holding item and CLOSE enough (Only if not hiding)
+                    else if (f.heldItem && chestMesh) {
                         const distToChest = f.mesh.position.distanceTo(chestMesh.position);
                         // User Request: "Small people only go to chest if close"
                         if (distToChest < 12.0) {
