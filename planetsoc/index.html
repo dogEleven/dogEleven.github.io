@@ -3007,6 +3007,15 @@
             // charMat.color.setRGB(1.0, 0, 0); // User Request: No red color
             // charMat.color.setHex(0xff0000); // (Legacy check)
 
+            // Turn screen Black & White (Canvas only, so text stays Red)
+            const canvas = document.querySelector('canvas');
+            if (canvas) {
+                canvas.style.filter = 'grayscale(100%)';
+            }
+
+            // Turn Sky (Body Background) Black & White
+            document.body.style.background = 'linear-gradient(to top, #000000 0%, #333333 100%)'; // Grayscale of #191970
+
             const div = document.createElement('div');
             div.style.position = 'fixed';
             div.style.top = '50%';
