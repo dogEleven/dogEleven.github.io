@@ -1806,7 +1806,17 @@
 
             scene.add(group);
 
-            return { mesh: group, leftLeg, rightLeg, velocity: new THREE.Vector3(), isFollowing: false };
+            return {
+                mesh: group,
+                leftLeg,
+                rightLeg,
+                velocity: new THREE.Vector3(),
+                isFollowing: false,
+                isJumping: false,
+                jumpTime: 0,
+                yOffset: 0,
+                vSpeed: 0
+            };
         }
 
         function spawnFollowers(count) {
@@ -1844,18 +1854,20 @@
                 // Activation
                 if (distToPlayer < 10.0 && !f.isFollowing) {
                     f.isFollowing = true;
-                    // Trigger Jump
-                    f.jumpTime = 0.0;
-                    f.isJumping = true;
+                    // Trigger Recruitment Jump
+                    f.vSpeed = 10.0;
+                    f.yOffset = 0.1;
                 }
 
                 // Physics Forces
                 const moveForce = new THREE.Vector3();
 
                 // State Logic
-                if (f.isJumping) {
-                    // Wait for jump to finish (MoveForce stays 0)
-                } else if (f.isFollowing) {
+                // State Logic
+                // if (f.isJumping) {
+                //      // Legacy animation logic, now handled by physics below
+                // } else 
+                if (f.isFollowing) {
                     // Normal Following Logic
                     const up = f.mesh.position.clone().normalize();
 
@@ -1934,17 +1946,30 @@
                 // ALWAYS Snap & Orient (Fix Lying Down)
                 let h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
 
-                // Jump Animation (Activation)
-                if (f.isJumping) {
-                    f.jumpTime += dt * 5.0; // Jump speed
-                    if (f.jumpTime > Math.PI) {
-                        f.isJumping = false;
-                        f.jumpTime = 0;
-                    } else {
-                        // Jump Height 2.0
-                        h += Math.sin(f.jumpTime) * 2.0;
-                    }
+                // --- Physics Jump Logic ---
+                if (f.yOffset === undefined) f.yOffset = 0;
+                if (f.vSpeed === undefined) f.vSpeed = 0;
+
+                // 1. Check Jump Signal (Global) - BEFORE Gravity
+                // Only allow jump if on ground (or close to it) to prevent flying
+                if (window.playerDidJumpGlobal && f.isFollowing && f.yOffset <= 0.5) {
+                    f.vSpeed = 20.0; // Increased Jump Force
+                    f.yOffset = 0.1; // Lift off
                 }
+
+                // 2. Apply Gravity
+                const gravity = -50.0;
+                f.vSpeed += gravity * dt;
+                f.yOffset += f.vSpeed * dt;
+
+                // 3. Ground Collision
+                if (f.yOffset <= 0) {
+                    f.yOffset = 0;
+                    f.vSpeed = 0;
+                }
+
+                // Add physics offset to surface height
+                h += f.yOffset;
 
                 f.mesh.position.normalize().multiplyScalar(h);
 
@@ -2407,6 +2432,9 @@
                 requestAnimationFrame(animate);
                 const dt = Math.min(clock.getDelta(), 0.1);
 
+                // Reset Global Jump Signal each frame
+                window.playerDidJumpGlobal = false;
+
                 // Common Constants
                 const waterRadius = planetRadius + seaLevelRef;
 
@@ -2483,7 +2511,7 @@
                 carPhysics.pos.add(globalMove);
 
                 // DEBUG: Title
-                document.title = `CarPos: ${carPhysics.pos.x.toFixed(1)}, ${carPhysics.pos.y.toFixed(1)}, ${carPhysics.pos.z.toFixed(1)}`;
+                document.title = `CarPos: ${carPhysics.pos.x.toFixed(1)} | JumpSignal: ${window.playerDidJumpGlobal}`;
 
                 const skyPos = carPhysics.pos.clone().normalize().multiplyScalar(planetRadius + 50);
                 const rayDir = new THREE.Vector3(0, 0, 0).sub(skyPos).normalize();
@@ -2534,6 +2562,8 @@
 
                         if (isJumpActive) {
                             carPhysics.vSpeed = 15.0;
+                            // Set Global Jump Signal
+                            window.playerDidJumpGlobal = true;
                             // DROP ITEM ON JUMP
                             dropItem(carPhysics.pos);
                         } else {
