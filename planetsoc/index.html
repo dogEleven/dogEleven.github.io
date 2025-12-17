@@ -2481,7 +2481,7 @@
 
                     if (w.combatState === 'circle_fast') {
                         currentSpeed = 14.4; // 9.0 * 1.6
-                        if (w.stateTimer > 3.5) {
+                        if (w.stateTimer > 1.0) { // FAST AGGRESSION (was 3.5)
                             w.combatState = 'circle_slow';
                             w.stateTimer = 0;
                         }
@@ -2491,7 +2491,7 @@
 
                     } else if (w.combatState === 'circle_slow') {
                         currentSpeed = 4.8; // 3.0 * 1.6
-                        if (w.stateTimer > 4.0) {
+                        if (w.stateTimer > 0.5) { // FAST AGGRESSION (was 4.0)
                             w.combatState = 'dash';
                             w.stateTimer = 0;
                         }
@@ -2506,7 +2506,7 @@
                             w.stateTimer = 0;
                             w.attackDir.copy(dirToTarget); // Lock direction
                             w.hasHitTarget = false;
-                        } else if (w.stateTimer > 2.0) {
+                        } else if (w.stateTimer > 1.5) {
                             w.combatState = 'circle_fast';
                             w.stateTimer = 0;
                             w.orbitDir *= -1;
@@ -2526,7 +2526,7 @@
                         }
                         if (w.model) w.model.position.y = jumpY;
 
-                        // Shake Head
+                        // Shake Head (Bite)
                         if (w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                             w.head.rotation.y = Math.sin(w.stateTimer * 40.0) * 0.6;
                         } else {
@@ -2602,6 +2602,37 @@
                             }
                         }
                     }
+                }
+
+                // --- GLOBAL HEAD LOOK LOGIC ---
+                // Only if NOT biting/shaking
+                const isShaking = (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4);
+
+                if (!isShaking) {
+                    let targetHeadY = 0;
+                    if (w.target) {
+                        const targetPos = w.target.pos.clone();
+                        const lookDir = new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize();
+                        const localLook = lookDir.applyQuaternion(w.mesh.quaternion.clone().invert());
+                        const angle = Math.atan2(localLook.x, localLook.z);
+                        // +/- 60 degrees
+                        const limit = 1.05;
+                        let clampedAngle = angle;
+                        if (clampedAngle > limit) clampedAngle = limit;
+                        if (clampedAngle < -limit) clampedAngle = -limit;
+
+                        const seed = w.mesh.id * 0.1;
+                        const time = clock.getElapsedTime();
+                        const interest = (Math.sin(time * 0.8 + seed) + 1.0) / 2.0;
+
+                        // Look if interested AND target is generally in front
+                        if (interest > 0.4 && Math.abs(angle) < 2.5) {
+                            targetHeadY = clampedAngle;
+                        }
+                    }
+                    // Smooth Transition
+                    const diff = targetHeadY - w.head.rotation.y;
+                    w.head.rotation.y += diff * dt * 5.0;
                 }
 
                 // General Water Avoidance (Reflex)
