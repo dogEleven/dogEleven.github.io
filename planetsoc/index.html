@@ -1428,6 +1428,25 @@
 
 
 
+
+        // --- 4.5 Chest Navigation Arrow ---
+        // --- 4.5 Chest Navigation Arrow (2D HUD) ---
+        const hudArrow = document.createElement('div');
+        hudArrow.id = 'hudArrow';
+        // Triangle shape using borders
+        hudArrow.style.width = '0';
+        hudArrow.style.height = '0';
+        hudArrow.style.borderLeft = '12px solid transparent';
+        hudArrow.style.borderRight = '12px solid transparent';
+        hudArrow.style.borderBottom = '24px solid white'; // White Color (User Request)
+        hudArrow.style.position = 'absolute';
+        hudArrow.style.zIndex = '9999';
+        hudArrow.style.transformOrigin = 'center center';
+        hudArrow.style.display = 'none';
+        hudArrow.style.pointerEvents = 'none'; // Click through
+        hudArrow.style.filter = 'drop-shadow(0px 2px 4px rgba(0,0,0,0.5))';
+        document.body.appendChild(hudArrow);
+
         const carPhysics = {
             pos: new THREE.Vector3(0, planetRadius + 10, 0),
             quat: new THREE.Quaternion(),
@@ -3571,6 +3590,88 @@
                 // --- Chest Logic ---
                 updateFlyingItems(dt);
                 updateChestLogic(carPhysics.pos);
+
+                // --- Arrow Navigation Logic (2D HUD) ---
+                const distToChest = chestMesh ? carPhysics.pos.distanceTo(chestMesh.position) : 0;
+                // Hide if close (User Request: "箱子距离玩家比较近的时候箭头消失")
+                if (chestMesh && !isDead && distToChest > 10.0) {
+                    hudArrow.style.display = 'block';
+
+                    const target = chestMesh.position.clone();
+                    // 1. Project to Screen Space
+                    const p = target.clone().project(camera);
+
+                    // p.x, p.y are NDC [-1, 1]. p.z > 1 means behind camera.
+
+                    let x = p.x;
+                    let y = p.y;
+
+                    // If behind camera, invert coordinates to point to the edge passed through
+                    if (p.z > 1) {
+                        x = -x;
+                        y = -y;
+                    }
+
+                    // 2. Clamp to Screen Boundary
+                    // We want the arrow to ALWAYS stick to the edge ("贴着屏幕边界")
+                    const margin = 0.9; // 90% of screen half-size (Padding)
+
+                    const absX = Math.abs(x);
+                    const absY = Math.abs(y);
+
+                    let scale = 1.0;
+                    if (absX > 0.001 || absY > 0.001) {
+                        // Find the smallest scale factor that pushes (x,y) to the nearest edge (margin)
+                        // But actually we want the INTERSECTION with the box.
+                        // So we want the scale 's' such that component >= margin.
+                        // Actually: s = margin / max(absX, absY) ??
+                        // No. If we are inside, we want to Project OUT to the edge.
+                        // So we assume the vector (x,y) defines direction.
+                        // We want to find point (sx, sy) on the boundary box.
+                        // s = min(margin/absX, margin/absY).
+
+                        scale = Math.min(margin / absX, margin / absY);
+                    }
+
+                    // Apply scale to PROJECT (or clamping if outside?)
+                    // If we want it "stuck" to boundary, we project OUT (or IN) to the line.
+                    // This logic puts it exactly on the margin box.
+
+                    const finalX = x * scale;
+                    const finalY = y * scale;
+
+                    // 3. Convert to Pixel Coordinates
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+                    const cx = w / 2;
+                    const cy = h / 2;
+
+                    const px = (finalX + 1) * cx;
+                    const py = (-finalY + 1) * cy;
+
+                    hudArrow.style.left = px + 'px';
+                    hudArrow.style.top = py + 'px';
+
+                    // 4. Rotation
+                    // Calculate angle from center to Arrow Position
+                    // CSS coordinates: +X is Right, +Y is Down.
+                    // dx = px - cx. dy = py - cy.
+                    const dx = px - cx;
+                    const dy = py - cy;
+                    const rotRad = Math.atan2(dy, dx);
+                    // CSS Rotate 0deg = Up?? No, standard transform rotation 0 is usually object's default.
+                    // Our arrow (border-bottom) points UP by default.
+                    // Mathematical 0 deg (East) = -90 deg rotation relative to Up?
+                    // atan2(0,-1) = -90deg (Up).
+                    // So if angle is -90, we want 0 rotation.
+                    // Rotation = angle + 90.
+                    const rotDeg = rotRad * (180 / Math.PI) + 90;
+
+                    hudArrow.style.transform = `translate(-50%, -50%) rotate(${rotDeg}deg)`;
+
+                } else {
+                    hudArrow.style.display = 'none';
+                }
 
 
                 // Update Planet Uniforms
