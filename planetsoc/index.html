@@ -2337,7 +2337,20 @@
             if (mesh && mesh.geometry) {
                 const offsets = mesh.geometry.attributes.offset;
                 const scales = mesh.geometry.attributes.scale;
-                offsets.setXYZ(item.sourceIndex, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                // Add Y offset + Random Scatter to ensure visibility
+                const scatter = new THREE.Vector3(
+                    (Math.random() - 0.5) * 2.0,
+                    (Math.random() - 0.5) * 2.0,
+                    (Math.random() - 0.5) * 2.0
+                );
+                // Proposed Position
+                const dropPos = f.mesh.position.clone().add(scatter).normalize();
+
+                // Snap to Surface + Offset
+                const h = getSurfaceHeight(dropPos.x, dropPos.y, dropPos.z);
+                dropPos.multiplyScalar(h + 0.8); // 0.8 units above ground
+
+                offsets.setXYZ(item.sourceIndex, dropPos.x, dropPos.y, dropPos.z);
                 offsets.needsUpdate = true;
                 scales.setX(item.sourceIndex, item.originalScale);
                 scales.needsUpdate = true;
@@ -2991,7 +3004,8 @@
 
         function handleDeath() {
             isDead = true;
-            charMat.color.setRGB(1.0, 0, 0); // Fully Red
+            // charMat.color.setRGB(1.0, 0, 0); // User Request: No red color
+            // charMat.color.setHex(0xff0000); // (Legacy check)
 
             const div = document.createElement('div');
             div.style.position = 'fixed';
