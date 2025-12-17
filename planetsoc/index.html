@@ -2602,7 +2602,7 @@
                             w.combatState = 'bite_attack';
                             w.stateTimer = 0;
                             w.attackDir.copy(dirToTarget); // Lock direction
-                            w.hasHitTarget = false;
+                            w.hitCount = 0;
                         } else if (w.stateTimer > 1.5) {
                             w.combatState = 'circle_fast';
                             w.stateTimer = 0;
@@ -2665,13 +2665,12 @@
                         moveForce.add(pushDir.clone().negate().multiplyScalar(1.0));
                     }
 
-                    // Kill Logic
                     if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
-                        if (!w.hasHitTarget && d < 1.5 && !f.isDead) {
+                        if ((w.hitCount === undefined || w.hitCount < 5) && d < 1.5 && !f.isDead) {
                             if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
                                 f.isDead = true;
                                 spawnExplosion(f.mesh.position);
-                                w.hasHitTarget = true;
+                                w.hitCount = (w.hitCount || 0) + 1;
                                 dropItemFromDeadFollower(f);
                             }
                         }
@@ -2690,11 +2689,11 @@
 
                 // Player Damage Logic
                 if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
-                    if (!w.hasHitTarget && dPlayer < 1.25) {
+                    if ((w.hitCount === undefined || w.hitCount < 5) && dPlayer < 1.25) {
                         if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) { // Safe if hidden or in water
                             if (now - lastHitTime > 1.0) {
                                 lastHitTime = now;
-                                w.hasHitTarget = true;
+                                w.hitCount = (w.hitCount || 0) + 1;
                                 handleDeath();
                             }
                         }
