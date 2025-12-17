@@ -1380,6 +1380,25 @@
         const twigs = scatterObjects(twigGeo, 25, 'twig');
         const bushes = scatterObjects(bushGeo, 50, 'bush');
 
+        function replenishResources() {
+            const targets = [stones, twigs, mushrooms];
+            let restoredCount = 0;
+            targets.forEach(mesh => {
+                if (!mesh || !mesh.geometry) return;
+                const scales = mesh.geometry.attributes.scale;
+                for (let i = 0; i < scales.count; i++) {
+                    if (scales.getX(i) < 0.01) {
+                        // Respawn
+                        const newScale = 1.2 + Math.random() * 0.6;
+                        scales.setX(i, newScale);
+                        restoredCount++;
+                    }
+                }
+                scales.needsUpdate = true;
+            });
+            console.log(`Resources Replenished: ${restoredCount} items restored.`);
+        }
+
         document.title = `Veg: ${debugVegCount}`;
 
 
@@ -1878,6 +1897,23 @@
         }
 
         spawnFollowers(50); // Increased count to 50
+
+        function respawnFollowerAtChest() {
+            if (!chestMesh) return;
+            // Random pos around chest radius 2-4
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 2.0 + Math.random() * 2.0;
+            // Chest is on a sphere, so adding X/Z offset is "tangent-ish" valid for small distances
+            const offset = new THREE.Vector3(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+            const spawnPos = chestMesh.position.clone().add(offset);
+
+            // Snap to Ground
+            const h = getSurfaceHeight(spawnPos.x, spawnPos.y, spawnPos.z);
+            spawnPos.normalize().multiplyScalar(h);
+
+            const newF = createFollower(spawnPos);
+            followers.push(newF);
+        }
 
         function updateFollowers(dt) {
             const playerPos = carGroup.position;
@@ -3434,13 +3470,24 @@
 
                 updateExplosions(dt);
                 updateWolves(dt);
-                // updateFollowers(dt); // Moved to end of loop for Jump Sync
+                // updateFollowers(dt); // Moved to end
+
+                // Resource Replenishment (60s)
+                if (!window.resourceTimer) window.resourceTimer = 0;
+                window.resourceTimer += dt;
+                if (window.resourceTimer > 60.0) {
+                    window.resourceTimer = 0;
+                    replenishResources();
+                }
 
                 // Cleanup Dead Followers
                 for (let i = followers.length - 1; i >= 0; i--) {
                     if (followers[i].isDead) {
                         scene.remove(followers[i].mesh);
                         followers.splice(i, 1);
+
+                        // Respawn
+                        respawnFollowerAtChest();
                     }
                 }
 
