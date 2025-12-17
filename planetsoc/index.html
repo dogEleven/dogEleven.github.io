@@ -1857,10 +1857,13 @@
                 const moveForce = new THREE.Vector3();
 
                 // Player Collision
-                if (distToPlayer < 1.0) {
+                if (distToPlayer < 1.4) {
                     const pushDir = new THREE.Vector3().subVectors(playerPos, f.mesh.position).normalize();
-                    carPhysics.pos.add(pushDir.multiplyScalar(0.05)); // Push Player
-                    moveForce.add(pushDir.clone().negate().multiplyScalar(5.0)); // Push Follower
+                    // carPhysics.pos.add(pushDir.multiplyScalar(0.001)); // User Request: Player easily pushes them (No resistance)
+
+                    // Smooth but strong push on follower
+                    const force = (1.4 - distToPlayer) * 20.0;
+                    moveForce.add(pushDir.clone().negate().multiplyScalar(force));
                 }
 
                 // State Logic
@@ -2489,10 +2492,14 @@
                 // Follower Collision
                 followers.forEach(f => {
                     const d = w.mesh.position.distanceTo(f.mesh.position);
-                    if (d < 0.9) { // Collision Radius
+                    if (d < 1.2) { // Collision Radius
                         const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
-                        f.mesh.position.add(pushDir.multiplyScalar(0.1));
-                        moveForce.add(pushDir.clone().negate().multiplyScalar(5.0));
+                        // Smooth Push (Velocity Impulse)
+                        const pushStrength = (1.2 - d) * 15.0; // Stronger when closer usually, but strict impulse is fine
+                        f.velocity.add(pushDir.multiplyScalar(pushStrength * dt * 10.0));
+
+                        // Wolf barely feels it
+                        moveForce.add(pushDir.clone().negate().multiplyScalar(1.0));
                     }
 
                     // Kill Logic
