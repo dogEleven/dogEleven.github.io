@@ -2396,6 +2396,7 @@
         const explosions = [];
         const particleGeo = new THREE.SphereGeometry(0.15, 6, 6);
         const particleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const smokeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
 
         function spawnExplosion(pos) {
             for (let i = 0; i < 8; i++) {
@@ -2418,22 +2419,22 @@
         }
         function spawnJumpDust(pos) {
             for (let i = 0; i < 6; i++) {
-                const mesh = new THREE.Mesh(particleGeo, particleMat);
+                const mesh = new THREE.Mesh(particleGeo, smokeMat);
                 mesh.position.copy(pos);
 
-                // Spread out at feet
+                // Spread out at feet (Tighter)
                 const offset = new THREE.Vector3(
-                    (Math.random() - 0.5) * 1.0,
-                    (Math.random() - 0.5) * 1.0,
-                    (Math.random() - 0.5) * 1.0
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 0.5
                 );
                 mesh.position.add(offset);
 
-                // Velocity: Slower
-                const velocity = offset.clone().normalize().multiplyScalar(0.5 + Math.random() * 0.5);
+                // Velocity: Very Slow
+                const velocity = offset.clone().normalize().multiplyScalar(0.2 + Math.random() * 0.3);
 
                 scene.add(mesh);
-                explosions.push({ mesh, velocity, life: 1.5 });
+                explosions.push({ mesh, velocity, life: 0.6, scaleMult: 4.0 });
             }
         }
 
@@ -2442,7 +2443,7 @@
                 const p = explosions[i];
                 p.life -= dt;
                 p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
-                p.mesh.scale.setScalar(p.life); // Shrink
+                p.mesh.scale.setScalar(p.life * (p.scaleMult || 1.0)); // Shrink
 
                 if (p.life <= 0) {
                     scene.remove(p.mesh);
