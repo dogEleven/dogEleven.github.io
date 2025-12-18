@@ -33,10 +33,38 @@
         }
 
         #dormLabel .icon {
-            font-size: 20px;
-            line-height: 1;
-            filter: grayscale(100%) brightness(200%);
-            /* Make emoji white */
+            /* font-size: 20px; OLD EMOJI STYLE - Overridden by custom structure */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+
+        .follower-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .follower-icon .head {
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+            margin-bottom: -2px;
+            /* Slight overlap */
+            position: relative;
+            z-index: 2;
+        }
+
+        .follower-icon .body {
+            width: 18px;
+            height: 10px;
+            background: white;
+            border-radius: 10px 10px 0 0;
+            /* Semi-circle top */
         }
 
         #dormLabel .text {
@@ -1729,6 +1757,41 @@
         inventoryGrid.style.alignItems = 'center';
         chestBubble.appendChild(inventoryGrid);
 
+        // Pre-create Task List Items
+        const taskTypes = ['twig', 'mushroom'];
+        const taskSpans = {};
+
+        taskTypes.forEach(type => {
+            // Icon
+            const img = document.createElement('img');
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            // Actually itemIcons are defined LATER in the code (around line 1896). 
+            // So we cannot set src here immediately if this code runs before itemIcons init.
+            // But this code is in the "Init" section?
+            // Let's check line numbers. This is line 1730. `itemIcons` is line ~1900.
+            // So `itemIcons` is undefined here.
+            // Solution: Create separate Image elements, and setting their src in `updateChestLogic` ONCE (or check if src is empty).
+            // OR move this init code later?
+            // BETTER: Initialize them here, set src later, or just use placeholders.
+            // img.className = `icon-${type}`;
+
+            img.id = `icon-${type}`; // We will set src later
+            img.style.width = '36px';
+            img.style.height = '36px';
+            img.style.objectFit = 'contain';
+
+            // Count
+            const txt = document.createElement('span');
+            txt.id = `count-${type}`;
+            txt.textContent = '0/10';
+            txt.style.fontSize = '14px';
+            txt.style.fontWeight = 'bold';
+            txt.style.marginLeft = '5px';
+
+            inventoryGrid.appendChild(img);
+            inventoryGrid.appendChild(txt);
+        });
+
         document.body.appendChild(chestBubble);
 
         // 2. Chest State
@@ -1897,7 +1960,7 @@
 
             ;
 
-        function generateIcon(geo, color) {
+        function generateIcon(geo, color, camPos = null) {
             const size = 64;
             const canvas = document.createElement('canvas');
             canvas.width = size;
@@ -1907,7 +1970,8 @@
             const iconScene = new THREE.Scene();
             // iconScene.background = new THREE.Color(0xffffff); // Transparent preferable?
             const iconCam = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
-            iconCam.position.z = 2.5; // Adjust based on object size
+            iconCam.position.copy(camPos || new THREE.Vector3(0, 0, 1.6));
+            iconCam.lookAt(0, 0, 0);
 
             const iconLight = new THREE.DirectionalLight(0xffffff, 1.2);
             iconLight.position.set(1, 1, 1);
@@ -1984,7 +2048,7 @@
             // If mushGeo is array of parts, we need to construct a group.
             // Looking at scatterObjects usage: `scatterObjects(mushGeo, ...)`
             // This implies `mushGeo` IS a Geometry (BufferGeometry).
-            itemIcons['mushroom'] = generateIcon(mushGeo, 0xff0000);
+            itemIcons['mushroom'] = generateIcon(mushGeo, 0xff0000, new THREE.Vector3(0, 1.5, 0.6));
 
             // Restore
             renderer.setSize(currentSize.x, currentSize.y);
@@ -2007,7 +2071,12 @@
 
             // Update Content: Only show stored count
             dormLabel.innerHTML = `
-                <div class="icon">👤</div>
+                <div class="icon">
+                    <div class="follower-icon">
+                        <div class="head"></div>
+                        <div class="body"></div>
+                    </div>
+                </div>
                 <div class="text">${stored}</div>
             `;
 
@@ -2105,32 +2174,28 @@
         }
 
         function updateChestLogic(playerPos) {
-            // --- 1. Update UI (Task List) - Always Visible ---
-            // Rebuild Inventory Grid Content
-            inventoryGrid.innerHTML = '';
-
-            // For each item type
+            // --- 1. Update UI (Task List) - Efficiently ---
             const types = ['twig', 'mushroom'];
 
             types.forEach(type => {
                 let count = chestInventory[type] || 0;
-                // Icon
-                const img = document.createElement('img');
-                img.src = itemIcons[type] || '';
-                img.style.width = '24px'; // Slightly smaller for HUD
-                img.style.height = '24px';
-                img.style.objectFit = 'contain';
 
-                // Count
-                const txt = document.createElement('span');
-                const max = 10;
-                txt.textContent = `${count}/${max}`;
-                txt.style.fontSize = '14px';
-                txt.style.fontWeight = 'bold';
-                txt.style.marginLeft = '5px';
+                // Update Text
+                const span = document.getElementById(`count-${type}`);
+                if (span) {
+                    const max = 10;
+                    span.textContent = `${count}/${max}`;
+                }
 
-                inventoryGrid.appendChild(img);
-                inventoryGrid.appendChild(txt);
+                // Update Icon (Lazy Init)
+                const img = document.getElementById(`icon-${type}`);
+                if (img && itemIcons[type]) {
+                    // Check if we still have the placeholder or empty
+                    const currentSrc = img.getAttribute('src');
+                    if (!currentSrc || currentSrc.startsWith('data:image/gif')) {
+                        img.src = itemIcons[type];
+                    }
+                }
             });
 
             // --- 2. Interaction Logic (Distance Based) ---
