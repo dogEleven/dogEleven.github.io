@@ -12,8 +12,38 @@
             overflow: hidden;
             /* Space Background: Black to Deep Galaxy Blue */
             background: linear-gradient(to top, #000000 0%, #191970 100%);
-            /* Space Background: Black to Deep Galaxy Blue */
-            background: linear-gradient(to top, #000000 0%, #191970 100%);
+        }
+
+        #dormLabel {
+            position: absolute;
+            display: none;
+            /* Controlled by JS */
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 8px 12px;
+            border-radius: 20px;
+            pointer-events: none;
+            z-index: 20;
+            white-space: nowrap;
+            transform: translate(-50%, -100%);
+            /* Center bottom anchor */
+        }
+
+        #dormLabel .icon {
+            font-size: 20px;
+            line-height: 1;
+            filter: grayscale(100%) brightness(200%);
+            /* Make emoji white */
+        }
+
+        #dormLabel .text {
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 18px;
         }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
@@ -43,28 +73,37 @@
             </div>
         </div>
     </div>
-    <script>
-        (function () {
+    <script> (function () {
             const bar = document.getElementById('loading-bar');
             const screen = document.getElementById('loading-overlay');
             let p = 0;
+
             const t = setInterval(() => {
                 p += Math.random() * 2 + 1;
                 if (p > 100) p = 100;
                 bar.style.width = p + '%';
+
                 if (p >= 100) {
                     clearInterval(t);
+
                     setTimeout(() => {
                         screen.style.transition = 'opacity 0.6s ease';
                         screen.style.opacity = '0';
                         setTimeout(() => screen.remove(), 600);
-                    }, 200);
+                    }
+
+                        , 200);
                 }
-            }, 30);
+            }
+
+                , 30);
         })();
     </script>
-    <div style="position: absolute; top: 20px; left: 20px; z-index: 9999; pointer-events: none;">
-        <a href="../index.html/index.html"
+
+    <!-- Dormitory Label (Floating UI) -->
+    <div id="dormLabel"></div>
+    <div style="position: absolute; top: 20px; left: 20px; z-index: 9999; pointer-events: none;"> <a
+            href="../index.html/index.html"
             style="color: white; text-decoration: none; font-size: 14px; font-weight: bold; font-family: 'Arial', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;">tofusoup.cc</a>
     </div>
     <script> // --- 1. Noise Implementation ---
@@ -534,11 +573,11 @@
 
                 // 2. Land Layer (Restored)
                 // Start with Deep Water Color (Darker)
-                vec3 landCol = cDeepWater;
+                vec3 landCol=cDeepWater;
 
-                 // Deep Water -> Wet Sand
+                // Deep Water -> Wet Sand
                 // Expanded Gradient (User Request): -6.0 to +0.5 (Into Shallow Water)
-                landCol = softMix(landCol, cWetSand, sh, seaLevel - 6.0, seaLevel + 0.5);
+                landCol=softMix(landCol, cWetSand, sh, seaLevel - 6.0, seaLevel + 0.5);
 
                 // Wet Sand -> Dry Sand
                 // Below seaLevel it is wet, dries as it goes up
@@ -688,7 +727,11 @@
                 }
 
                 ,
-                carPos: { value: new THREE.Vector3() },
+                carPos: {
+                    value: new THREE.Vector3()
+                }
+
+                ,
                 cameraPos: {
                     value: new THREE.Vector3()
                 }
@@ -770,16 +813,17 @@
                 pos=rotateVector(qAlign, pos);
 
                 // --- 4. Car Interaction ---
-                {
-                    vec3 totalPush = vec3(0.0);
-                    
+                    {
+                    vec3 totalPush=vec3(0.0);
+
                     // Player (Radius 1.4)
-                    float dCar = distance(offset, carPos);
+                    float dCar=distance(offset, carPos);
+
                     if (dCar < 1.4) {
-                        totalPush += normalize(offset - carPos) * (1.0 - dCar/1.4);
+                        totalPush +=normalize(offset - carPos) * (1.0 - dCar/1.4);
                     }
 
-                    pos += totalPush * 1.0 * uv.y;
+                    pos +=totalPush * 1.0 * uv.y;
                 }
 
                 // --- Fix Stretching ---
@@ -937,6 +981,7 @@
             // --- DEEP TERRAIN SYNC (User Request) ---
             // Must match Planet Generation Logic EXACTLY or grass will float/bury
             let finalRadius = planetRadius + h;
+
             if (finalRadius < planetRadius * 0.8) {
                 // FLATTENING FIX (User Request): 
                 // Reduced frequency (8.0 -> 1.5) and amplitude (0.1 -> 0.05) for smooth floor
@@ -946,6 +991,7 @@
                 finalRadius = planetRadius * factor;
                 h = finalRadius - planetRadius;
             }
+
             // --- END DEEP TERRAIN SYNC ---
 
 
@@ -1000,6 +1046,7 @@
         // Helper to merge geometries with baked vertex colors (Support Gradient)
         function createColoredGeometry(parts) {
             let totalVerts = 0;
+
             const unindexedParts = parts.map(p => ({
                 geo: p.geo.toNonIndexed(),
                 color: p.color,
@@ -1037,7 +1084,9 @@
                     yMin = geo.boundingBox.min.y;
                     yRange = geo.boundingBox.max.y - yMin;
                     if (yRange < 0.001) yRange = 1.0;
-                } else {
+                }
+
+                else {
                     _col.setHex(p.color);
                 }
 
@@ -1074,6 +1123,7 @@
                         uvs[(offset + i) * 2 + 1] = uv.getY(i);
                     }
                 }
+
                 offset += count;
                 geo.dispose();
             });
@@ -1087,58 +1137,111 @@
         }
 
         // 1. Tree Geometry (Trunk + 2 Cones) with Gradients
-        const treeParts = [
-            { geo: new THREE.CylinderGeometry(0.2, 0.3, 1.0, 7).translate(0, 0.5, 0), color: 0x5C4033 }, // Trunk (Solid)
-            // Base Leaves: Dark Green to Mid Green
-            { geo: new THREE.ConeGeometry(1.2, 2.0, 7).translate(0, 2.0, 0), gradient: { from: 0x004d00, to: 0x228B22 } },
-            // Top Leaves: Mid Green to Lighter Green
-            { geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 2.8, 0), gradient: { from: 0x228B22, to: 0x66cc44 } }
+        const treeParts = [{
+            geo: new THREE.CylinderGeometry(0.2, 0.3, 1.0, 7).translate(0, 0.5, 0), color: 0x5C4033
+        }
+
+            , // Trunk (Solid)
+
+        // Base Leaves: Dark Green to Mid Green
+        {
+            geo: new THREE.ConeGeometry(1.2, 2.0, 7).translate(0, 2.0, 0), gradient: {
+                from: 0x004d00, to: 0x228B22
+            }
+        }
+
+            ,
+        // Top Leaves: Mid Green to Lighter Green
+        {
+            geo: new THREE.ConeGeometry(0.9, 1.5, 7).translate(0, 2.8, 0), gradient: {
+                from: 0x228B22, to: 0x66cc44
+            }
+        }
+
         ];
         const treeGeo = createColoredGeometry(treeParts);
 
         // 2. Mushroom Geometry (Stem + Cap)
-        const mushParts = [
-            // Stem: Shortened to 0.35 height, Tapered top to 0.1 to fit inside cap
-            { geo: new THREE.CylinderGeometry(0.12, 0.1, 0.35, 6).translate(0, 0.175, 0), color: 0xFFF8DC },
+        const mushParts = [ // Stem: Shortened to 0.35 height, Tapered top to 0.1 to fit inside cap
+
+            {
+                geo: new THREE.CylinderGeometry(0.12, 0.1, 0.35, 6).translate(0, 0.175, 0), color: 0xFFF8DC
+            }
+
+            ,
             // Cap: Lowered to 0.3 to fully cover stem top
-            { geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.3, 0), gradient: { from: 0xFF0000, to: 0x8B0000 } }
+            {
+                geo: new THREE.SphereGeometry(0.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.3, 0), gradient: {
+                    from: 0xFF0000, to: 0x8B0000
+                }
+            }
+
         ];
         const mushGeo = createColoredGeometry(mushParts);
 
         // 3. Flower Geometry (Yellow Heart, White Petals)
-        const flowerParts = [
-            { geo: new THREE.CylinderGeometry(0.04, 0.04, 0.4, 4).translate(0, 0.2, 0), color: 0x006400 }, // Stem
-            { geo: new THREE.SphereGeometry(0.12, 4, 4).translate(0, 0.45, 0), color: 0xFFD700 }, // Center (Yellow)
-            // Petals as a flat circle/cone
-            { geo: new THREE.CircleGeometry(0.28, 6).rotateX(-Math.PI / 2).translate(0, 0.42, 0), color: 0xFFFFFF } // White Petals
+        const flowerParts = [{
+            geo: new THREE.CylinderGeometry(0.04, 0.04, 0.4, 4).translate(0, 0.2, 0), color: 0x006400
+        }
+
+            , // Stem
+
+        {
+            geo: new THREE.SphereGeometry(0.12, 4, 4).translate(0, 0.45, 0), color: 0xFFD700
+        }
+
+            , // Center (Yellow)
+
+        // Petals as a flat circle/cone
+        {
+            geo: new THREE.CircleGeometry(0.28, 6).rotateX(-Math.PI / 2).translate(0, 0.42, 0), color: 0xFFFFFF
+        }
+
+            // White Petals
         ];
         const flowerGeo = createColoredGeometry(flowerParts);
 
         // 4. Stone Geometry (Low-poly Dodecahedron, flattened)
-        const stoneParts = [
-            // User Request: Double Size (0.3 -> 0.6)
-            { geo: new THREE.DodecahedronGeometry(0.6, 0).scale(1.0, 0.6, 1.0).translate(0, 0.3, 0), gradient: { from: 0x505050, to: 0xAAAAAA } }
+        const stoneParts = [ // User Request: Double Size (0.3 -> 0.6)
+
+            {
+                geo: new THREE.DodecahedronGeometry(0.6, 0).scale(1.0, 0.6, 1.0).translate(0, 0.3, 0), gradient: {
+                    from: 0x505050, to: 0xAAAAAA
+                }
+            }
+
         ];
         const stoneGeo = createColoredGeometry(stoneParts);
 
         // 5. Twig Geometry (Thin, rotated Cylinder)
-        const twigParts = [
-            // Main branch: Thicker & Longer (2x)
+        const twigParts = [ // Main branch: Thicker & Longer (2x)
+
             // 0.07->0.14, 0.09->0.18, 0.6->1.2. Translate Y doubled 0.05->0.1.
-            { geo: new THREE.CylinderGeometry(0.14, 0.18, 1.2, 5).rotateZ(Math.PI / 2.5).translate(0, 0.1, 0), color: 0x5C4033 },
+            {
+                geo: new THREE.CylinderGeometry(0.14, 0.18, 1.2, 5).rotateZ(Math.PI / 2.5).translate(0, 0.1, 0), color: 0x5C4033
+            }
+
+            ,
             // Side branch: Thicker & Longer (2x)
             // 0.05->0.10, 0.3->0.6. Translate 0.1->0.2.
-            { geo: new THREE.CylinderGeometry(0.10, 0.10, 0.6, 4).rotateZ(-Math.PI / 3).translate(0.2, 0.1, 0), color: 0x5C4033 }
+            {
+                geo: new THREE.CylinderGeometry(0.10, 0.10, 0.6, 4).rotateZ(-Math.PI / 3).translate(0.2, 0.1, 0), color: 0x5C4033
+            }
+
         ];
         const twigGeo = createColoredGeometry(twigParts);
 
         // 6. Bush Geometry (Sphere + Leaves)
         const bushParts = [];
+
         // Core (Lighter Green: 0x4CA64C) matching leaves
-        bushParts.push({ geo: new THREE.SphereGeometry(1.3, 10, 10).translate(0, 1.0, 0), color: 0x4CA64C });
+        bushParts.push({
+            geo: new THREE.SphereGeometry(1.3, 10, 10).translate(0, 1.0, 0), color: 0x4CA64C
+        });
 
         // Leaves (Round headed, same color 0x4CA64C)
         const _bushDummy = new THREE.Object3D();
+
         // Increased leaf count (50 -> 150)
         for (let i = 0; i < 150; i++) {
             // Round head: Shorter (0.5) and Thicker (0.3 width)
@@ -1170,93 +1273,113 @@
             _bushDummy.updateMatrix();
 
             leafGeo.applyMatrix4(_bushDummy.matrix);
-            bushParts.push({ geo: leafGeo, color: 0x4CA64C }); // Match Core Color
+
+            bushParts.push({
+                geo: leafGeo, color: 0x4CA64C
+            }); // Match Core Color
         }
+
         const bushGeo = createColoredGeometry(bushParts);
         // Move down by 20% of height (Height ~2.5 -> move 0.5)
         bushGeo.translate(0, -0.5, 0);
+
         const vegMaterial = new THREE.ShaderMaterial({
+
             vertexColors: true,
             uniforms: {
-                time: { value: 0 },
-                carPos: { value: new THREE.Vector3() },
-            },
-            vertexShader: `
-                uniform float time;
-                uniform vec3 carPos;
-                attribute vec3 offset;
-                attribute vec3 instanceNormal;
-                attribute float scale;
-                attribute float rot;
-                attribute vec3 aColor; // Renamed from 'color' to avoid collisions
-                attribute float isStatic;
-
-                varying vec3 vColor;
-                
-                vec3 rotateVector(vec4 q, vec3 v) {
-                    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
-                }
-                vec4 axisAngleToQuaternion(vec3 axis, float angle) {
-                    float halfAngle = angle * 0.5;
-                    float s = sin(halfAngle);
-                    return vec4(axis * s, cos(halfAngle));
+                time: {
+                    value: 0
                 }
 
-                void main() {
-                    vColor = aColor;
-                    vec3 pos = position;
-                    pos *= scale;
+                ,
+                carPos: {
+                    value: new THREE.Vector3()
+                }
 
-                    // WIND SWAY
-                    float h = position.y; // Local height
-                    // Sway more at top
-                    if(h > 0.3) {
-                         float wind = sin(time * 2.0 + offset.x * 0.5) + sin(time * 1.5 + offset.z * 0.5);
-                         pos.x += wind * 0.1 * h; 
-                         pos.z += wind * 0.05 * h;
+                ,
+            }
+
+            ,
+            vertexShader: ` uniform float time;
+            uniform vec3 carPos;
+            attribute vec3 offset;
+            attribute vec3 instanceNormal;
+            attribute float scale;
+            attribute float rot;
+            attribute vec3 aColor; // Renamed from 'color' to avoid collisions
+            attribute float isStatic;
+
+            varying vec3 vColor;
+
+            vec3 rotateVector(vec4 q, vec3 v) {
+                return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+            }
+
+            vec4 axisAngleToQuaternion(vec3 axis, float angle) {
+                float halfAngle=angle * 0.5;
+                float s=sin(halfAngle);
+                return vec4(axis * s, cos(halfAngle));
+            }
+
+            void main() {
+                vColor=aColor;
+                vec3 pos=position;
+                pos *=scale;
+
+                // WIND SWAY
+                float h=position.y; // Local height
+
+                // Sway more at top
+                if(h > 0.3) {
+                    float wind=sin(time * 2.0 + offset.x * 0.5) + sin(time * 1.5 + offset.z * 0.5);
+                    pos.x +=wind * 0.1 * h;
+                    pos.z +=wind * 0.05 * h;
+                }
+
+                // Rotation
+                vec4 qRand=axisAngleToQuaternion(vec3(0, 1, 0), rot);
+                pos=rotateVector(qRand, pos);
+
+                // Align to Normal
+                vec3 up=vec3(0, 1, 0);
+                vec3 normal=normalize(instanceNormal);
+                vec3 axis=cross(up, normal);
+                float cosA=dot(up, normal);
+                vec4 qAlign=vec4(0, 0, 0, 1);
+                if (cosA > -0.99) qAlign=normalize(vec4(axis, 1.0 + cosA));
+                else qAlign=vec4(1, 0, 0, 0);
+                pos=rotateVector(qAlign, pos);
+
+                // Interaction
+                if (isStatic < 0.5) {
+                    vec3 worldOffset=offset;
+                    vec3 totalDisp=vec3(0.0);
+                    float originalLen=length(pos);
+
+                    // Player
+                    float dCar=distance(worldOffset, carPos);
+
+                    if(dCar < 1.6) {
+                        totalDisp +=normalize(worldOffset - carPos) * (1.0 - dCar/1.6);
                     }
 
-                    // Rotation
-                    vec4 qRand = axisAngleToQuaternion(vec3(0, 1, 0), rot);
-                    pos = rotateVector(qRand, pos);
+                    pos +=totalDisp * 1.0 * (h > 0.1 ? 1.0 : 0.0);
 
-                    // Align to Normal
-                    vec3 up = vec3(0, 1, 0);
-                    vec3 normal = normalize(instanceNormal);
-                    vec3 axis = cross(up, normal);
-                    float cosA = dot(up, normal);
-                    vec4 qAlign = vec4(0, 0, 0, 1);
-                    if (cosA > -0.99) qAlign = normalize(vec4(axis, 1.0 + cosA));
-                    else qAlign = vec4(1, 0, 0, 0);
-                    pos = rotateVector(qAlign, pos);
-
-                    // Interaction
-                    if (isStatic < 0.5) {
-                         vec3 worldOffset = offset;
-                         vec3 totalDisp = vec3(0.0);
-                         float originalLen = length(pos);
-
-                         // Player
-                         float dCar = distance(worldOffset, carPos);
-                         if(dCar < 1.6) {
-                            totalDisp += normalize(worldOffset - carPos) * (1.0 - dCar/1.6);
-                         }
-
-                         pos += totalDisp * 1.0 * (h > 0.1 ? 1.0 : 0.0);
-                         
-                         // Consistency
-                         if(originalLen > 0.001) pos = normalize(pos) * originalLen;
-                    }
-
-                    vec3 worldPos = pos + offset;
-                    gl_Position = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+                    // Consistency
+                    if(originalLen > 0.001) pos=normalize(pos) * originalLen;
                 }
+
+                vec3 worldPos=pos + offset;
+                gl_Position=projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+            }
+
             `,
-            fragmentShader: `
-                varying vec3 vColor;
-                void main() {
-                    gl_FragColor = vec4(vColor, 1.0);
-                }
+            fragmentShader: ` varying vec3 vColor;
+
+            void main() {
+                gl_FragColor=vec4(vColor, 1.0);
+            }
+
             `,
             side: THREE.DoubleSide
         });
@@ -1264,6 +1387,7 @@
         let debugVegCount = 0;
 
         let seed = 12345;
+
         function seededRandom() {
             seed = (seed * 9301 + 49297) % 233280;
             return seed / 233280;
@@ -1298,6 +1422,7 @@
 
                 // Deep Terrain Sync (Simplified Check)
                 let finalR = 40.0 + h;
+
                 // If very low, it's water/trench.
                 // Apply specific Flattening Logic if needed, but for vegetation just check height.
                 // Re-apply logic to get correct surface H
@@ -1328,11 +1453,13 @@
                         const dx = px - candidatePos.x;
                         const dy = py - candidatePos.y;
                         const dz = pz - candidatePos.z;
+
                         if (dx * dx + dy * dy + dz * dz < minDistance * minDistance) {
                             tooClose = true;
                             break;
                         }
                     }
+
                     if (tooClose) continue;
                 }
 
@@ -1347,26 +1474,35 @@
                         // Simple Density Check
                         if (noise(_v3.x * 5.0, _v3.y * 5.0, _v3.z * 5.0) < 0.0) valid = false;
                         scale = 1.2 + seededRandom() * 1.0; // Larger trees
-                    } else if (type === 'mushroom') {
+                    }
+
+                    else if (type === 'mushroom') {
                         if (h < 1.0 || h > 15.0) valid = false;
                         // Clumps
                         if (noise(_v3.x * 10.0 + 10.0, _v3.y * 10.0, _v3.z * 10.0) > -0.2) valid = false;
                         scale = 0.8 + seededRandom() * 0.5; // Visible mushrooms
-                    } else if (type === 'flower') {
+                    }
+
+                    else if (type === 'flower') {
                         if (h < -0.5 || h > 15.0) valid = false;
                         // Clumpier distribution: Higher frequency, higher threshold
                         if (noise(_v3.x * 25.0, _v3.y * 25.0, _v3.z * 25.0) < 0.35) valid = false;
                         // Reduced Size 30%: 0.56 to 0.91 (Original was 0.8 to 1.3)
                         scale = 0.56 + seededRandom() * 0.35;
                     }
+
                     // Stones & Twigs Logic
                     else if (type === 'stone') {
                         if (h < -1.0 || h > 28.0) valid = false; // Anywhere on land
                         scale = 0.5 + seededRandom() * 0.8;
-                    } else if (type === 'twig') {
+                    }
+
+                    else if (type === 'twig') {
                         if (h < 0.0 || h > 18.0) valid = false; // Near trees (approx forest height)
                         scale = 0.6 + seededRandom() * 0.6;
-                    } else if (type === 'bush') {
+                    }
+
+                    else if (type === 'bush') {
                         if (h < -0.5 || h > 22.0) valid = false;
                         // Increased Size 20%: 1.0 -> 1.2
                         scale = 1.2 + seededRandom() * 0.6;
@@ -1415,9 +1551,11 @@
         function replenishResources() {
             const targets = [stones, twigs, mushrooms];
             let restoredCount = 0;
+
             targets.forEach(mesh => {
                 if (!mesh || !mesh.geometry) return;
                 const scales = mesh.geometry.attributes.scale;
+
                 for (let i = 0; i < scales.count; i++) {
                     if (scales.getX(i) < 0.01) {
                         // Respawn
@@ -1426,12 +1564,22 @@
                         restoredCount++;
                     }
                 }
+
                 scales.needsUpdate = true;
             });
-            console.log(`Resources Replenished: ${restoredCount} items restored.`);
+
+            console.log(`Resources Replenished: $ {
+                    restoredCount
+                }
+
+                items restored.`);
         }
 
-        document.title = `Veg: ${debugVegCount}`;
+        document.title = `Veg: $ {
+            debugVegCount
+        }
+
+        `;
 
 
         // --- 4. Character (Humanoid) ---
@@ -1444,7 +1592,9 @@
 
         // Material (White)
         // Material (White, Flat, No Shadow)
-        const charMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const charMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff
+        });
 
         // Head
         const headGeo = new THREE.SphereGeometry(0.5, 32, 32);
@@ -1523,7 +1673,9 @@
 
         const keys = {
             w: false, a: false, s: false, d: false, " ": false
-        };
+        }
+
+            ;
 
         let playerWalkTime = 0;
 
@@ -1587,7 +1739,9 @@
             twig: 0,
             mushroom: 0,
             followers: 0 // Stored followers
-        };
+        }
+
+            ;
         let lastChestDepositTime = 0;
         let lastFollowerStoreTime = 0; // Timer for storing followers
         const chestPos = new THREE.Vector3(0, planetRadius, 15.0); // Z+15
@@ -1597,7 +1751,10 @@
 
         // House Body (Cylinder - Further Increased Radius)
         const cottageBodyGeo = new THREE.CylinderGeometry(2.0, 2.0, 1.6, 32);
-        const cottageBodyMat = new THREE.MeshBasicMaterial({ color: 0x957A65 }); // Warmer earthy brown like reference
+
+        const cottageBodyMat = new THREE.MeshBasicMaterial({
+            color: 0x957A65
+        }); // Warmer earthy brown like reference
         const cottageBodyMesh = new THREE.Mesh(cottageBodyGeo, cottageBodyMat);
         cottageBodyMesh.position.y = 0.8;
         cottage.add(cottageBodyMesh);
@@ -1620,7 +1777,10 @@
 
             // Use specific color for each layer
             const col = roofColors[i] || 0xCEB180;
-            const layerMat = new THREE.MeshBasicMaterial({ color: col });
+
+            const layerMat = new THREE.MeshBasicMaterial({
+                color: col
+            });
 
             const layerMesh = new THREE.Mesh(layerGeo, layerMat);
             layerMesh.position.y = h;
@@ -1633,7 +1793,10 @@
         // Cylinder default axis is Y. Rotate X -90 makes it Z.
         // Theta 0..PI creates a half-cylinder. We need to orient the flat side down.
         const doorFrameGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.2, 32, 1, false, 0, Math.PI);
-        const doorFrameMat = new THREE.MeshBasicMaterial({ color: 0x5D4037 });
+
+        const doorFrameMat = new THREE.MeshBasicMaterial({
+            color: 0x5D4037
+        });
         const doorFrame = new THREE.Mesh(doorFrameGeo, doorFrameMat);
 
         // Position: Ground(Y=0), Protruding(Z=1.8) - Retracted further
@@ -1646,7 +1809,10 @@
         // Door (Inner Block)
         // Slightly recessed or flush? Image implies simple filled arch.
         const doorGeo = new THREE.CylinderGeometry(0.7, 0.7, 1.25, 32, 1, false, 0, Math.PI);
-        const doorMat = new THREE.MeshBasicMaterial({ color: 0x3E2723 });
+
+        const doorMat = new THREE.MeshBasicMaterial({
+            color: 0x3E2723
+        });
         const door = new THREE.Mesh(doorGeo, doorMat);
 
         door.position.set(0, 0, 1.85);
@@ -1683,15 +1849,18 @@
                 const roadHeight = 0.5;
                 let t = 0.0;
                 if (distFromEquator < roadBandWidth) t = 1.0;
+
                 else {
                     let edgeDist = (distFromEquator - roadBandWidth) / roadTransition;
                     t = 1.0 - (edgeDist * edgeDist * (3.0 - 2.0 * edgeDist));
                 }
+
                 h = h * (1.0 - t) + roadHeight * t;
             }
 
             // 4. Deep Terrain Flattening
             let finalRadius = planetRadius + h;
+
             if (finalRadius < planetRadius * 0.8) {
                 let rNoise = noise(dir.x * 1.5, dir.y * 1.5, dir.z * 1.5);
                 let normNoise = 0.5 * (rNoise + 1.0);
@@ -1699,6 +1868,7 @@
                 finalRadius = planetRadius * factor;
                 h = finalRadius - planetRadius;
             }
+
             return planetRadius + h;
         }
 
@@ -1726,7 +1896,10 @@
         chestMesh.updateMatrixWorld();
 
         // 5. Icon Generation
-        const itemIcons = {};
+        const itemIcons = {}
+
+            ;
+
         function generateIcon(geo, color) {
             const size = 64;
             const canvas = document.createElement('canvas');
@@ -1747,6 +1920,7 @@
             // Mesh
             // Use VertexColors if geometry has them, else use color
             let mat;
+
             if (geo.attributes.aColor) {
                 // Clone geo to safely set color attribute? 
                 // Actually for icons we can just use the provided color fallback or force vertex colors
@@ -1758,17 +1932,23 @@
                 const center = iconGeo.boundingBox.getCenter(new THREE.Vector3());
                 iconGeo.translate(-center.x, -center.y, -center.z);
 
-                mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+                mat = new THREE.MeshLambertMaterial({
+                    vertexColors: true
+                });
                 const m = new THREE.Mesh(iconGeo, mat);
                 iconScene.add(m);
-            } else {
+            }
+
+            else {
                 // Fallback geometry center
                 const iconGeo = geo.clone();
                 iconGeo.computeBoundingBox();
                 const center = iconGeo.boundingBox.getCenter(new THREE.Vector3());
                 iconGeo.translate(-center.x, -center.y, -center.z);
 
-                mat = new THREE.MeshLambertMaterial({ color: color });
+                mat = new THREE.MeshLambertMaterial({
+                    color: color
+                });
                 const m = new THREE.Mesh(iconGeo, mat);
                 iconScene.add(m);
             }
@@ -1812,10 +1992,39 @@
             // Restore
             renderer.setSize(currentSize.x, currentSize.y);
             renderer.setClearColor(currentClearColor, currentClearAlpha);
-        }, 100);
+        }
+
+            , 100);
 
 
         const flyingItems = [];
+
+        const dormLabel = document.getElementById('dormLabel');
+
+        function updateDormLabel() {
+            if (!dormLabel || !cottage) return;
+
+            // Total population = Stored + Active (followers array)
+            const stored = chestInventory['followers'] || 0;
+
+            // Update Content: Only show stored count
+            dormLabel.innerHTML = `
+                <div class="icon">👤</div>
+                <div class="text">${stored}</div>
+            `;
+
+            // Position (Higher than chest bubble)
+            const worldPos = cottage.position.clone().add(new THREE.Vector3(0, 4.5, 0));
+            worldPos.project(camera);
+
+            const x = (worldPos.x * 0.5 + 0.5) * window.innerWidth;
+            const y = -(worldPos.y * 0.5 - 0.5) * window.innerHeight;
+
+            dormLabel.style.left = x + 'px';
+            dormLabel.style.top = y + 'px';
+
+            dormLabel.style.display = 'flex';
+        }
 
         function updateFlyingItems(dt) {
             for (let i = flyingItems.length - 1; i >= 0; i--) {
@@ -1833,11 +2042,15 @@
                     // Scale down effect
                     item.mesh.scale.multiplyScalar(0.92);
                 }
+
                 else {
+
                     // Arrived
                     if (chestInventory.hasOwnProperty(item.type)) {
                         chestInventory[item.type]++;
-                    } else {
+                    }
+
+                    else {
                         chestInventory[item.type] = 1;
                     }
 
@@ -1864,53 +2077,64 @@
                 inventoryGrid.innerHTML = '';
 
                 // For each item type
-                const types = ['stone', 'twig', 'mushroom', 'followers'];
+                // For each item type
+                const types = ['twig', 'mushroom']; // Followers moved to Dorm Label
+
                 types.forEach(type => {
-                    const count = chestInventory[type] || 0;
-                    // if (type === 'followers' && count === 0) return; // Always show followers
+                    let count = chestInventory[type] || 0;
+
+                    if (type === 'followers') {
+                        count += followers.length; // Limit includes active followers
+                    }
 
                     // Icon
                     const img = document.createElement('img');
+
                     if (type === 'followers') {
-                        // Use a simple proxy for followers or a custom label
-                        // Since we don't have an icon for followers, let's use a text emoji or similar
-                        // actually we can just use a div with a circle
-                    } else {
+                        // User a div for consistency
+                    }
+
+                    else {
                         img.src = itemIcons[type] || '';
                     }
 
-                    img.style.width = '24px';
-                    img.style.height = '24px';
+                    img.style.width = '32px'; // Larger Icons
+                    img.style.height = '32px';
                     img.style.objectFit = 'contain';
-                    img.style.margin = '-4px';
+                    img.style.margin = '-2px';
 
                     // Count
                     const txt = document.createElement('span');
-                    const displayCount = type === 'followers' ? `${count}/5` : `${count}`;
-                    txt.textContent = (type === 'followers' ? '👤 ' : '') + displayCount;
-                    txt.style.fontSize = '9px';
+                    const max = (type === 'followers') ? 5 : 10;
+
+                    const displayCount = `${count}/${max}`;
+                    txt.textContent = displayCount; // Removed Duplicate Emoji prefix
+                    txt.style.fontSize = '12px'; // Larger Text
                     txt.style.fontWeight = 'bold';
 
                     if (type === 'followers') {
                         const followerIcon = document.createElement('div');
                         followerIcon.textContent = '👤';
-                        followerIcon.style.fontSize = '14px';
+                        followerIcon.style.fontSize = '20px'; // Larger Emoji
                         followerIcon.style.display = 'flex';
                         followerIcon.style.alignItems = 'center';
                         followerIcon.style.justifyContent = 'center';
-                        followerIcon.style.width = '24px';
-                        followerIcon.style.height = '24px';
+                        followerIcon.style.width = '32px';
+                        followerIcon.style.height = '32px';
                         inventoryGrid.appendChild(followerIcon);
-                    } else {
+                    }
+
+                    else {
                         inventoryGrid.appendChild(img);
                     }
+
                     inventoryGrid.appendChild(txt);
                 });
 
 
                 // Project Position
                 // Bubble floats above chest (Reduced height from 2.5 to 1.8 to fix "too high")
-                const bubbleWorldPos = chestMesh.position.clone().add(chestMesh.position.clone().normalize().multiplyScalar(1.8));
+                const bubbleWorldPos = chestMesh.position.clone().add(chestMesh.position.clone().normalize().multiplyScalar(2.8));
                 const p = bubbleWorldPos.clone();
                 p.project(camera);
 
@@ -1924,6 +2148,7 @@
                 // Interaction: Deposit
                 if (heldItem) {
                     const now = clock.getElapsedTime();
+
                     if (now - lastChestDepositTime > 1.0) {
 
                         // Transition Effect
@@ -1948,6 +2173,7 @@
                     const now = clock.getElapsedTime();
                     // Release one every 0.5s when player is near
                     if (!window.lastFollowerReleaseTime) window.lastFollowerReleaseTime = 0;
+
                     if (now - window.lastFollowerReleaseTime > 0.5) {
                         chestInventory.followers--;
                         respawnFollowerAtChest();
@@ -1955,7 +2181,9 @@
                     }
                 }
 
-            } else {
+            }
+
+            else {
                 chestBubble.style.display = 'none';
             }
         }
@@ -1978,7 +2206,9 @@
             group.position.copy(pos);
 
             // Color: White
-            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0xffffff
+            });
 
             // Scale factor 0.6 relative to player parts
             // Player: Head 1.7, Body 1.0, Leg 0.7.
@@ -2015,7 +2245,9 @@
                 jumpTime: 0,
                 yOffset: 0,
                 vSpeed: 0
-            };
+            }
+
+                ;
         }
 
         function spawnFollowers(count) {
@@ -2039,6 +2271,7 @@
                 followers.push(createFollower(pos));
                 spawned++;
             }
+
             console.log("Spawned " + spawned + " followers in bushes.");
         }
 
@@ -2107,6 +2340,7 @@
                     if (isPositionHidden(playerPos) && carPhysics.velocity.length() < 0.5) {
                         let bestBush = null;
                         let minDSq = Infinity;
+
                         // Search for nearest bush
                         if (bushes && bushes.geometry) {
                             const bOff = bushes.geometry.attributes.offset;
@@ -2124,8 +2358,13 @@
 
                                 if (dSq < minDSq) {
                                     minDSq = dSq;
+
                                     // Store coordinates to avoid object creation in loop
-                                    bestBush = { x: bOff.getX(i), y: bOff.getY(i), z: bOff.getZ(i) };
+                                    bestBush = {
+                                        x: bOff.getX(i), y: bOff.getY(i), z: bOff.getZ(i)
+                                    }
+
+                                        ;
                                 }
                             }
                         }
@@ -2140,6 +2379,7 @@
                     // Priority 2: Seek Chest if holding item and CLOSE enough (Only if not hiding)
                     else if (f.heldItem && chestMesh) {
                         const distToChest = f.mesh.position.distanceTo(chestMesh.position);
+
                         // User Request: "Small people only go to chest if close"
                         if (distToChest < 12.0) {
                             target = chestMesh.position;
@@ -2150,6 +2390,7 @@
 
                     // Execute Seek
                     const distToTarget = f.mesh.position.distanceTo(target);
+
                     if (distToTarget > stopDist) {
                         let dir = new THREE.Vector3().subVectors(target, f.mesh.position).normalize();
                         dir.projectOnPlane(up).normalize();
@@ -2164,6 +2405,7 @@
                 followers.forEach(neighbor => {
                     if (f === neighbor) return;
                     const d = f.mesh.position.distanceTo(neighbor.mesh.position);
+
                     if (d < separationRadius) {
                         const push = new THREE.Vector3().subVectors(f.mesh.position, neighbor.mesh.position).normalize();
                         // Weight by distance (closer = stronger)
@@ -2187,7 +2429,9 @@
                     moveForce.normalize().multiplyScalar(maxSpeed);
                     // Smooth visual acceleration
                     f.velocity.lerp(moveForce, 2.0 * dt);
-                } else {
+                }
+
+                else {
                     // Stop
                     f.velocity.lerp(new THREE.Vector3(0, 0, 0), 2.0 * dt);
                 }
@@ -2200,7 +2444,9 @@
                 // Chest Collision (Followers)
                 if (chestMesh) {
                     const fDist = f.mesh.position.distanceTo(chestMesh.position);
-                    if (fDist < 2.4) { // Updated to match Player Collision Radius (Body 2.0 + Buffer)
+
+                    if (fDist < 2.4) {
+                        // Updated to match Player Collision Radius (Body 2.0 + Buffer)
                         const pushDir = new THREE.Vector3().subVectors(f.mesh.position, chestMesh.position).normalize();
                         f.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(2.4));
                     }
@@ -2240,9 +2486,12 @@
 
                 // Determine Forward
                 let forward;
+
                 if (f.velocity.lengthSq() > 0.05) {
                     forward = f.velocity.clone().normalize();
-                } else {
+                }
+
+                else {
                     // Fallback to current rotation's forward (Z)
                     forward = new THREE.Vector3(0, 0, 1).applyQuaternion(f.mesh.quaternion);
                 }
@@ -2255,6 +2504,7 @@
                     forward.set(1, 0, 0).projectOnPlane(up);
                     if (forward.lengthSq() < 0.0001) forward.set(0, 0, 1).projectOnPlane(up);
                 }
+
                 forward.normalize();
 
                 // Rotation using LookAt (Robust)
@@ -2268,23 +2518,30 @@
                 // Animation
                 // Animation
                 const speed = f.velocity.length();
+
                 if (speed > 0.5) {
                     // Minimum cadence: ensure legs swing at least once per 0.5s
                     const animSpeed = Math.max(speed, 8.0);
                     f.walkTime = (f.walkTime || 0) + dt * animSpeed * 1.5;
                     f.leftLeg.rotation.x = Math.sin(f.walkTime) * 1.5;
                     f.rightLeg.rotation.x = -Math.sin(f.walkTime) * 1.5;
-                } else {
+                }
+
+                else {
                     // Idle state
                     f.leftLeg.rotation.x = 0;
                     f.rightLeg.rotation.x = 0;
                 }
 
                 // --- Follower Water Logic ---
-                if (!f.isDead) { // Only living followers check water
+                if (!f.isDead) {
+
+                    // Only living followers check water
                     if (isPositionInWater(f.mesh.position, 1.0)) {
                         f.waterTime += dt;
-                    } else {
+                    }
+
+                    else {
                         // Gradual Oxygen Recovery (Holding Breath Logic)
                         f.waterTime = Math.max(0, f.waterTime - dt * 10.0);
                     }
@@ -2301,7 +2558,10 @@
                             spawnExplosion(f.mesh.position);
                             dropItemFromDeadFollower(f); // Ensure item drops on water death too
                         }
-                    } else {
+                    }
+
+                    else {
+
                         // Smooth Recovery
                         if (f.mat.color.r < 1.0) {
                             let c = f.mat.color.r + dt * 0.5; // Recover over ~2 seconds
@@ -2313,70 +2573,102 @@
 
                 // --- Interaction: Pickup & Drop ---
                 if (f.heldItem) {
-                    // Holding Item: Check Chest
-                    if (chestMesh && f.mesh.position.distanceTo(chestMesh.position) < 3.0) {
-                        // Deposit
-                        if (chestInventory.hasOwnProperty(f.heldItem.type)) {
-                            chestInventory[f.heldItem.type]++;
-                        } else {
-                            chestInventory[f.heldItem.type] = 1;
+                    // Start delivery? Yes, unless we find something better?
+                    // User Rule: "Little guy holding stuff can also change to new found stuff"
+                    // So we must scan for items even if holding.
+                    // BUT priority: deliver or swap?
+                    // Let's check pickup first. If pickup happens, swap.
+                    // If no pickup, verify delivery.
+                }
+
+                // Check Pickup (Always check now)
+                const targets = [ // { mesh: stones, type: 'stone', geo: stoneGeo }, // Stone removed
+
+                    {
+                        mesh: twigs, type: 'twig', geo: twigGeo
+                    }
+
+                    ,
+                    {
+                        mesh: mushrooms, type: 'mushroom', geo: mushGeo
+                    }
+
+                ];
+
+                let didPickup = false;
+
+                for (let t of targets) {
+                    const count = t.mesh.geometry.attributes.scale.count;
+                    const scales = t.mesh.geometry.attributes.scale;
+                    const offsets = t.mesh.geometry.attributes.offset;
+
+                    for (let i = 0; i < count; i++) {
+                        if (scales.getX(i) < 0.01) continue; // Already taken
+
+                        const dx = f.mesh.position.x - offsets.getX(i);
+                        const dy = f.mesh.position.y - offsets.getY(i);
+                        const dz = f.mesh.position.z - offsets.getZ(i);
+                        const dSq = dx * dx + dy * dy + dz * dz;
+
+                        if (dSq < 2.25) {
+                            // 1.5 distance
+                            // Pickup!
+
+                            // If holding, drop old
+                            if (f.heldItem) {
+                                f.mesh.remove(f.heldItem.mesh);
+                                if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
+                                f.heldItem = null;
+                            }
+
+                            const currentScale = scales.getX(i);
+                            scales.setX(i, 0);
+                            scales.needsUpdate = true;
+
+                            // Create Visual
+                            const cloneGeo = t.geo.clone();
+                            if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
+
+                            const valMat = new THREE.MeshBasicMaterial({
+                                vertexColors: true, side: THREE.DoubleSide
+                            });
+                            const valMesh = new THREE.Mesh(cloneGeo, valMat);
+
+                            // Attach to follower
+                            valMesh.scale.set(0.5, 0.5, 0.5);
+                            valMesh.position.set(0, 0.5, 0.5);
+                            f.mesh.add(valMesh);
+
+                            f.heldItem = {
+                                type: t.type, mesh: valMesh
+                            }
+
+                                ;
+                            didPickup = true;
+                            break;
                         }
+                    }
+
+                    if (didPickup) break;
+                }
+
+                if (f.heldItem && !didPickup) {
+                    // Delivery Logic
+                    const distToChest = f.mesh.position.distanceTo(chestMesh.position);
+
+                    if (distToChest < 3.0) {
+                        // Check Capacity
+                        const currentCount = chestInventory[f.heldItem.type] || 0;
+                        if (currentCount >= 10) return; // Full
+
+                        // Deposit
+                        if (currentCount === 0) chestInventory[f.heldItem.type] = 0; // Initialize if not present
+                        chestInventory[f.heldItem.type]++;
 
                         // Visuals
                         f.mesh.remove(f.heldItem.mesh);
                         if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
                         f.heldItem = null;
-
-
-
-                        // Chest Flash Removed as per user request
-
-                        // Flying Item Effect (Score)
-                        // TODO: Create a flying item from chestBubble or similar? 
-                        // Simplified: Just flash chest.
-                    }
-                } else {
-                    // Empty Handed: Check Pickup
-                    const targets = [
-                        { mesh: stones, type: 'stone', geo: stoneGeo },
-                        { mesh: twigs, type: 'twig', geo: twigGeo },
-                        { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
-                    ];
-
-                    for (let t of targets) {
-                        const count = t.mesh.geometry.attributes.scale.count;
-                        const scales = t.mesh.geometry.attributes.scale;
-                        const offsets = t.mesh.geometry.attributes.offset;
-
-                        for (let i = 0; i < count; i++) {
-                            if (scales.getX(i) < 0.01) continue; // Already taken
-
-                            const dx = f.mesh.position.x - offsets.getX(i);
-                            const dy = f.mesh.position.y - offsets.getY(i);
-                            const dz = f.mesh.position.z - offsets.getZ(i);
-                            const dSq = dx * dx + dy * dy + dz * dz;
-
-                            if (dSq < 2.25) { // 1.5 distance
-                                // Pickup!
-                                const currentScale = scales.getX(i);
-                                scales.setX(i, 0);
-                                scales.needsUpdate = true;
-
-                                // Create Visual
-                                const cloneGeo = t.geo.clone();
-                                if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
-                                const valMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-                                const valMesh = new THREE.Mesh(cloneGeo, valMat);
-
-                                f.mesh.add(valMesh);
-                                valMesh.position.set(0, 0.6, 0.4); // Carry position
-                                valMesh.scale.setScalar(currentScale);
-
-                                f.heldItem = { mesh: valMesh, type: t.type };
-                                break;
-                            }
-                        }
-                        if (f.heldItem) break;
                     }
                 }
             });
@@ -2390,8 +2682,13 @@
             group.position.copy(pos);
 
             // Voxel Style Wolf (Grey-ish)
-            const mat = new THREE.MeshBasicMaterial({ color: 0x6e7e85 });
-            const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0x6e7e85
+            });
+
+            const blackMat = new THREE.MeshBasicMaterial({
+                color: 0x000000
+            });
 
             const s = 0.67; // Reduced another 20% (0.84 * 0.8)
             const wolfMesh = new THREE.Group();
@@ -2450,6 +2747,7 @@
 
             // 7. Legs
             const legGeo = new THREE.BoxGeometry(0.35, 1.0, 0.35);
+
             function createLeg(x, z) {
                 const pivot = new THREE.Group();
                 pivot.position.set(x, 1.0, z);
@@ -2487,7 +2785,9 @@
                 attackDir: new THREE.Vector3(),
                 hasHitTarget: false,
                 orbitDir: Math.random() < 0.5 ? 1 : -1
-            };
+            }
+
+                ;
         }
 
         function spawnWolves(count) {
@@ -2533,6 +2833,7 @@
                 const dz = pos.z - offsets.getZ(i);
                 if (dx * dx + dy * dy + dz * dz < r2) return true;
             }
+
             return false;
         }
 
@@ -2541,15 +2842,14 @@
             const item = f.heldItem;
             if (!item) return;
             const mesh = item.sourceMesh;
+
             if (mesh && mesh.geometry) {
                 const offsets = mesh.geometry.attributes.offset;
                 const scales = mesh.geometry.attributes.scale;
                 // Add Y offset + Random Scatter to ensure visibility
-                const scatter = new THREE.Vector3(
+                const scatter = new THREE.Vector3((Math.random() - 0.5) * 2.0,
                     (Math.random() - 0.5) * 2.0,
-                    (Math.random() - 0.5) * 2.0,
-                    (Math.random() - 0.5) * 2.0
-                );
+                    (Math.random() - 0.5) * 2.0);
                 // Proposed Position
                 const dropPos = f.mesh.position.clone().add(scatter).normalize();
 
@@ -2575,8 +2875,14 @@
         // --- Particle Explosion System ---
         const explosions = [];
         const particleGeo = new THREE.SphereGeometry(0.15, 6, 6);
-        const particleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const smokeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
+
+        const particleMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff
+        });
+
+        const smokeMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.2
+        });
 
         function spawnExplosion(pos) {
             for (let i = 0; i < 8; i++) {
@@ -2587,34 +2893,37 @@
                 mesh.position.y += (Math.random() - 0.5) * 0.5;
                 mesh.position.z += (Math.random() - 0.5) * 0.5;
 
-                const velocity = new THREE.Vector3(
+                const velocity = new THREE.Vector3(Math.random() - 0.5,
                     Math.random() - 0.5,
-                    Math.random() - 0.5,
-                    Math.random() - 0.5
-                ).normalize().multiplyScalar(5.0 + Math.random() * 5.0);
+                    Math.random() - 0.5).normalize().multiplyScalar(5.0 + Math.random() * 5.0);
 
                 scene.add(mesh);
-                explosions.push({ mesh, velocity, life: 1.0 });
+
+                explosions.push({
+                    mesh, velocity, life: 1.0
+                });
             }
         }
+
         function spawnJumpDust(pos) {
             for (let i = 0; i < 6; i++) {
                 const mesh = new THREE.Mesh(particleGeo, smokeMat);
                 mesh.position.copy(pos);
 
                 // Spread out at feet (Tighter)
-                const offset = new THREE.Vector3(
+                const offset = new THREE.Vector3((Math.random() - 0.5) * 0.5,
                     (Math.random() - 0.5) * 0.5,
-                    (Math.random() - 0.5) * 0.5,
-                    (Math.random() - 0.5) * 0.5
-                );
+                    (Math.random() - 0.5) * 0.5);
                 mesh.position.add(offset);
 
                 // Velocity: Very Slow
                 const velocity = offset.clone().normalize().multiplyScalar(0.2 + Math.random() * 0.3);
 
                 scene.add(mesh);
-                explosions.push({ mesh, velocity, life: 0.6, scaleMult: 4.0 });
+
+                explosions.push({
+                    mesh, velocity, life: 0.6, scaleMult: 4.0
+                });
             }
         }
 
@@ -2655,9 +2964,16 @@
                     // 1a. Check Player
                     if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
                         const d = w.mesh.position.distanceTo(playerPos);
-                        if (d < 17.5) { // Player Aggro Range
+
+                        if (d < 17.5) {
+                            // Player Aggro Range
                             closestDist = d;
-                            bestTarget = { type: 'player', pos: playerPos, mesh: carGroup };
+
+                            bestTarget = {
+                                type: 'player', pos: playerPos, mesh: carGroup
+                            }
+
+                                ;
                         }
                     }
 
@@ -2665,9 +2981,16 @@
                     followers.forEach(f => {
                         if (!f.isDead && !isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
                             const d = w.mesh.position.distanceTo(f.mesh.position);
-                            if (d < closestDist) { // Strict closest priority
+
+                            if (d < closestDist) {
+                                // Strict closest priority
                                 closestDist = d;
-                                bestTarget = { type: 'follower', pos: f.mesh.position, mesh: f.mesh, entity: f };
+
+                                bestTarget = {
+                                    type: 'follower', pos: f.mesh.position, mesh: f.mesh, entity: f
+                                }
+
+                                    ;
                             }
                         }
                     });
@@ -2680,8 +3003,11 @@
                             w.combatState = 'wander';
                             w.eyesMat.color.setHex(0x000000); // Black
                         }
-                    } else {
+                    }
+
+                    else {
                         w.eyesMat.color.setHex(0xff0000); // Red
+
                         if (w.combatState === 'wander') {
                             w.combatState = 'circle_fast';
                             w.stateTimer = 0;
@@ -2694,6 +3020,7 @@
                 if (w.combatState === 'wander') {
                     currentSpeed = 9.6; // 6.0 * 1.6
                     w.wanderTimer -= dt;
+
                     if (w.wanderTimer <= 0) {
                         w.wanderTimer = 2.0 + Math.random() * 3.0;
                         const r = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
@@ -2703,6 +3030,7 @@
 
                     // Simple Avoidance: Predict if walking into water
                     const futurePos = w.mesh.position.clone().add(w.wanderDir.clone().multiplyScalar(2.0));
+
                     if (isPositionInWater(futurePos, 0.0)) {
                         // Turn around / Randomize
                         w.wanderDir.negate().add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.5)).normalize();
@@ -2710,7 +3038,9 @@
                     }
 
                     moveForce.add(w.wanderDir);
-                } else {
+                }
+
+                else {
                     // COMBAT
                     let targetPos = w.target ? w.target.pos : w.mesh.position;
                     let distToTarget = w.target ? w.mesh.position.distanceTo(targetPos) : 0;
@@ -2722,55 +3052,75 @@
 
                     if (w.combatState === 'circle_fast') {
                         currentSpeed = 14.4; // 9.0 * 1.6
-                        if (w.stateTimer > 1.0) { // FAST AGGRESSION (was 3.5)
+
+                        if (w.stateTimer > 1.0) {
+                            // FAST AGGRESSION (was 3.5)
                             w.combatState = 'circle_slow';
                             w.stateTimer = 0;
                         }
+
                         const radiusError = distToTarget - 8.0;
                         moveForce.copy(tangent).multiplyScalar(1.0);
                         moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.2));
 
-                    } else if (w.combatState === 'circle_slow') {
+                    }
+
+                    else if (w.combatState === 'circle_slow') {
                         currentSpeed = 4.8; // 3.0 * 1.6
-                        if (w.stateTimer > 0.5) { // FAST AGGRESSION (was 4.0)
+
+                        if (w.stateTimer > 0.5) {
+                            // FAST AGGRESSION (was 4.0)
                             w.combatState = 'dash';
                             w.stateTimer = 0;
                         }
+
                         const radiusError = distToTarget - 7.0;
                         moveForce.copy(tangent).multiplyScalar(1.0);
                         moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.5));
 
-                    } else if (w.combatState === 'dash') {
+                    }
+
+                    else if (w.combatState === 'dash') {
                         currentSpeed = 19.2; // 12.0 * 1.6
+
                         if (w.target && distToTarget < 3.5) {
                             w.combatState = 'bite_attack';
                             w.stateTimer = 0;
                             w.attackDir.copy(dirToTarget); // Lock direction
                             w.hitCount = 0;
-                        } else if (w.stateTimer > 1.5) {
+                        }
+
+                        else if (w.stateTimer > 1.5) {
                             w.combatState = 'circle_fast';
                             w.stateTimer = 0;
                             w.orbitDir *= -1;
                         }
+
                         moveForce.copy(dirToTarget);
 
-                    } else if (w.combatState === 'bite_attack') {
+                    }
+
+                    else if (w.combatState === 'bite_attack') {
                         currentSpeed = 12.8; // 8.0 * 1.6
                         moveForce.copy(w.attackDir);
 
                         // Jump Anim
                         const jumpDuration = 0.5;
                         let jumpY = 0;
+
                         if (w.stateTimer < jumpDuration) {
                             const t = w.stateTimer / jumpDuration;
                             jumpY = 4.0 * 1.0 * t * (1.0 - t);
                         }
+
                         if (w.model) w.model.position.y = jumpY;
 
                         // Shake Head (Bite)
                         if (w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                             w.head.rotation.y = Math.sin(w.stateTimer * 40.0) * 0.6;
-                        } else {
+                        }
+
+                        else {
                             w.head.rotation.y = 0;
                         }
 
@@ -2790,6 +3140,7 @@
                 wolves.forEach(neighbor => {
                     if (w === neighbor) return;
                     const d = w.mesh.position.distanceTo(neighbor.mesh.position);
+
                     if (d < 1.25) {
                         const push = new THREE.Vector3().subVectors(w.mesh.position, neighbor.mesh.position).normalize();
                         moveForce.add(push.multiplyScalar(3.0 / (d + 0.1)));
@@ -2799,7 +3150,9 @@
                 // Follower Collision
                 followers.forEach(f => {
                     const d = w.mesh.position.distanceTo(f.mesh.position);
-                    if (d < 1.2) { // Collision Radius
+
+                    if (d < 1.2) {
+                        // Collision Radius
                         const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
                         // Smooth Push (Velocity Impulse)
                         const pushStrength = (1.2 - d) * 15.0; // Stronger when closer usually, but strict impulse is fine
@@ -2823,9 +3176,11 @@
 
                 // Player Collision
                 const dPlayer = w.mesh.position.distanceTo(playerPos);
+
                 if (dPlayer < 1.0) {
                     const pushDir = new THREE.Vector3().subVectors(playerPos, w.mesh.position).normalize();
                     carPhysics.pos.add(pushDir.multiplyScalar(0.05));
+
                     if (w.combatState !== 'bite_attack') {
                         moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
                     }
@@ -2834,7 +3189,9 @@
                 // Player Damage Logic
                 if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                     if ((w.hitCount === undefined || w.hitCount < 5) && dPlayer < 1.25) {
-                        if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) { // Safe if hidden or in water
+                        if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
+
+                            // Safe if hidden or in water
                             if (now - lastHitTime > 1.0) {
                                 lastHitTime = now;
                                 w.hitCount = (w.hitCount || 0) + 1;
@@ -2850,6 +3207,7 @@
 
                 if (!isShaking) {
                     let targetHeadY = 0;
+
                     if (w.target) {
                         const targetPos = w.target.pos.clone();
                         const lookDir = new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize();
@@ -2870,6 +3228,7 @@
                             targetHeadY = clampedAngle;
                         }
                     }
+
                     // Smooth Transition
                     const diff = targetHeadY - w.head.rotation.y;
                     w.head.rotation.y += diff * dt * 5.0;
@@ -2889,17 +3248,16 @@
                     let maxH = -10000;
                     const sampleDist = 2.0;
 
-                    const dirs = [
-                        new THREE.Vector3(0, 0, 1),
-                        new THREE.Vector3(0, 0, -1),
-                        new THREE.Vector3(1, 0, 0),
-                        new THREE.Vector3(-1, 0, 0)
-                    ];
+                    const dirs = [new THREE.Vector3(0, 0, 1),
+                    new THREE.Vector3(0, 0, -1),
+                    new THREE.Vector3(1, 0, 0),
+                    new THREE.Vector3(-1, 0, 0)];
 
                     dirs.forEach(d => {
                         const worldDir = d.clone().applyQuaternion(w.mesh.quaternion).normalize();
                         const probe = w.mesh.position.clone().add(worldDir.multiplyScalar(sampleDist));
                         const h = getSurfaceHeight(probe.x, probe.y, probe.z);
+
                         if (h > maxH) {
                             maxH = h;
                             bestDir = worldDir;
@@ -2909,7 +3267,9 @@
                     // Apply strong force towards highest ground
                     moveForce.add(bestDir.multiplyScalar(20.0));
 
-                } else if (surfaceH < waterLevel + 0.5) {
+                }
+
+                else if (surfaceH < waterLevel + 0.5) {
                     // ON LAND, NEAR WATER -> AVOIDANCE (Reflex)
                     const lookAhead = w.mesh.position.clone().add(w.velocity.clone().normalize().multiplyScalar(1.0));
                     const nextH = getSurfaceHeight(lookAhead.x, lookAhead.y, lookAhead.z);
@@ -2926,9 +3286,12 @@
                     moveForce.projectOnPlane(up).normalize().multiplyScalar(currentSpeed);
                     const lerpFactor = w.combatState === 'bite_attack' ? 2.0 * dt : 3.0 * dt;
                     w.velocity.lerp(moveForce, lerpFactor);
-                } else {
+                }
+
+                else {
                     w.velocity.lerp(new THREE.Vector3(0, 0, 0), 3.0 * dt);
                 }
+
                 w.mesh.position.add(w.velocity.clone().multiplyScalar(dt));
 
                 // Ground Snap & Orient
@@ -2948,15 +3311,20 @@
 
                     // Anim Legs
                     const speed = w.velocity.length();
+
                     if (speed > 0.5) {
                         w.walkTime += dt * speed * 2.0;
                         const s = Math.sin(w.walkTime);
                         w.fl.rotation.x = s; w.br.rotation.x = s;
                         w.fr.rotation.x = -s; w.bl.rotation.x = -s;
-                    } else {
+                    }
+
+                    else {
                         w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
                     }
-                } else {
+                }
+
+                else {
                     w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
                 }
             });
@@ -3010,7 +3378,9 @@
                         moveForce.copy(tangent).multiplyScalar(1.0);
                         moveForce.add(dirToPlayer.multiplyScalar(radiusError * 0.2));
 
-                    } else if (w.combatState === 'circle_slow') {
+                    }
+
+                    else if (w.combatState === 'circle_slow') {
                         // Slow Stalk
                         // Duration: 4.0s
                         currentSpeed = 3.0; // Very slow, creeping (unchanged)
@@ -3026,7 +3396,9 @@
                         moveForce.copy(tangent).multiplyScalar(1.0);
                         moveForce.add(dirToPlayer.multiplyScalar(radiusError * 0.5));
 
-                    } else if (w.combatState === 'dash') {
+                    }
+
+                    else if (w.combatState === 'dash') {
                         // Attack!
                         currentSpeed = 12.0;
 
@@ -3037,7 +3409,9 @@
                             // Lock Attack Direction!
                             w.attackDir.copy(dirToPlayer);
                             w.hasHitTarget = false; // Reset hit flag for this attack
-                        } else if (w.stateTimer > 2.0) {
+                        }
+
+                        else if (w.stateTimer > 2.0) {
                             // Missed -> Reset cycle
                             w.combatState = 'circle_fast';
                             w.stateTimer = 0;
@@ -3047,7 +3421,9 @@
                         // Pure pursuit
                         moveForce.copy(dirToPlayer);
 
-                    } else if (w.combatState === 'bite_attack') {
+                    }
+
+                    else if (w.combatState === 'bite_attack') {
                         // SPECIAL ATTACK: Jump, Shake, Bite
                         currentSpeed = 8.0; // Moderate DASH forward
 
@@ -3059,10 +3435,12 @@
                         // Parabola: 4 * h * t * (1-t)
                         const jumpDuration = 0.5;
                         let jumpY = 0;
+
                         if (w.stateTimer < jumpDuration) {
                             const t = w.stateTimer / jumpDuration;
                             jumpY = 4.0 * 1.0 * t * (1.0 - t);
                         }
+
                         if (w.model) w.model.position.y = jumpY;
 
                         // 2. Head Shake (The "Tear" action)
@@ -3085,7 +3463,9 @@
                                     }
                                 }
                             }
-                        } else {
+                        }
+
+                        else {
                             // Reset head
                             w.head.rotation.y = 0;
                         }
@@ -3099,19 +3479,23 @@
                         }
                     }
 
-                } else {
+                }
+
+                else {
                     // Out of range -> Wander
                     w.combatState = 'wander';
                     w.eyesMat.color.setHex(0x000000); // Black Eyes
                     currentSpeed = 6.0;
 
                     w.wanderTimer -= dt;
+
                     if (w.wanderTimer <= 0) {
                         w.wanderTimer = 2.0 + Math.random() * 3.0;
                         const r = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
                         r.projectOnPlane(up).normalize();
                         w.wanderDir = r;
                     }
+
                     moveForce.add(w.wanderDir);
                 }
 
@@ -3119,6 +3503,7 @@
                 wolves.forEach(neighbor => {
                     if (w === neighbor) return;
                     const d = w.mesh.position.distanceTo(neighbor.mesh.position);
+
                     if (d < 1.25) {
                         const push = new THREE.Vector3().subVectors(w.mesh.position, neighbor.mesh.position).normalize();
                         moveForce.add(push.multiplyScalar(3.0 / (d + 0.1)));
@@ -3128,7 +3513,9 @@
                 // Collision: Wolf vs Followers
                 followers.forEach(f => {
                     const d = w.mesh.position.distanceTo(f.mesh.position);
-                    if (d < 0.9) { // Collision Radius
+
+                    if (d < 0.9) {
+                        // Collision Radius
                         const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
                         // Push follower away
                         f.mesh.position.add(pushDir.multiplyScalar(0.1)); // Directly nudge position
@@ -3146,6 +3533,7 @@
                             if (f.heldItem) {
                                 const item = f.heldItem;
                                 const mesh = item.sourceMesh;
+
                                 if (mesh && mesh.geometry) {
                                     const offsets = mesh.geometry.attributes.offset;
                                     const scales = mesh.geometry.attributes.scale;
@@ -3164,10 +3552,12 @@
                 // Collision: Wolf vs Player (PHYSICS ONLY, NO DAMAGE)
                 // Use larger radius for physics collision
                 const dPlayer = w.mesh.position.distanceTo(playerPos);
+
                 if (dPlayer < 1.0) {
                     const pushDir = new THREE.Vector3().subVectors(playerPos, w.mesh.position).normalize();
                     // Push Player 
                     carPhysics.pos.add(pushDir.multiplyScalar(0.05));
+
                     // Wolf bounce back (unless biting)
                     if (w.combatState !== 'bite_attack') {
                         moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
@@ -3181,7 +3571,9 @@
                     // Less control in air (bite_attack), otherwise snappy
                     const lerpFactor = w.combatState === 'bite_attack' ? 2.0 * dt : 3.0 * dt;
                     w.velocity.lerp(moveForce, lerpFactor);
-                } else {
+                }
+
+                else {
                     w.velocity.lerp(new THREE.Vector3(0, 0, 0), 3.0 * dt);
                 }
 
@@ -3208,6 +3600,7 @@
 
                 // Animation
                 const speed = w.velocity.length();
+
                 if (speed > 0.5 && w.combatState !== 'bite_attack') {
                     // Walking speed modulation
                     w.walkTime += dt * speed * 2.0;
@@ -3218,7 +3611,9 @@
                     w.br.rotation.x = s;
                     w.fr.rotation.x = -s;
                     w.bl.rotation.x = -s;
-                } else {
+                }
+
+                else {
                     // Legs straight during bite/idle
                     w.fl.rotation.x = 0;
                     w.br.rotation.x = 0;
@@ -3236,6 +3631,7 @@
 
             // Turn screen Black & White (Canvas only, so text stays Red)
             const canvas = document.querySelector('canvas');
+
             if (canvas) {
                 canvas.style.filter = 'grayscale(100%)';
             }
@@ -3259,8 +3655,11 @@
 
             setTimeout(() => {
                 location.reload();
-            }, 4000); // Increased wait for animation
+            }
+
+                , 4000); // Increased wait for animation
         }
+
 
         // --- Mobile Control Logic (Decoupled) ---
         const MobileController = {
@@ -3279,34 +3678,37 @@
 
                 // Inject CSS
                 const style = document.createElement('style');
-                style.innerHTML = `
-            .joystick-base {
-                position: absolute;
-                width: 120px;
-                height: 120px;
-                background: rgba(255, 255, 255, 0.15);
-                border: 2px solid rgba(255, 255, 255, 0.4);
-                border-radius: 50%;
-                display: none;
-                z-index: 9999;
-                pointer-events: none; /* User touches screen, we track via window but this visual should not block */
-                touch-action: none;
-                backdrop-filter: blur(4px);
-                box-sizing: border-box;
-            }
-            .joystick-knob {
-                position: absolute;
-                width: 50px;
-                height: 50px;
-                background: rgba(255, 255, 255, 0.8);
-                border-radius: 50%;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-                pointer-events: none;
-            }
-        `;
+
+                style.innerHTML = ` .joystick-base {
+                    position: absolute;
+                    width: 120px;
+                    height: 120px;
+                    background: rgba(255, 255, 255, 0.15);
+                    border: 2px solid rgba(255, 255, 255, 0.4);
+                    border-radius: 50%;
+                    display: none;
+                    z-index: 9999;
+                    pointer-events: none;
+                    /* User touches screen, we track via window but this visual should not block */
+                    touch-action: none;
+                    backdrop-filter: blur(4px);
+                    box-sizing: border-box;
+                }
+
+                .joystick-knob {
+                    position: absolute;
+                    width: 50px;
+                    height: 50px;
+                    background: rgba(255, 255, 255, 0.8);
+                    border-radius: 50%;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                    pointer-events: none;
+                }
+
+                `;
                 document.head.appendChild(style);
 
                 // Create Elements
@@ -3319,7 +3721,9 @@
 
                 // Attach Events
                 this.attachEvents();
-            },
+            }
+
+            ,
 
             attachEvents: function () {
                 let startX = 0, startY = 0;
@@ -3327,6 +3731,7 @@
 
                 // Use 'touchstart' on window to catch tapping anywhere
                 window.addEventListener('touchstart', (e) => {
+
                     // Prevent default if it's a multi-touch gesture to avoid zooming, 
                     // but we want to allow scrolling if not on joystick? 
                     // Actually, "Touch Drag Move" implies a game-like full screen control.
@@ -3349,7 +3754,11 @@
                     this.knob.style.transform = `translate(-50%, -50%)`;
 
                     this.moveVector.set(0, 0, 0);
-                }, { passive: false });
+                }
+
+                    , {
+                        passive: false
+                    });
 
                 window.addEventListener('touchmove', (e) => {
                     if (!this.active) return;
@@ -3370,7 +3779,15 @@
                         moveY *= ratio;
                     }
 
-                    this.knob.style.transform = `translate(-50%, -50%) translate(${moveX}px, ${moveY}px)`;
+                    this.knob.style.transform = `translate(-50%, -50%) translate($ {
+                            moveX
+                        }
+
+                        px, $ {
+                            moveY
+                        }
+
+                        px)`;
 
                     // Map to Logic Vector
                     // Visual Up (-dy) -> Logic Forward (+z)
@@ -3389,7 +3806,11 @@
                     // Clamp vector magnitude to 1.0 for consistency
                     if (this.moveVector.length() > 1) this.moveVector.normalize();
 
-                }, { passive: false });
+                }
+
+                    , {
+                        passive: false
+                    });
 
                 window.addEventListener('touchend', (e) => {
                     if (!this.active) return;
@@ -3400,16 +3821,21 @@
                     // Trigger Jump on release
                     this.jumpTrigger = true;
                 });
-            },
+            }
+
+            ,
 
             consumeJump: function () {
                 if (this.jumpTrigger) {
                     this.jumpTrigger = false;
                     return true;
                 }
+
                 return false;
             }
-        };
+        }
+
+            ;
 
         MobileController.init();
 
@@ -3429,10 +3855,12 @@
 
         function getVisualGeometry(originalGeo) {
             const clone = originalGeo.clone();
+
             // Map 'aColor' (Vertex Colors) to 'color' attribute for MeshBasicMaterial
             if (clone.attributes.aColor) {
                 clone.setAttribute('color', clone.attributes.aColor);
             }
+
             return clone;
         }
 
@@ -3484,6 +3912,7 @@
             if (characterContainer && characterContainer.children) {
                 for (let c = characterContainer.children.length - 1; c >= 0; c--) {
                     const child = characterContainer.children[c];
+
                     if (child.userData && child.userData.isPickup) {
                         characterContainer.remove(child);
                         if (child.geometry) child.geometry.dispose();
@@ -3493,7 +3922,10 @@
 
             // Create Visual
             const visGeo = getVisualGeometry(t.geo);
-            const visMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+
+            const visMat = new THREE.MeshBasicMaterial({
+                vertexColors: true, side: THREE.DoubleSide
+            });
             const visMesh = new THREE.Mesh(visGeo, visMat);
 
             // Tag it
@@ -3518,7 +3950,9 @@
                 originalScale: currentScale,
                 isAnimating: true,
                 animStartTime: lastPickupTime
-            };
+            }
+
+                ;
         }
 
         let lastStandTime = 0; // Track when we last stood still
@@ -3531,7 +3965,9 @@
                 // We are standing still (or moving very slowly)
                 lastStandTime = now;
                 return;
-            } else {
+            }
+
+            else {
                 // We are moving.
                 // Rule: Cannot pickup if we just started moving (within 1 second)
                 // This prevents picking up the item we just stood on/dropped instantly.
@@ -3544,10 +3980,20 @@
             // Global Cooldown check (short)
             // if (now - lastDropTime < 0.2) return; 
 
-            const targets = [
-                { mesh: stones, type: 'stone', geo: stoneGeo },
-                { mesh: twigs, type: 'twig', geo: twigGeo },
-                { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
+            const targets = [{
+                mesh: stones, type: 'stone', geo: stoneGeo
+            }
+
+                ,
+            {
+                mesh: twigs, type: 'twig', geo: twigGeo
+            }
+
+                ,
+            {
+                mesh: mushrooms, type: 'mushroom', geo: mushGeo
+            }
+
             ];
 
             // Find closest candidate
@@ -3581,17 +4027,24 @@
 
                     if (d < closestDist) {
                         closestDist = d;
-                        candidate = { t: t, i: i, scale: scales.getX(i) };
+
+                        candidate = {
+                            t: t, i: i, scale: scales.getX(i)
+                        }
+
+                            ;
                     }
                 }
             }
 
             if (candidate) {
+
                 // If we are holding something, swap it!
                 if (heldItem) {
                     // Drop current item AT CURRENT FEET
                     dropItem(pos, true);
                 }
+
                 // Pick up new item
                 pickupItem(candidate.t, candidate.i, candidate.scale);
             }
@@ -3612,15 +4065,21 @@
                 const waterRadius = planetRadius + seaLevelRef;
 
                 updateExplosions(dt);
+
                 try {
                     updateWolves(dt);
-                } catch (e) { console.error("Wolf Error", e); }
+                }
+
+                catch (e) {
+                    console.error("Wolf Error", e);
+                }
 
                 // updateFollowers(dt); // Moved to end
 
                 // Resource Replenishment (60s)
                 if (!window.resourceTimer) window.resourceTimer = 0;
                 window.resourceTimer += dt;
+
                 if (window.resourceTimer > 60.0) {
                     window.resourceTimer = 0;
                     replenishResources();
@@ -3638,7 +4097,8 @@
                 }
 
                 // --- DIRECT MOVEMENT LOGIC (Omnidirectional) ---
-                if (isDead) { // Death Animation
+                if (isDead) {
+                    // Death Animation
                     keys.w = keys.s = keys.a = keys.d = keys[" "] = false; // Disable Input logic
 
                     // Init death timer
@@ -3667,7 +4127,9 @@
                     // Use 1.0 offset (Chest/Waist) to match Follower sensitivity
                     if (isPositionInWater(carPhysics.pos, 1.0)) {
                         carPhysics.waterTime += dt;
-                    } else {
+                    }
+
+                    else {
                         // Gradual Oxygen Recovery (Fast: 2s full recovery)
                         carPhysics.waterTime = Math.max(0, carPhysics.waterTime - dt * 10.0);
                     }
@@ -3682,7 +4144,10 @@
                         if (carPhysics.waterTime > 10.0) {
                             handleDeath();
                         }
-                    } else {
+                    }
+
+                    else {
+
                         // Smooth Recovery
                         if (charMat.color.r < 1.0) {
                             let c = charMat.color.r + dt * 0.5;
@@ -3700,8 +4165,10 @@
 
                     // --- Mobile Input Integration ---
                     isJumpActive = keys[" "];
+
                     if (MobileController.isMobile) {
                         moveDir.add(MobileController.moveVector);
+
                         if (MobileController.consumeJump()) {
                             isJumpActive = true;
                         }
@@ -3743,7 +4210,9 @@
                     const amp = 0.8;
                     leftLeg.rotation.x = Math.sin(playerWalkTime) * amp;
                     rightLeg.rotation.x = -Math.sin(playerWalkTime) * amp;
-                } else {
+                }
+
+                else {
                     const t = dt * 10.0;
                     leftLeg.rotation.x = leftLeg.rotation.x * (1.0 - t);
                     rightLeg.rotation.x = rightLeg.rotation.x * (1.0 - t);
@@ -3755,6 +4224,7 @@
 
                 // Resistance / Drag when in water
                 const distCenter = carPhysics.pos.length();
+
                 if (distCenter < waterRadius) {
                     globalMove.multiplyScalar(0.6);
                 }
@@ -3762,7 +4232,15 @@
                 carPhysics.pos.add(globalMove);
 
                 // DEBUG: Title
-                document.title = `CarPos: ${carPhysics.pos.x.toFixed(1)} | JumpSignal: ${window.playerDidJumpGlobal}`;
+                document.title = `CarPos: $ {
+                    carPhysics.pos.x.toFixed(1)
+                }
+
+                | JumpSignal: $ {
+                    window.playerDidJumpGlobal
+                }
+
+                `;
 
                 const skyPos = carPhysics.pos.clone().normalize().multiplyScalar(planetRadius + 50);
                 const rayDir = new THREE.Vector3(0, 0, 0).sub(skyPos).normalize();
@@ -3822,7 +4300,9 @@
                             dropItem(carPhysics.pos);
                             // DUST FX
                             spawnJumpDust(carPhysics.pos);
-                        } else {
+                        }
+
+                        else {
                             carPhysics.vSpeed = 0;
                         }
                     }
@@ -3831,6 +4311,7 @@
 
                     // Water Surface Collision (Ceiling)
                     const surfaceLimit = waterRadius - 1.2;
+
                     if (groundH < surfaceLimit && newH > surfaceLimit) {
                         newH = surfaceLimit;
                         if (carPhysics.vSpeed > 0) carPhysics.vSpeed = 0;
@@ -3843,6 +4324,7 @@
                     if (chestMesh) {
                         const dist = finalPos.distanceTo(chestMesh.position);
                         const minDist = 2.4; // Matches new radius 2.0 + ~0.4 player size
+
                         if (dist < minDist) {
                             const dir = new THREE.Vector3().subVectors(finalPos, chestMesh.position).normalize();
                             finalPos.copy(chestMesh.position).add(dir.multiplyScalar(minDist));
@@ -3863,10 +4345,8 @@
                     let airFactor = Math.min(distToGround / 2.0, 1.0);
                     if (isUnderwater) airFactor = Math.max(airFactor, 0.5);
 
-                    const blendedTargetUp = new THREE.Vector3().addVectors(
-                        floorNormal.multiplyScalar(1.0 - airFactor),
-                        sphereNormal.multiplyScalar(airFactor)
-                    ).normalize();
+                    const blendedTargetUp = new THREE.Vector3().addVectors(floorNormal.multiplyScalar(1.0 - airFactor),
+                        sphereNormal.multiplyScalar(airFactor)).normalize();
 
                     carPhysics.smoothedUp.lerp(blendedTargetUp, 5.0 * dt);
                     carPhysics.smoothedUp.normalize();
@@ -3893,20 +4373,31 @@
                 // Moved here to receive Jump Signal
                 try {
                     updateFollowers(dt);
-                } catch (e) { console.error("Follower Error", e); }
+                }
+
+                catch (e) {
+                    console.error("Follower Error", e);
+                }
 
                 // --- Pickup Animation & Logic ---
                 // Add Try-Catch for pickup specifically if it's suspicious
                 try {
                     tryPickup(carPhysics.pos);
-                } catch (e) { console.error("Pickup Error", e); }
+                }
+
+                catch (e) {
+                    console.error("Pickup Error", e);
+                }
 
                 if (heldItem && heldItem.isAnimating) {
                     const t = (clock.getElapsedTime() - heldItem.animStartTime) / 0.3; // 0.3s transition
+
                     if (t >= 1.0) {
                         heldItem.mesh.position.set(0, 2.5, 0);
                         heldItem.isAnimating = false;
-                    } else {
+                    }
+
+                    else {
                         heldItem.mesh.position.lerpVectors(new THREE.Vector3(0, 0.5, 1.5), new THREE.Vector3(0, 2.5, 0), t);
                     }
                 }
@@ -3915,18 +4406,22 @@
                 // --- Follower Storage Logic ---
                 if (!lastFollowerStoreTime) lastFollowerStoreTime = 0;
                 const currentTime = clock.getElapsedTime();
+
                 if (currentTime - lastFollowerStoreTime > 5.0) {
-                    if (chestInventory.followers < 5) {
+                    if ((chestInventory.followers || 0) + followers.length < 5) {
                         chestInventory.followers++;
                     }
+
                     lastFollowerStoreTime = currentTime;
                 }
 
                 updateFlyingItems(dt);
                 updateChestLogic(carPhysics.pos);
+                updateDormLabel();
 
                 // --- Arrow Navigation Logic (2D HUD) ---
                 const distToChest = chestMesh ? carPhysics.pos.distanceTo(chestMesh.position) : 0;
+
                 // Hide if close (User Request: "箱子距离玩家比较近的时候箭头消失") - Increased to 20.0
                 if (chestMesh && !isDead && distToChest > 20.0) {
                     hudArrow.style.display = 'block';
@@ -3954,6 +4449,7 @@
                     const absY = Math.abs(y);
 
                     let scale = 1.0;
+
                     if (absX > 0.001 || absY > 0.001) {
                         // Find the smallest scale factor that pushes (x,y) to the nearest edge (margin)
                         // But actually we want the INTERSECTION with the box.
@@ -4001,9 +4497,15 @@
                     // Rotation = angle + 90.
                     const rotDeg = rotRad * (180 / Math.PI) + 90;
 
-                    hudArrow.style.transform = `translate(-50%, -50%) rotate(${rotDeg}deg)`;
+                    hudArrow.style.transform = `translate(-50%, -50%) rotate($ {
+                            rotDeg
+                        }
 
-                } else {
+                        deg)`;
+
+                }
+
+                else {
                     hudArrow.style.display = 'none';
                 }
 
@@ -4038,7 +4540,9 @@
                 if (camera.position.length() < 10) {
                     camera.position.copy(idealCameraPos);
                     cameraLookAtCurrent.copy(idealLookAt);
-                } else {
+                }
+
+                else {
                     camera.position.lerp(idealCameraPos, camPosLerp);
                     cameraLookAtCurrent.lerp(idealLookAt, 0.05);
                 }
@@ -4060,11 +4564,14 @@
 
                 // Underwater Fog
                 const camDist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+
                 if (camDist < waterRadius) {
                     scene.fog.color.setHex(0x006677);
                     scene.fog.near = 1;
                     scene.fog.far = 30;
-                } else {
+                }
+
+                else {
                     scene.fog.color.setHex(0x000000);
                     scene.fog.near = 20;
                     scene.fog.far = 150;
@@ -4074,7 +4581,9 @@
 
                 renderer.render(scene, camera);
 
-            } catch (err) {
+            }
+
+            catch (err) {
                 console.error("Animate Loop Error: ", err);
                 const div = document.createElement('div');
                 div.style.position = 'fixed';
