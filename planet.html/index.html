@@ -1604,7 +1604,7 @@
 
         // Layered Conical Roof (3 Layers)
         const roofLayers = 3;
-        const roofBaseRadius = 2.4;
+        const roofBaseRadius = 2.2; // Reduced Radius (2.4 -> 2.2)
         const roofHeightPerLayer = 0.5;
         const roofOverlap = 0.1;
 
@@ -1867,7 +1867,7 @@
                 const types = ['stone', 'twig', 'mushroom', 'followers'];
                 types.forEach(type => {
                     const count = chestInventory[type] || 0;
-                    if (type === 'followers' && count === 0) return; // Hide if no followers stored
+                    // if (type === 'followers' && count === 0) return; // Always show followers
 
                     // Icon
                     const img = document.createElement('img');
