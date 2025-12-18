@@ -102,7 +102,7 @@
 
     <!-- Dormitory Label (Floating UI) -->
     <div id="dormLabel"></div>
-    <div style="position: absolute; top: 20px; left: 20px; z-index: 9999; pointer-events: none;"> <a
+    <div style="position: absolute; top: 20px; right: 20px; z-index: 9999; pointer-events: none;"> <a
             href="../index.html/index.html"
             style="color: white; text-decoration: none; font-size: 14px; font-weight: bold; font-family: 'Arial', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;">tofusoup.cc</a>
     </div>
@@ -1697,37 +1697,35 @@
         // --- Chest Implementation ---
 
         // 1. UI Bubble
+        // Create Task List UI (replaces chestBubble)
         const chestBubble = document.createElement('div');
-        chestBubble.id = 'chestBubble';
-        chestBubble.style.position = 'absolute';
+        chestBubble.id = 'taskListUI';
+        chestBubble.style.position = 'absolute'; // Fixed top-left
+        chestBubble.style.top = '20px';
+        chestBubble.style.left = '20px';
         chestBubble.style.zIndex = '100';
-        chestBubble.style.padding = '2px 5px'; // Reduced 50%
-        chestBubble.style.background = 'rgba(255, 255, 255, 0.95)';
-        chestBubble.style.borderRadius = '6px'; // Reduced 50%
+        chestBubble.style.padding = '10px 15px';
+        chestBubble.style.background = 'rgba(0, 0, 0, 0.6)'; // Dark HUD
+        chestBubble.style.borderRadius = '12px';
         chestBubble.style.pointerEvents = 'none';
-        chestBubble.style.display = 'none';
-        chestBubble.style.color = '#333';
-        chestBubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'; // Reduced shadow
-        chestBubble.style.minWidth = 'auto'; // Shrink to fit content
+        chestBubble.style.display = 'block'; // Always visible
+        chestBubble.style.color = '#fff';
+        chestBubble.style.backdropFilter = 'blur(4px)';
+        chestBubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
 
-        // Add Triangle indicator
-        const bubbleArrow = document.createElement('div');
-        bubbleArrow.style.position = 'absolute';
-        bubbleArrow.style.bottom = '-2px'; // Reduced 50% (adjusted to -2px to fix gap)
-        bubbleArrow.style.left = '50%';
-        bubbleArrow.style.marginLeft = '-3px'; // Reduced 50%
-        bubbleArrow.style.width = '0';
-        bubbleArrow.style.height = '0';
-        bubbleArrow.style.borderLeft = '3px solid transparent'; // Reduced 50%
-        bubbleArrow.style.borderRight = '3px solid transparent'; // Reduced 50%
-        bubbleArrow.style.borderTop = '3px solid rgba(255, 255, 255, 0.95)'; // Reduced 50%
-        chestBubble.appendChild(bubbleArrow);
+        // Optional Title
+        // const title = document.createElement('div');
+        // title.textContent = "Current Tasks";
+        // title.style.fontSize = '12px';
+        // title.style.opacity = '0.8';
+        // title.style.marginBottom = '5px';
+        // chestBubble.appendChild(title);
 
         // Inventory Container
         const inventoryGrid = document.createElement('div');
         inventoryGrid.style.display = 'grid';
         inventoryGrid.style.gridTemplateColumns = 'auto 1fr';
-        inventoryGrid.style.gap = '0px 5px'; // Reduced 50%
+        inventoryGrid.style.gap = '5px 8px'; // Increased gap
         inventoryGrid.style.alignItems = 'center';
         chestBubble.appendChild(inventoryGrid);
 
@@ -1738,10 +1736,9 @@
             stone: 0,
             twig: 0,
             mushroom: 0,
-            followers: 0 // Stored followers
-        }
+            followers: 5 // Stored followers (Start full since none on map)
+        };
 
-            ;
         let lastChestDepositTime = 0;
         let lastFollowerStoreTime = 0; // Timer for storing followers
         const chestPos = new THREE.Vector3(0, planetRadius, 15.0); // Z+15
@@ -2000,6 +1997,7 @@
         const flyingItems = [];
 
         const dormLabel = document.getElementById('dormLabel');
+        const labelRaycaster = new THREE.Raycaster();
 
         function updateDormLabel() {
             if (!dormLabel || !cottage) return;
@@ -2015,6 +2013,33 @@
 
             // Position (Higher than chest bubble)
             const worldPos = cottage.position.clone().add(new THREE.Vector3(0, 4.5, 0));
+
+            // Occlusion Check using Raycaster
+            // Ray from Camera to Label
+            const direction = worldPos.clone().sub(camera.position);
+            const distance = direction.length();
+            direction.normalize();
+
+            labelRaycaster.set(camera.position, direction);
+
+            // Objects to check for occlusion: Planet and Trees
+            // Note: trees is InstancedMesh, raycasting works natively in newer Three.js
+            const occluders = [];
+            if (planet) occluders.push(planet);
+            if (typeof trees !== 'undefined' && trees) occluders.push(trees);
+
+            const intersects = labelRaycaster.intersectObjects(occluders, false);
+
+            let isOccluded = false;
+            if (intersects.length > 0) {
+                // If the closest intersection is closer than the label, it is occluded
+                // Add a small buffer to prevent z-fighting flicker if co-planar
+                if (intersects[0].distance < distance - 0.5) {
+                    isOccluded = true;
+                }
+            }
+
+            // Project to 2D
             worldPos.project(camera);
 
             const x = (worldPos.x * 0.5 + 0.5) * window.innerWidth;
@@ -2023,7 +2048,22 @@
             dormLabel.style.left = x + 'px';
             dormLabel.style.top = y + 'px';
 
-            dormLabel.style.display = 'flex';
+            // Visibility Logic: Frustum Check + Occlusion + Behind Camera Check
+            // worldPos.z > 1 means behind camera in NDC (if projected correctly?)
+            // Actually, we should check dot product or frustum.
+            // Using the computed NDC z:
+
+            if (isOccluded || Math.abs(worldPos.z) > 1.0) {
+                dormLabel.style.opacity = '0.2'; // Fade out instead of hide, or hide? User said "occluded".
+                // Let's try opacity 0.1 to indicate it's there but blocked, or display none.
+                // "能被遮挡" usually implies visual blockage.
+                // Let's hide it completely or make it very faint.
+                // The screenshot shows a "clean" look. Let's hide it.
+                dormLabel.style.display = 'none';
+            } else {
+                dormLabel.style.display = 'flex';
+                dormLabel.style.opacity = '1';
+            }
         }
 
         function updateFlyingItems(dt) {
@@ -2065,104 +2105,53 @@
         }
 
         function updateChestLogic(playerPos) {
+            // --- 1. Update UI (Task List) - Always Visible ---
+            // Rebuild Inventory Grid Content
+            inventoryGrid.innerHTML = '';
+
+            // For each item type
+            const types = ['twig', 'mushroom'];
+
+            types.forEach(type => {
+                let count = chestInventory[type] || 0;
+                // Icon
+                const img = document.createElement('img');
+                img.src = itemIcons[type] || '';
+                img.style.width = '24px'; // Slightly smaller for HUD
+                img.style.height = '24px';
+                img.style.objectFit = 'contain';
+
+                // Count
+                const txt = document.createElement('span');
+                const max = 10;
+                txt.textContent = `${count}/${max}`;
+                txt.style.fontSize = '14px';
+                txt.style.fontWeight = 'bold';
+                txt.style.marginLeft = '5px';
+
+                inventoryGrid.appendChild(img);
+                inventoryGrid.appendChild(txt);
+            });
+
+            // --- 2. Interaction Logic (Distance Based) ---
             const dist = playerPos.distanceTo(chestMesh.position);
             const interactRange = 3.0;
 
             if (dist < interactRange) {
-                // Show Bubble
-                chestBubble.style.display = 'block';
-
-                // Rebuild Inventory Grid Content
-                // Clear current
-                inventoryGrid.innerHTML = '';
-
-                // For each item type
-                // For each item type
-                const types = ['twig', 'mushroom']; // Followers moved to Dorm Label
-
-                types.forEach(type => {
-                    let count = chestInventory[type] || 0;
-
-                    if (type === 'followers') {
-                        count += followers.length; // Limit includes active followers
-                    }
-
-                    // Icon
-                    const img = document.createElement('img');
-
-                    if (type === 'followers') {
-                        // User a div for consistency
-                    }
-
-                    else {
-                        img.src = itemIcons[type] || '';
-                    }
-
-                    img.style.width = '32px'; // Larger Icons
-                    img.style.height = '32px';
-                    img.style.objectFit = 'contain';
-                    img.style.margin = '-2px';
-
-                    // Count
-                    const txt = document.createElement('span');
-                    const max = (type === 'followers') ? 5 : 10;
-
-                    const displayCount = `${count}/${max}`;
-                    txt.textContent = displayCount; // Removed Duplicate Emoji prefix
-                    txt.style.fontSize = '12px'; // Larger Text
-                    txt.style.fontWeight = 'bold';
-
-                    if (type === 'followers') {
-                        const followerIcon = document.createElement('div');
-                        followerIcon.textContent = '👤';
-                        followerIcon.style.fontSize = '20px'; // Larger Emoji
-                        followerIcon.style.display = 'flex';
-                        followerIcon.style.alignItems = 'center';
-                        followerIcon.style.justifyContent = 'center';
-                        followerIcon.style.width = '32px';
-                        followerIcon.style.height = '32px';
-                        inventoryGrid.appendChild(followerIcon);
-                    }
-
-                    else {
-                        inventoryGrid.appendChild(img);
-                    }
-
-                    inventoryGrid.appendChild(txt);
-                });
-
-
-                // Project Position
-                // Bubble floats above chest (Reduced height from 2.5 to 1.8 to fix "too high")
-                const bubbleWorldPos = chestMesh.position.clone().add(chestMesh.position.clone().normalize().multiplyScalar(2.8));
-                const p = bubbleWorldPos.clone();
-                p.project(camera);
-
-                const x = (p.x * 0.5 + 0.5) * window.innerWidth;
-                const y = -(p.y * 0.5 - 0.5) * window.innerHeight;
-
-                chestBubble.style.left = x + 'px';
-                chestBubble.style.top = y + 'px';
-                chestBubble.style.transform = 'translate(-50%, -100%)';
-
                 // Interaction: Deposit
                 if (heldItem) {
                     const now = clock.getElapsedTime();
 
                     if (now - lastChestDepositTime > 1.0) {
-
                         // Transition Effect
                         if (heldItem.mesh) {
-                            // Transfer to Scene World Space
                             scene.attach(heldItem.mesh);
-
                             flyingItems.push({
                                 mesh: heldItem.mesh,
                                 target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
                                 type: heldItem.type
                             });
                         }
-
                         heldItem = null;
                         lastChestDepositTime = now;
                     }
@@ -2171,7 +2160,6 @@
                 // Interaction: Release Stored Followers
                 if (chestInventory.followers > 0) {
                     const now = clock.getElapsedTime();
-                    // Release one every 0.5s when player is near
                     if (!window.lastFollowerReleaseTime) window.lastFollowerReleaseTime = 0;
 
                     if (now - window.lastFollowerReleaseTime > 0.5) {
@@ -2180,11 +2168,6 @@
                         window.lastFollowerReleaseTime = now;
                     }
                 }
-
-            }
-
-            else {
-                chestBubble.style.display = 'none';
             }
         }
 
@@ -2250,32 +2233,6 @@
                 ;
         }
 
-        function spawnFollowers(count) {
-            // Spawn followers exactly at Bush locations
-            const bushOffsets = bushes.geometry.attributes.offset;
-            // Get actual number of valid bushes (scales > 0, or just check position magnitude)
-            // scatterObjects fills sequentially, so we just iterate up to count or valid bushes.
-
-            const limit = Math.min(count, bushOffsets.count);
-            let spawned = 0;
-
-            for (let i = 0; i < limit; i++) {
-                const x = bushOffsets.getX(i);
-                const y = bushOffsets.getY(i);
-                const z = bushOffsets.getZ(i);
-
-                // Validation: Ensure bush exists (not 0,0,0)
-                if (Math.abs(x) < 0.1 && Math.abs(y) < 0.1 && Math.abs(z) < 0.1) continue;
-
-                const pos = new THREE.Vector3(x, y, z);
-                followers.push(createFollower(pos));
-                spawned++;
-            }
-
-            console.log("Spawned " + spawned + " followers in bushes.");
-        }
-
-        spawnFollowers(5); // Reduced initial count to 5
 
         function respawnFollowerAtChest() {
             if (!chestMesh) return;
@@ -4497,11 +4454,7 @@
                     // Rotation = angle + 90.
                     const rotDeg = rotRad * (180 / Math.PI) + 90;
 
-                    hudArrow.style.transform = `translate(-50%, -50%) rotate($ {
-                            rotDeg
-                        }
-
-                        deg)`;
+                    hudArrow.style.transform = `translate(-50%, -50%) rotate(${rotDeg}deg)`;
 
                 }
 
