@@ -1528,16 +1528,17 @@
         let playerWalkTime = 0;
 
         const handleKeyDown = (e) => {
-            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k)) keys[k] = true;
+            if (e.key === ' ') keys[" "] = true;
         }
-
-            ;
 
         const handleKeyUp = (e) => {
-            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+            const k = e.key.toLowerCase();
+            if (keys.hasOwnProperty(k)) keys[k] = false;
+            if (e.key === ' ') keys[" "] = false;
         }
 
-            ;
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
@@ -1584,15 +1585,79 @@
         const chestInventory = {
             stone: 0,
             twig: 0,
-            mushroom: 0
+            mushroom: 0,
+            followers: 0 // Stored followers
         };
         let lastChestDepositTime = 0;
+        let lastFollowerStoreTime = 0; // Timer for storing followers
         const chestPos = new THREE.Vector3(0, planetRadius, 15.0); // Z+15
 
-        // 3. Chest Mesh
-        const chestGeo = new THREE.BoxGeometry(2.0, 1.5, 1.5);
-        const chestMat = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
-        const chestMesh = new THREE.Mesh(chestGeo, chestMat);
+        // 3. Chest Mesh (Thatched Cottage)
+        const cottage = new THREE.Group();
+
+        // House Body (Cylinder - Further Increased Radius)
+        const cottageBodyGeo = new THREE.CylinderGeometry(2.0, 2.0, 1.6, 32);
+        const cottageBodyMat = new THREE.MeshBasicMaterial({ color: 0x957A65 }); // Warmer earthy brown like reference
+        const cottageBodyMesh = new THREE.Mesh(cottageBodyGeo, cottageBodyMat);
+        cottageBodyMesh.position.y = 0.8;
+        cottage.add(cottageBodyMesh);
+
+        // Layered Conical Roof (3 Layers)
+        const roofLayers = 3;
+        const roofBaseRadius = 2.4;
+        const roofHeightPerLayer = 0.5;
+        const roofOverlap = 0.1;
+
+        // Colors from reference: Bottom darker -> Top lighter
+        const roofColors = [0xCFB075, 0xEAC987, 0xF9E4B0];
+
+        for (let i = 0; i < roofLayers; i++) {
+            const r = roofBaseRadius * (1.0 - i * 0.25); // Decrease radius: 2.4 -> 1.8 -> 1.2
+            // Height moves up - Lifted slightly (2.0 -> 2.2)
+            const h = 2.2 + i * (roofHeightPerLayer - roofOverlap);
+
+            const layerGeo = new THREE.ConeGeometry(r, roofHeightPerLayer * 2.5, 32); // Slightly taller cones for overlap look
+
+            // Use specific color for each layer
+            const col = roofColors[i] || 0xCEB180;
+            const layerMat = new THREE.MeshBasicMaterial({ color: col });
+
+            const layerMesh = new THREE.Mesh(layerGeo, layerMat);
+            layerMesh.position.y = h;
+            cottage.add(layerMesh);
+        }
+
+        // Door Frame (Semi-Cylinder / Arch) - Re-thought
+        // Geometry: TopRadius, BottomRadius, Height(Depth), Segments, HeightSeg, Open, ThetaStart, ThetaLen
+        // We want a "Tunnel" shape along Z axis.
+        // Cylinder default axis is Y. Rotate X -90 makes it Z.
+        // Theta 0..PI creates a half-cylinder. We need to orient the flat side down.
+        const doorFrameGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.2, 32, 1, false, 0, Math.PI);
+        const doorFrameMat = new THREE.MeshBasicMaterial({ color: 0x5D4037 });
+        const doorFrame = new THREE.Mesh(doorFrameGeo, doorFrameMat);
+
+        // Position: Ground(Y=0), Protruding(Z=1.8) - Retracted further
+        // Rotation: User requested Y+90, then Z+90
+        doorFrame.position.set(0, 0, 1.8);
+        doorFrame.rotation.set(0, Math.PI / 2, Math.PI / 2);
+
+        cottage.add(doorFrame);
+
+        // Door (Inner Block)
+        // Slightly recessed or flush? Image implies simple filled arch.
+        const doorGeo = new THREE.CylinderGeometry(0.7, 0.7, 1.25, 32, 1, false, 0, Math.PI);
+        const doorMat = new THREE.MeshBasicMaterial({ color: 0x3E2723 });
+        const door = new THREE.Mesh(doorGeo, doorMat);
+
+        door.position.set(0, 0, 1.85);
+        // Actually, frame should contain door. Let's align centers.
+        // Let's make door "inside" frame.
+        // If frame is Z=2.3 (depth 1.2 -> 1.7 to 2.9).
+        // Door Z=2.35 (depth 1.25 -> 1.725 to 2.975).
+        door.rotation.set(0, Math.PI / 2, Math.PI / 2);
+        cottage.add(door);
+
+        const chestMesh = cottage;
         scene.add(chestMesh);
 
         // 4. Precise Terrain Height Logic (Copied from Terrain Pipeline)
@@ -1639,9 +1704,26 @@
 
         // Init Chest Pos
         const groundH = getSurfaceHeight(chestPos.x, chestPos.y, chestPos.z);
-        chestPos.normalize().multiplyScalar(groundH + 0.75);
+        chestPos.normalize().multiplyScalar(groundH);
         chestMesh.position.copy(chestPos);
-        chestMesh.lookAt(new THREE.Vector3(0, 0, 0));
+
+        // Orient to stand upright on the sphere (Perpendicular to Earth's center)
+        const radialUp = chestPos.clone().normalize();
+
+        // Define "North" as the NEW door-facing direction (Rotated 180)
+        const southTangent = new THREE.Vector3(0, 1, 0).projectOnPlane(radialUp).normalize();
+
+        // Handle pole case where projectOnPlane might fail
+        if (southTangent.lengthSq() < 0.01) {
+            southTangent.copy(new THREE.Vector3(0, 0, 1)).projectOnPlane(radialUp).normalize();
+        }
+
+        // Create orthonormal basis: Y = Up, Z = South (Door), X = Right
+        const eastRight = new THREE.Vector3().crossVectors(radialUp, southTangent).normalize();
+        const orientMatrix = new THREE.Matrix4().makeBasis(eastRight, radialUp, southTangent);
+
+        chestMesh.quaternion.setFromRotationMatrix(orientMatrix);
+        chestMesh.updateMatrixWorld();
 
         // 5. Icon Generation
         const itemIcons = {};
@@ -1782,26 +1864,46 @@
                 inventoryGrid.innerHTML = '';
 
                 // For each item type
-                const types = ['stone', 'twig', 'mushroom'];
+                const types = ['stone', 'twig', 'mushroom', 'followers'];
                 types.forEach(type => {
                     const count = chestInventory[type] || 0;
+                    if (type === 'followers' && count === 0) return; // Hide if no followers stored
 
-                    // Icon (Reduced Size: 48 -> 24)
+                    // Icon
                     const img = document.createElement('img');
-                    img.src = itemIcons[type] || '';
-                    img.style.width = '24px'; // Reduced 50%
-                    img.style.height = '24px'; // Reduced 50%
-                    img.style.objectFit = 'contain';
-                    img.style.margin = '-4px'; // Reduced 50%
+                    if (type === 'followers') {
+                        // Use a simple proxy for followers or a custom label
+                        // Since we don't have an icon for followers, let's use a text emoji or similar
+                        // actually we can just use a div with a circle
+                    } else {
+                        img.src = itemIcons[type] || '';
+                    }
 
+                    img.style.width = '24px';
+                    img.style.height = '24px';
+                    img.style.objectFit = 'contain';
+                    img.style.margin = '-4px';
 
                     // Count
                     const txt = document.createElement('span');
-                    txt.textContent = `${count}`;
-                    txt.style.fontSize = '9px'; // Reduced 50% (18 -> 9)
+                    const displayCount = type === 'followers' ? `${count}/5` : `${count}`;
+                    txt.textContent = (type === 'followers' ? '👤 ' : '') + displayCount;
+                    txt.style.fontSize = '9px';
                     txt.style.fontWeight = 'bold';
 
-                    inventoryGrid.appendChild(img);
+                    if (type === 'followers') {
+                        const followerIcon = document.createElement('div');
+                        followerIcon.textContent = '👤';
+                        followerIcon.style.fontSize = '14px';
+                        followerIcon.style.display = 'flex';
+                        followerIcon.style.alignItems = 'center';
+                        followerIcon.style.justifyContent = 'center';
+                        followerIcon.style.width = '24px';
+                        followerIcon.style.height = '24px';
+                        inventoryGrid.appendChild(followerIcon);
+                    } else {
+                        inventoryGrid.appendChild(img);
+                    }
                     inventoryGrid.appendChild(txt);
                 });
 
@@ -1838,6 +1940,18 @@
 
                         heldItem = null;
                         lastChestDepositTime = now;
+                    }
+                }
+
+                // Interaction: Release Stored Followers
+                if (chestInventory.followers > 0) {
+                    const now = clock.getElapsedTime();
+                    // Release one every 0.5s when player is near
+                    if (!window.lastFollowerReleaseTime) window.lastFollowerReleaseTime = 0;
+                    if (now - window.lastFollowerReleaseTime > 0.5) {
+                        chestInventory.followers--;
+                        respawnFollowerAtChest();
+                        window.lastFollowerReleaseTime = now;
                     }
                 }
 
@@ -1928,16 +2042,14 @@
             console.log("Spawned " + spawned + " followers in bushes.");
         }
 
-        spawnFollowers(50); // Increased count to 50
+        spawnFollowers(5); // Reduced initial count to 5
 
         function respawnFollowerAtChest() {
             if (!chestMesh) return;
-            // Random pos around chest radius 2-4
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 2.0 + Math.random() * 2.0;
-            // Chest is on a sphere, so adding X/Z offset is "tangent-ish" valid for small distances
-            const offset = new THREE.Vector3(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
-            const spawnPos = chestMesh.position.clone().add(offset);
+
+            // Spawn outside the wall: Local Z+ direction (Z=2.4 is slightly away from wall radius 2.0)
+            const localDoorPos = new THREE.Vector3(0, 0, 2.4);
+            const spawnPos = localDoorPos.applyMatrix4(chestMesh.matrixWorld);
 
             // Snap to Ground
             const h = getSurfaceHeight(spawnPos.x, spawnPos.y, spawnPos.z);
@@ -2088,9 +2200,9 @@
                 // Chest Collision (Followers)
                 if (chestMesh) {
                     const fDist = f.mesh.position.distanceTo(chestMesh.position);
-                    if (fDist < 1.5) { // Match Player Collision Radius
+                    if (fDist < 2.4) { // Updated to match Player Collision Radius (Body 2.0 + Buffer)
                         const pushDir = new THREE.Vector3().subVectors(f.mesh.position, chestMesh.position).normalize();
-                        f.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(1.5));
+                        f.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(2.4));
                     }
                 }
 
@@ -3500,7 +3612,10 @@
                 const waterRadius = planetRadius + seaLevelRef;
 
                 updateExplosions(dt);
-                updateWolves(dt);
+                try {
+                    updateWolves(dt);
+                } catch (e) { console.error("Wolf Error", e); }
+
                 // updateFollowers(dt); // Moved to end
 
                 // Resource Replenishment (60s)
@@ -3517,8 +3632,8 @@
                         scene.remove(followers[i].mesh);
                         followers.splice(i, 1);
 
-                        // Respawn
-                        respawnFollowerAtChest();
+                        // Respawn disabled as per user request
+                        // respawnFollowerAtChest();
                     }
                 }
 
@@ -3727,7 +3842,7 @@
                     // Chest Collision
                     if (chestMesh) {
                         const dist = finalPos.distanceTo(chestMesh.position);
-                        const minDist = 1.5; // Increased Collision Radius (User Request)
+                        const minDist = 2.4; // Matches new radius 2.0 + ~0.4 player size
                         if (dist < minDist) {
                             const dir = new THREE.Vector3().subVectors(finalPos, chestMesh.position).normalize();
                             finalPos.copy(chestMesh.position).add(dir.multiplyScalar(minDist));
@@ -3776,7 +3891,9 @@
                 vegMaterial.uniforms.time.value = clock.getElapsedTime();
 
                 // Moved here to receive Jump Signal
-                updateFollowers(dt);
+                try {
+                    updateFollowers(dt);
+                } catch (e) { console.error("Follower Error", e); }
 
                 // --- Pickup Animation & Logic ---
                 // Add Try-Catch for pickup specifically if it's suspicious
@@ -3795,6 +3912,16 @@
                 }
 
                 // --- Chest Logic ---
+                // --- Follower Storage Logic ---
+                if (!lastFollowerStoreTime) lastFollowerStoreTime = 0;
+                const currentTime = clock.getElapsedTime();
+                if (currentTime - lastFollowerStoreTime > 5.0) {
+                    if (chestInventory.followers < 5) {
+                        chestInventory.followers++;
+                    }
+                    lastFollowerStoreTime = currentTime;
+                }
+
                 updateFlyingItems(dt);
                 updateChestLogic(carPhysics.pos);
 
@@ -3974,7 +4101,7 @@
         const composer = new THREE.EffectComposer(renderer);
         const renderPass = new THREE.RenderPass(scene, camera);
         composer.addPass(renderPass);
-
+ 
         const bokehPass = new THREE.BokehPass(scene, camera, {
             focus: 35.0,      
             aperture: 0.0001, 
