@@ -2063,52 +2063,60 @@
         const dormLabel = document.getElementById('dormLabel');
         const labelRaycaster = new THREE.Raycaster();
 
+        let lastDormLabelUpdate = 0;
+        let isLabelOccluded = false; // Cache occlusion state
+        let lastStoredCount = -1; // Cache count to avoid DOM updates
+
         function updateDormLabel() {
             if (!dormLabel || !cottage) return;
 
-            // Total population = Stored + Active (followers array)
+            const now = performance.now();
+
+            // 1. Content Update (Only on change)
             const stored = chestInventory['followers'] || 0;
-
-            // Update Content: Only show stored count
-            dormLabel.innerHTML = `
-                <div class="icon">
-                    <div class="follower-icon">
-                        <div class="head"></div>
-                        <div class="body"></div>
+            if (stored !== lastStoredCount) {
+                dormLabel.innerHTML = `
+                    <div class="icon">
+                        <div class="follower-icon">
+                            <div class="head"></div>
+                            <div class="body"></div>
+                        </div>
                     </div>
-                </div>
-                <div class="text">${stored}</div>
-            `;
-
-            // Position (Higher than chest bubble)
-            const worldPos = cottage.position.clone().add(new THREE.Vector3(0, 4.5, 0));
-
-            // Occlusion Check using Raycaster
-            // Ray from Camera to Label
-            const direction = worldPos.clone().sub(camera.position);
-            const distance = direction.length();
-            direction.normalize();
-
-            labelRaycaster.set(camera.position, direction);
-
-            // Objects to check for occlusion: Planet and Trees
-            // Note: trees is InstancedMesh, raycasting works natively in newer Three.js
-            const occluders = [];
-            if (planet) occluders.push(planet);
-            if (typeof trees !== 'undefined' && trees) occluders.push(trees);
-
-            const intersects = labelRaycaster.intersectObjects(occluders, false);
-
-            let isOccluded = false;
-            if (intersects.length > 0) {
-                // If the closest intersection is closer than the label, it is occluded
-                // Add a small buffer to prevent z-fighting flicker if co-planar
-                if (intersects[0].distance < distance - 0.5) {
-                    isOccluded = true;
-                }
+                    <div class="text">${stored}</div>
+                `;
+                lastStoredCount = stored;
             }
 
-            // Project to 2D
+            // 2. Position Calculation (Every Frame - for Smoothness)
+            const worldPos = cottage.position.clone().add(new THREE.Vector3(0, 4.5, 0));
+
+            // 3. Occlusion Check (Throttled to 10fps to save performance)
+            if (now - lastDormLabelUpdate > 100) {
+                lastDormLabelUpdate = now;
+
+                // Ray from Camera to Label
+                const direction = worldPos.clone().sub(camera.position);
+                const distance = direction.length();
+                direction.normalize();
+
+                labelRaycaster.set(camera.position, direction);
+
+                const occluders = [];
+                if (planet) occluders.push(planet);
+                if (typeof trees !== 'undefined' && trees) occluders.push(trees);
+
+                const intersects = labelRaycaster.intersectObjects(occluders, false);
+
+                let blocked = false;
+                if (intersects.length > 0) {
+                    if (intersects[0].distance < distance - 0.5) {
+                        blocked = true;
+                    }
+                }
+                isLabelOccluded = blocked;
+            }
+
+            // 4. Project and Apply
             worldPos.project(camera);
 
             const x = (worldPos.x * 0.5 + 0.5) * window.innerWidth;
@@ -2117,17 +2125,8 @@
             dormLabel.style.left = x + 'px';
             dormLabel.style.top = y + 'px';
 
-            // Visibility Logic: Frustum Check + Occlusion + Behind Camera Check
-            // worldPos.z > 1 means behind camera in NDC (if projected correctly?)
-            // Actually, we should check dot product or frustum.
-            // Using the computed NDC z:
-
-            if (isOccluded || Math.abs(worldPos.z) > 1.0) {
-                dormLabel.style.opacity = '0.2'; // Fade out instead of hide, or hide? User said "occluded".
-                // Let's try opacity 0.1 to indicate it's there but blocked, or display none.
-                // "能被遮挡" usually implies visual blockage.
-                // Let's hide it completely or make it very faint.
-                // The screenshot shows a "clean" look. Let's hide it.
+            // Visibility
+            if (isLabelOccluded || Math.abs(worldPos.z) > 1.0) {
                 dormLabel.style.display = 'none';
             } else {
                 dormLabel.style.display = 'flex';
@@ -4318,8 +4317,8 @@
                             carPhysics.vSpeed = 20.0;
                             // Set Global Jump Signal (PLANETSOC)
                             window.playerDidJumpGlobal = true;
-                            // DROP ITEM ON JUMP
-                            dropItem(carPhysics.pos);
+                            // DROP ITEM ON JUMP - DISABLED
+                            // dropItem(carPhysics.pos);
                             // DUST FX
                             spawnJumpDust(carPhysics.pos);
                         }
