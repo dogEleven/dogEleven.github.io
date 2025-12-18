@@ -1729,6 +1729,7 @@
         const chestBubble = document.createElement('div');
         chestBubble.id = 'taskListUI';
         chestBubble.style.position = 'absolute'; // Fixed top-left
+        chestBubble.style.fontFamily = "'Inter', sans-serif"; // Consistent Font
         chestBubble.style.top = '20px';
         chestBubble.style.left = '20px';
         chestBubble.style.zIndex = '100';
@@ -2635,11 +2636,34 @@
                             // 1.5 distance
                             // Pickup!
 
-                            // If holding, drop old
+                            // If holding, drop old item back to world
                             if (f.heldItem) {
-                                f.mesh.remove(f.heldItem.mesh);
-                                if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
+                                if (f.heldItem.sourceMesh) {
+                                    const oldMesh = f.heldItem.sourceMesh;
+                                    const oldIdx = f.heldItem.sourceIndex;
+                                    const oldScale = f.heldItem.originalScale || 1.0;
+
+                                    const attrOff = oldMesh.geometry.attributes.offset;
+                                    const attrScale = oldMesh.geometry.attributes.scale;
+
+                                    // Drop at current feet
+                                    attrOff.setXYZ(oldIdx, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                                    attrOff.needsUpdate = true;
+
+                                    // Restore visibility
+                                    attrScale.setX(oldIdx, oldScale);
+                                    attrScale.needsUpdate = true;
+                                }
                                 f.heldItem = null;
+                            }
+
+                            // ROBUST CLEANUP: Remove any existing visual pickups
+                            for (let c = f.mesh.children.length - 1; c >= 0; c--) {
+                                const child = f.mesh.children[c];
+                                if (child.userData && child.userData.isPickup) {
+                                    f.mesh.remove(child);
+                                    if (child.geometry) child.geometry.dispose();
+                                }
                             }
 
                             const currentScale = scales.getX(i);
@@ -2656,15 +2680,20 @@
                             const valMesh = new THREE.Mesh(cloneGeo, valMat);
 
                             // Attach to follower
-                            valMesh.scale.set(0.5, 0.5, 0.5);
+                            valMesh.userData.isPickup = true; // Mark as pickup
+                            valMesh.scale.setScalar(currentScale); // Use original size
                             valMesh.position.set(0, 0.5, 0.5);
                             f.mesh.add(valMesh);
 
                             f.heldItem = {
-                                type: t.type, mesh: valMesh
-                            }
+                                type: t.type,
+                                mesh: valMesh,
+                                sourceMesh: t.mesh,
+                                sourceIndex: i,
+                                originalScale: currentScale
+                            };
 
-                                ;
+                            ;
                             didPickup = true;
                             break;
                         }
