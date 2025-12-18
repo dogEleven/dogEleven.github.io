@@ -2292,7 +2292,8 @@
                 isJumping: false,
                 jumpTime: 0,
                 yOffset: 0,
-                vSpeed: 0
+                vSpeed: 0,
+                lastPickupTime: 0
             }
 
                 ;
@@ -2617,89 +2618,97 @@
 
                 ];
 
+                // COOLDOWN: If holding an item, wait 1.0s before swapping
+                // Prevent flickering/infinite swap loop with item dropped at feet
+                const canPickup = !f.heldItem || (clock.getElapsedTime() - f.lastPickupTime > 1.0);
+
                 let didPickup = false;
 
-                for (let t of targets) {
-                    const count = t.mesh.geometry.attributes.scale.count;
-                    const scales = t.mesh.geometry.attributes.scale;
-                    const offsets = t.mesh.geometry.attributes.offset;
+                if (canPickup) {
+                    for (let t of targets) {
+                        const count = t.mesh.geometry.attributes.scale.count;
+                        const scales = t.mesh.geometry.attributes.scale;
+                        const offsets = t.mesh.geometry.attributes.offset;
 
-                    for (let i = 0; i < count; i++) {
-                        if (scales.getX(i) < 0.01) continue; // Already taken
+                        for (let i = 0; i < count; i++) {
+                            if (scales.getX(i) < 0.01) continue; // Already taken
 
-                        const dx = f.mesh.position.x - offsets.getX(i);
-                        const dy = f.mesh.position.y - offsets.getY(i);
-                        const dz = f.mesh.position.z - offsets.getZ(i);
-                        const dSq = dx * dx + dy * dy + dz * dz;
+                            const dx = f.mesh.position.x - offsets.getX(i);
+                            const dy = f.mesh.position.y - offsets.getY(i);
+                            const dz = f.mesh.position.z - offsets.getZ(i);
+                            const dSq = dx * dx + dy * dy + dz * dz;
 
-                        if (dSq < 2.25) {
-                            // 1.5 distance
-                            // Pickup!
+                            if (dSq < 2.25) {
+                                // 1.5 distance
+                                // Pickup!
 
-                            // If holding, drop old item back to world
-                            if (f.heldItem) {
-                                if (f.heldItem.sourceMesh) {
-                                    const oldMesh = f.heldItem.sourceMesh;
-                                    const oldIdx = f.heldItem.sourceIndex;
-                                    const oldScale = f.heldItem.originalScale || 1.0;
+                                // If holding, drop old item back to world
+                                if (f.heldItem) {
+                                    if (f.heldItem.sourceMesh) {
+                                        const oldMesh = f.heldItem.sourceMesh;
+                                        const oldIdx = f.heldItem.sourceIndex;
+                                        const oldScale = f.heldItem.originalScale || 1.0;
 
-                                    const attrOff = oldMesh.geometry.attributes.offset;
-                                    const attrScale = oldMesh.geometry.attributes.scale;
+                                        const attrOff = oldMesh.geometry.attributes.offset;
+                                        const attrScale = oldMesh.geometry.attributes.scale;
 
-                                    // Drop at current feet
-                                    attrOff.setXYZ(oldIdx, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
-                                    attrOff.needsUpdate = true;
+                                        // Drop at current feet
+                                        attrOff.setXYZ(oldIdx, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                                        attrOff.needsUpdate = true;
 
-                                    // Restore visibility
-                                    attrScale.setX(oldIdx, oldScale);
-                                    attrScale.needsUpdate = true;
+                                        // Restore visibility
+                                        attrScale.setX(oldIdx, oldScale);
+                                        attrScale.needsUpdate = true;
+                                    }
+                                    f.heldItem = null;
                                 }
-                                f.heldItem = null;
-                            }
 
-                            // ROBUST CLEANUP: Remove any existing visual pickups
-                            for (let c = f.mesh.children.length - 1; c >= 0; c--) {
-                                const child = f.mesh.children[c];
-                                if (child.userData && child.userData.isPickup) {
-                                    f.mesh.remove(child);
-                                    if (child.geometry) child.geometry.dispose();
+                                // ROBUST CLEANUP: Remove any existing visual pickups
+                                for (let c = f.mesh.children.length - 1; c >= 0; c--) {
+                                    const child = f.mesh.children[c];
+                                    if (child.userData && child.userData.isPickup) {
+                                        f.mesh.remove(child);
+                                        if (child.geometry) child.geometry.dispose();
+                                    }
                                 }
+
+                                const currentScale = scales.getX(i);
+                                scales.setX(i, 0);
+                                scales.needsUpdate = true;
+
+                                // Create Visual
+                                const cloneGeo = t.geo.clone();
+                                if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
+
+                                const valMat = new THREE.MeshBasicMaterial({
+                                    vertexColors: true, side: THREE.DoubleSide
+                                });
+                                const valMesh = new THREE.Mesh(cloneGeo, valMat);
+
+                                // Attach to follower
+                                valMesh.userData.isPickup = true; // Mark as pickup
+                                valMesh.scale.setScalar(currentScale); // Use original size
+                                valMesh.position.set(0, 0.5, 0.5);
+                                f.mesh.add(valMesh);
+
+                                f.heldItem = {
+                                    type: t.type,
+                                    mesh: valMesh,
+                                    sourceMesh: t.mesh,
+                                    sourceIndex: i,
+                                    originalScale: currentScale
+                                };
+
+                                ;
+                                // Update Pickup Time
+                                f.lastPickupTime = clock.getElapsedTime();
+
+                                didPickup = true;
+                                break;
                             }
-
-                            const currentScale = scales.getX(i);
-                            scales.setX(i, 0);
-                            scales.needsUpdate = true;
-
-                            // Create Visual
-                            const cloneGeo = t.geo.clone();
-                            if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
-
-                            const valMat = new THREE.MeshBasicMaterial({
-                                vertexColors: true, side: THREE.DoubleSide
-                            });
-                            const valMesh = new THREE.Mesh(cloneGeo, valMat);
-
-                            // Attach to follower
-                            valMesh.userData.isPickup = true; // Mark as pickup
-                            valMesh.scale.setScalar(currentScale); // Use original size
-                            valMesh.position.set(0, 0.5, 0.5);
-                            f.mesh.add(valMesh);
-
-                            f.heldItem = {
-                                type: t.type,
-                                mesh: valMesh,
-                                sourceMesh: t.mesh,
-                                sourceIndex: i,
-                                originalScale: currentScale
-                            };
-
-                            ;
-                            didPickup = true;
-                            break;
+                            if (didPickup) break;
                         }
                     }
-
-                    if (didPickup) break;
                 }
 
                 if (f.heldItem && !didPickup) {
