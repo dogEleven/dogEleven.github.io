@@ -1416,6 +1416,31 @@
 
         let seed = 12345;
 
+        // Debug Cheat: Skip Level with 'J'
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'j') {
+                const config = levelConfig[chestInventory.level];
+                if (config && config.tasks) {
+                    config.tasks.forEach(task => {
+                        // Max out the progress for this task
+                        if (task.target === 'weaponWorkshop') {
+                            chestInventory.weaponWorkshopProgress = task.count;
+                        } else if (task.target === 'armorWorkshop') {
+                            chestInventory.armorWorkshopProgress = task.count;
+                        } else {
+                            chestInventory[task.type] = task.count; // Max out resource
+                        }
+                    });
+
+                    if (typeof updateChestLogic === 'function' && carPhysics) {
+                        updateChestLogic(carPhysics.position);
+                        initTaskUI();
+                        console.log(`[CHEAT] Skipped Level ${chestInventory.level}`);
+                    }
+                }
+            }
+        });
+
         function seededRandom() {
             seed = (seed * 9301 + 49297) % 233280;
             return seed / 233280;
@@ -1733,59 +1758,106 @@
         chestBubble.style.top = '20px';
         chestBubble.style.left = '20px';
         chestBubble.style.zIndex = '100';
-        chestBubble.style.padding = '10px 15px';
-        chestBubble.style.background = 'rgba(0, 0, 0, 0.6)'; // Dark HUD
-        chestBubble.style.borderRadius = '12px';
-        chestBubble.style.pointerEvents = 'none';
-        chestBubble.style.display = 'block'; // Always visible
-        chestBubble.style.color = '#fff';
-        chestBubble.style.backdropFilter = 'blur(4px)';
-        chestBubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        chestBubble.style.padding = '10px'; // Padding for container
+        chestBubble.style.background = 'transparent'; // Remove big container bg
+        chestBubble.style.boxShadow = 'none';
+        chestBubble.style.backdropFilter = 'none';
+        chestBubble.style.display = 'flex';
+        chestBubble.style.flexDirection = 'column';
+        chestBubble.style.alignItems = 'flex-start'; // Align left
 
-        // Optional Title
-        // const title = document.createElement('div');
-        // title.textContent = "Current Tasks";
-        // title.style.fontSize = '12px';
-        // title.style.opacity = '0.8';
-        // title.style.marginBottom = '5px';
-        // chestBubble.appendChild(title);
-
-        // Inventory Container
-        const inventoryGrid = document.createElement('div');
-        inventoryGrid.style.display = 'grid';
-        inventoryGrid.style.gridTemplateColumns = 'auto 1fr';
-        inventoryGrid.style.gap = '5px 8px'; // Increased gap
-        inventoryGrid.style.alignItems = 'center';
-        chestBubble.appendChild(inventoryGrid);
+        // Remove Inventory Grid (Old)
+        // const inventoryGrid = document.createElement('div'); ...
 
         // Dynamic UI Generation
+        // Dynamic UI Generation
         function initTaskUI() {
-            inventoryGrid.innerHTML = ''; // Clear
+            chestBubble.innerHTML = ''; // Clear main container
             const config = levelConfig[chestInventory.level];
             if (!config) return;
 
+            // Group tasks by target
+            const groups = {};
             config.tasks.forEach(task => {
-                const type = task.type;
+                const targetKey = task.target || 'default';
+                if (!groups[targetKey]) {
+                    groups[targetKey] = {
+                        label: task.label || (config.description || "Upgrade"), // Use task label or level desc
+                        tasks: []
+                    };
+                }
+                groups[targetKey].tasks.push(task);
+            });
 
-                // Icon
-                const img = document.createElement('img');
-                img.id = `icon-${type}`;
-                // Src will be populated by updateChestLogic (Lazy) or if icons exist
-                img.src = (typeof itemIcons !== 'undefined' && itemIcons[type]) ? itemIcons[type] : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                img.style.width = '36px';
-                img.style.height = '36px';
-                img.style.objectFit = 'contain';
+            // Create Card per Group
+            Object.keys(groups).forEach(key => {
+                const group = groups[key];
 
-                // Count
-                const txt = document.createElement('span');
-                txt.id = `count-${type}`;
-                txt.textContent = `0/${task.count}`; // Initial Text
-                txt.style.fontSize = '14px';
-                txt.style.fontWeight = 'bold';
-                txt.style.marginLeft = '5px';
+                // Card Container
+                const card = document.createElement('div');
+                card.style.background = 'rgba(0, 0, 0, 0.6)';
+                card.style.backdropFilter = 'blur(4px)';
+                card.style.borderRadius = '12px';
+                card.style.padding = '8px 12px';
+                card.style.marginBottom = '8px';
+                card.style.display = 'flex';
+                card.style.flexDirection = 'column'; // Stack rows vertically
+                card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+                card.style.minWidth = '180px';
 
-                inventoryGrid.appendChild(img);
-                inventoryGrid.appendChild(txt);
+                // Title (Building Name)
+                const titleDiv = document.createElement('div');
+                titleDiv.textContent = group.label;
+                titleDiv.style.color = '#ccc';
+                titleDiv.style.fontSize = '10px';
+                titleDiv.style.fontWeight = 'bold';
+                titleDiv.style.marginBottom = '6px';
+                titleDiv.style.textTransform = 'uppercase';
+                titleDiv.style.letterSpacing = '0.5px';
+                card.appendChild(titleDiv);
+
+                // Resource Rows
+                group.tasks.forEach(task => {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.marginBottom = '4px';
+
+                    const type = task.type;
+                    const uniqueIdSuffix = task.target ? `-${task.target}` : '';
+
+                    // Icon
+                    const img = document.createElement('img');
+                    img.id = `icon-${type}${uniqueIdSuffix}`;
+                    img.src = (typeof itemIcons !== 'undefined' && itemIcons[type]) ? itemIcons[type] : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                    img.style.width = '24px'; // Slightly smaller in list
+                    img.style.height = '24px';
+                    img.style.objectFit = 'contain';
+                    img.style.marginRight = '8px';
+                    row.appendChild(img);
+
+                    // Count
+                    const countSpan = document.createElement('span');
+                    countSpan.id = task.target ? `count-${task.target}` : `count-${type}`;
+                    // Note: If multiple tasks of same type exist for SAME target, IDs collide.
+                    // Assuming 1 type per target for now based on config.
+                    // If complex config needed, ID should be count-{type}-{target} always.
+
+                    let displayCount = 0;
+                    if (task.target === 'weaponWorkshop') displayCount = chestInventory.weaponWorkshopProgress || 0;
+                    else if (task.target === 'armorWorkshop') displayCount = chestInventory.armorWorkshopProgress || 0;
+                    else displayCount = chestInventory[type] || 0;
+
+                    countSpan.textContent = `${displayCount}/${task.count}`;
+                    countSpan.style.color = '#fff';
+                    countSpan.style.fontWeight = 'bold';
+                    countSpan.style.fontSize = '14px';
+                    row.appendChild(countSpan);
+
+                    card.appendChild(row);
+                });
+
+                chestBubble.appendChild(card);
             });
         }
 
@@ -1799,24 +1871,52 @@
             mushroom: 0,
             followers: 5, // Stored followers
             level: 1, // Current Dorm Level
-            maxFollowers: 5
+            maxFollowers: 5,
+            weaponWorkshopProgress: 0,
+            armorWorkshopProgress: 0,
+            weaponWorkshopLevel: 0, // 0: None, 1: Foundation, 2: Complete
+            armorWorkshopLevel: 0   // 0: None, 1: Foundation, 2: Complete
         };
 
         // Task Configuration per Level
+        // --- GAME CONFIGURATION ---
+        // Modify this table to adjust game balance, costs, and rewards.
         const levelConfig = {
             1: {
+                description: "Initial Hut",
                 tasks: [
                     { type: 'twig', count: 10 },
                     { type: 'mushroom', count: 10 }
                 ],
-                nextLevelFollowers: 10
+                reward: {
+                    maxFollowers: 10,   // Population Cap after completing Level 1
+                    description: "Unlock Stone House Upgrade"
+                },
+                unlocks: []
             },
             2: {
+                description: "Stone House Upgrade",
                 tasks: [
-                    { type: 'stone', count: 15 },
-                    { type: 'mushroom', count: 15 }
+                    { type: 'stone', count: 20 }
                 ],
-                nextLevelFollowers: 15 // Hypothretical Level 3
+                reward: {
+                    maxFollowers: 15,
+                    description: "Unlock Workshop Foundations"
+                },
+                unlocks: ['weaponWorkshop', 'armorWorkshop'] // Triggers foundation visibility
+            },
+            3: {
+                description: "Workshop Construction",
+                tasks: [
+                    // Target specific buildings
+                    { type: 'twig', count: 20, target: 'weaponWorkshop', label: 'Weapon Workshop' },
+                    { type: 'twig', count: 20, target: 'armorWorkshop', label: 'Armor Workshop' }
+                ],
+                reward: {
+                    maxFollowers: 20,
+                    description: "Workshops Complete"
+                },
+                unlocks: ['weapon_equip', 'armor_equip'] // Logic flags (handled by inventory state currently)
             }
         };
 
@@ -1857,38 +1957,38 @@
                     dormGroup.add(layerMesh);
                 }
             } else {
-                // LEVEL 2: "Wood" Walls, Thin Cylindrical Roof, Extra Layer
-                // 1. Base Walls (Wood Color)
+                // LEVEL 2: Grey-Blue Stone, 2 Layers (Floors)
+                // 1. Base Walls (Grey-Blue Stone)
                 const baseGeo = new THREE.CylinderGeometry(2.2, 2.2, 2.0, 32);
-                const woodMat = new THREE.MeshBasicMaterial({ color: 0x8B5A2B }); // Wood Brown
-                const baseMesh = new THREE.Mesh(baseGeo, woodMat);
+                const stoneMat = new THREE.MeshBasicMaterial({ color: 0x778899 }); // Grey-Blue
+                const baseMesh = new THREE.Mesh(baseGeo, stoneMat);
                 baseMesh.position.y = 1.0;
                 dormGroup.add(baseMesh);
 
-                // 2. Thin Cylindrical Roof (First floor roof)
+                // 2. First Floor Roof
                 const roof1Geo = new THREE.CylinderGeometry(2.6, 2.6, 0.2, 32);
-                const roofMat = new THREE.MeshBasicMaterial({ color: 0x5D4037 }); // Darker Wood
+                const roofMat = new THREE.MeshBasicMaterial({ color: 0x2F4F4F }); // Dark Slate Grey
                 const roof1 = new THREE.Mesh(roof1Geo, roofMat);
                 roof1.position.y = 2.1;
                 dormGroup.add(roof1);
 
-                // 3. Second Layer (Room) - Smaller cylinder
-                const layer2Geo = new THREE.CylinderGeometry(1.6, 1.6, 1.4, 32);
-                const layer2 = new THREE.Mesh(layer2Geo, woodMat);
-                layer2.position.y = 2.8; // 2.1 + 0.1 + 0.7
+                // 3. Second Layer (Room)
+                const layer2Geo = new THREE.CylinderGeometry(2.0, 2.0, 1.6, 32); // Slightly wider/taller than before
+                const layer2 = new THREE.Mesh(layer2Geo, stoneMat);
+                layer2.position.y = 3.0;
                 dormGroup.add(layer2);
 
-                // 4. Second Layer Roof
-                const roof2Geo = new THREE.CylinderGeometry(2.0, 2.0, 0.2, 32);
+                // 4. Top Roof (Cone/Domed)
+                const roof2Geo = new THREE.ConeGeometry(2.5, 1.5, 32);
                 const roof2 = new THREE.Mesh(roof2Geo, roofMat);
-                roof2.position.y = 3.6;
+                roof2.position.y = 4.5;
                 dormGroup.add(roof2);
             }
 
             // Door Frame (Generic for now, adjust Z based on radius)
             const doorRadius = level === 1 ? 2.0 : 2.2;
             const doorFrameGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.2, 32, 1, false, 0, Math.PI);
-            const doorFrameMat = new THREE.MeshBasicMaterial({ color: 0x5D4037 });
+            const doorFrameMat = new THREE.MeshBasicMaterial({ color: 0x2F4F4F });
             const doorFrame = new THREE.Mesh(doorFrameGeo, doorFrameMat);
             // Position: Ground(Y=0), Protruding(Z)
             doorFrame.position.set(0, 0, doorRadius - 0.2);
@@ -1897,7 +1997,7 @@
 
             // Door (Inner Block)
             const doorGeo = new THREE.CylinderGeometry(0.7, 0.7, 1.25, 32, 1, false, 0, Math.PI);
-            const doorMat = new THREE.MeshBasicMaterial({ color: 0x3E2723 });
+            const doorMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
             const door = new THREE.Mesh(doorGeo, doorMat);
             door.position.set(0, 0, doorRadius - 0.15);
             door.rotation.set(0, Math.PI / 2, Math.PI / 2);
@@ -2172,7 +2272,11 @@
                 else {
 
                     // Arrived
-                    if (chestInventory.hasOwnProperty(item.type)) {
+                    if (item.taskTarget === 'weaponWorkshop') {
+                        chestInventory.weaponWorkshopProgress = (chestInventory.weaponWorkshopProgress || 0) + 1;
+                    } else if (item.taskTarget === 'armorWorkshop') {
+                        chestInventory.armorWorkshopProgress = (chestInventory.armorWorkshopProgress || 0) + 1;
+                    } else if (chestInventory.hasOwnProperty(item.type)) {
                         chestInventory[item.type]++;
                     }
 
@@ -2204,11 +2308,8 @@
             chestInventory.level++;
 
             // Update Max Followers based on new level or manual setting
-            // Config says nextLevelFollowers applies to the COMPLETED level reward? 
-            // The prompt says: "storage becomes 10".
-            // My config has 'nextLevelFollowers: 10' for level 1. So if we complete level 1, we get 10.
-            if (currentConfig && currentConfig.nextLevelFollowers) {
-                chestInventory.maxFollowers = currentConfig.nextLevelFollowers;
+            if (currentConfig && currentConfig.reward && currentConfig.reward.maxFollowers) {
+                chestInventory.maxFollowers = currentConfig.reward.maxFollowers;
             }
 
             // Update Visuals
@@ -2240,67 +2341,118 @@
             // --- 1. Update UI (Task List) & Check Upgrade ---
             let allMet = true;
 
+            // Workshop Generation / Updates based on Level
+            // Workshop Generation / Updates based on Level
+            if (chestInventory.level >= 3) {
+                // Ensure Foundation Meshes exist
+                updateWorkshops();
+            }
+
             config.tasks.forEach(task => {
                 const type = task.type;
-                const count = chestInventory[type] || 0;
+                let count = 0;
+
+                if (task.target === 'weaponWorkshop') count = chestInventory.weaponWorkshopProgress || 0;
+                else if (task.target === 'armorWorkshop') count = chestInventory.armorWorkshopProgress || 0;
+                else count = chestInventory[type] || 0;
 
                 if (count < task.count) allMet = false;
 
                 // Update Text
-                const span = document.getElementById(`count-${type}`);
+                const span = document.getElementById(task.target ? `count-${task.target}` : `count-${type}`);
                 if (span) {
                     span.textContent = `${count}/${task.count}`;
                 }
 
-                // Update Icon (Lazy Init)
-                const img = document.getElementById(`icon-${type}`);
+                // Icon update (standard)
+                const img = document.getElementById(`icon-${type}${task.target ? '-' + task.target : ''}`);
                 if (img && itemIcons[type]) {
                     const currentSrc = img.getAttribute('src');
                     if (!currentSrc || currentSrc.startsWith('data:image/gif')) {
                         img.src = itemIcons[type];
                     }
                 }
+
+                // COMPLETE BUILDINGS IF MET
+                if (task.target === 'weaponWorkshop' && count >= task.count && chestInventory.weaponWorkshopLevel < 2) {
+                    chestInventory.weaponWorkshopLevel = 2; // Complete
+                    updateWorkshops();
+                }
+                if (task.target === 'armorWorkshop' && count >= task.count && chestInventory.armorWorkshopLevel < 2) {
+                    chestInventory.armorWorkshopLevel = 2; // Complete
+                    updateWorkshops();
+                }
             });
 
-            // Trigger Upgrade if all tasks met
+            // Trigger Global Upgrade (Level 3 or 4)
             if (allMet && levelConfig[chestInventory.level + 1]) {
+                // For Level 3, we wait for both workshops? Or just auto upgrade?
+                // Current logic: If all tasks in current level met, upgrade.
+                // Level 2 tasks: 20 Stone. Once met -> Level 3.
+                // Level 3 tasks: Workshops. Once met -> Level 4 (or just stay).
                 upgradeDormitoryState();
                 return;
             }
 
             // --- 2. Interaction Logic (Distance Based) ---
-            const dist = playerPos.distanceTo(chestMesh.position);
+            // Calculate distances to key Structures
+            const distChest = playerPos.distanceTo(chestMesh.position);
+
+            let distWeapon = 999;
+            let distArmor = 999;
+            if (weaponWorkshopMesh) distWeapon = playerPos.distanceTo(weaponWorkshopMesh.position);
+            if (armorWorkshopMesh) distArmor = playerPos.distanceTo(armorWorkshopMesh.position);
+
             const interactRange = 3.0;
 
-            if (dist < interactRange) {
-                // Interaction: Deposit
+            // Determine Deposit Target based on proximity
+            let validTask = null;
+            let targetMesh = null;
+            let targetType = null; // 'chest', 'weapon', 'armor'
+
+            if (distChest < interactRange) {
+                // Prioritize tasks WITHOUT target (General Upgrade)
                 if (heldItem) {
-                    // Check if item is relevant for current tasks
-                    const task = config.tasks.find(t => t.type === heldItem.type);
-
-                    if (task) {
-                        const currentQty = chestInventory[heldItem.type] || 0;
-                        // Only deposit if we haven't reached the target
-                        if (currentQty < task.count) {
-                            const now = clock.getElapsedTime();
-
-                            if (now - lastChestDepositTime > 1.0) {
-                                // Transition Effect
-                                if (heldItem.mesh) {
-                                    scene.attach(heldItem.mesh);
-                                    flyingItems.push({
-                                        mesh: heldItem.mesh,
-                                        target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
-                                        type: heldItem.type
-                                    });
-                                }
-                                heldItem = null;
-                                lastChestDepositTime = now;
-                            }
-                        }
-                    }
+                    validTask = config.tasks.find(t => t.type === heldItem.type && !t.target && (chestInventory[t.type] || 0) < t.count);
+                    if (validTask) { targetMesh = chestMesh; targetType = 'chest'; }
                 }
+            }
 
+            if (!validTask && distWeapon < interactRange && chestInventory.level >= 3) {
+                if (heldItem) {
+                    validTask = config.tasks.find(t => t.type === heldItem.type && t.target === 'weaponWorkshop' && (chestInventory.weaponWorkshopProgress || 0) < t.count);
+                    if (validTask) { targetMesh = weaponWorkshopMesh; targetType = 'weapon'; }
+                }
+            }
+
+            if (!validTask && distArmor < interactRange && chestInventory.level >= 3) {
+                if (heldItem) {
+                    validTask = config.tasks.find(t => t.type === heldItem.type && t.target === 'armorWorkshop' && (chestInventory.armorWorkshopProgress || 0) < t.count);
+                    if (validTask) { targetMesh = armorWorkshopMesh; targetType = 'armor'; }
+                }
+            }
+
+
+            if (validTask && targetMesh) {
+                // Interaction: Deposit
+                const now = clock.getElapsedTime();
+                if (now - lastChestDepositTime > 1.0) {
+                    // Transition Effect
+                    if (heldItem.mesh) {
+                        scene.attach(heldItem.mesh);
+                        flyingItems.push({
+                            mesh: heldItem.mesh,
+                            target: targetMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
+                            type: heldItem.type,
+                            taskTarget: validTask.target // Tag for flying update
+                        });
+                    }
+                    heldItem = null;
+                    lastChestDepositTime = now;
+                }
+            }
+
+            if (distChest < interactRange) {
                 // Interaction: Release Stored Followers
                 if (chestInventory.followers > 0) {
                     const now = clock.getElapsedTime();
@@ -2311,6 +2463,278 @@
                         respawnFollowerAtChest();
                         window.lastFollowerReleaseTime = now;
                     }
+                }
+            }
+
+            // --- 3. Equipment Acquisition Logic ---
+            if (chestInventory.weaponWorkshopLevel === 2 && weaponWorkshopMesh) {
+                // Weapon Workshop Logic
+                [carPhysics, ...followers].forEach(entity => {
+                    const pos = entity === carPhysics ? carGroup.position : entity.mesh.position;
+                    // World Position of workshop? 
+                    // Workshop is children of chestMesh maybe? Or separate scene object? 
+                    // Let's make them separate scene objects for global collision check ease, or transform local to world.
+                    // Implementation choice: Separate scene objects attached to scene but positioned relative to chest.
+
+                    if (weaponWorkshopMesh.parent === scene) {
+                        if (pos.distanceTo(weaponWorkshopMesh.position) < 3.0) {
+                            if (!entity.hasBow) {
+                                entity.hasBow = true;
+                                equipBow(entity);
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (chestInventory.armorWorkshopLevel === 2 && armorWorkshopMesh) {
+                // Armor Workshop Logic
+                [carPhysics, ...followers].forEach(entity => {
+                    const pos = entity === carPhysics ? carGroup.position : entity.mesh.position;
+                    if (armorWorkshopMesh.parent === scene) {
+                        if (pos.distanceTo(armorWorkshopMesh.position) < 3.0) {
+                            if (!entity.hasHat) {
+                                entity.hasHat = true;
+                                equipHat(entity);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- Workshop System ---
+        let weaponWorkshopMesh = null;
+        let armorWorkshopMesh = null;
+
+        function updateWorkshops() {
+            // Calculate Positions relative to Dorm
+            // Dorm is at chestPos. 
+            // "Left 4m" and "Right 4m". 
+            // We need the orientation vectors.
+            const radialUp = chestPos.clone().normalize();
+            const southTangent = new THREE.Vector3(0, 1, 0).projectOnPlane(radialUp).normalize();
+            if (southTangent.lengthSq() < 0.01) southTangent.copy(new THREE.Vector3(0, 0, 1)).projectOnPlane(radialUp).normalize();
+            const eastRight = new THREE.Vector3().crossVectors(radialUp, southTangent).normalize();
+
+            const leftPos = chestPos.clone().add(eastRight.clone().multiplyScalar(-4.0)); // Left
+            const rightPos = chestPos.clone().add(eastRight.clone().multiplyScalar(4.0)); // Right
+
+            // Snap heights
+            const lh = getSurfaceHeight(leftPos.x, leftPos.y, leftPos.z);
+            leftPos.normalize().multiplyScalar(lh);
+
+            const rh = getSurfaceHeight(rightPos.x, rightPos.y, rightPos.z);
+            rightPos.normalize().multiplyScalar(rh);
+
+            // 1. Weapon Workshop
+            if (!weaponWorkshopMesh) {
+                weaponWorkshopMesh = new THREE.Group();
+                weaponWorkshopMesh.position.copy(leftPos);
+                weaponWorkshopMesh.lookAt(0, 0, 0); // Orient somewhat upright
+                // Actually align up vector
+                const up = leftPos.clone().normalize();
+                const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+                weaponWorkshopMesh.setRotationFromQuaternion(q);
+
+                scene.add(weaponWorkshopMesh);
+            }
+
+            // Update Visuals based on Level/Progress
+            weaponWorkshopMesh.clear();
+            if (chestInventory.weaponWorkshopLevel === 2) {
+                // Completed: Weapon Shop (Visuals from image)
+                // Wooden frame, maybe weapons on display
+                const base = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.2, 2.5), new THREE.MeshBasicMaterial({ color: 0x8B4513 }));
+                base.position.y = 0.1;
+                weaponWorkshopMesh.add(base);
+
+                const table = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.8, 1.0), new THREE.MeshBasicMaterial({ color: 0xA0522D }));
+                table.position.y = 0.5;
+                weaponWorkshopMesh.add(table);
+
+                // Bow display
+                const bow = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.05, 8, 16, Math.PI), new THREE.MeshBasicMaterial({ color: 0xFFD700 }));
+                bow.position.set(0, 1.2, 0);
+                bow.rotation.z = Math.PI / 2;
+                weaponWorkshopMesh.add(bow);
+
+            } else {
+                // Foundation (4 sticks)
+                const stickGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.0);
+                const stickMat = new THREE.MeshBasicMaterial({ color: 0xD2691E });
+
+                const offsets = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+                offsets.forEach(off => {
+                    const s = new THREE.Mesh(stickGeo, stickMat);
+                    s.position.set(off[0] * 0.8, 0.5, off[1] * 0.8);
+                    weaponWorkshopMesh.add(s);
+                });
+
+                // "Foundation" marker
+                const base = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide }));
+                base.rotation.x = -Math.PI / 2;
+                base.position.y = 0.05;
+                weaponWorkshopMesh.add(base);
+            }
+
+            // 2. Armor Workshop
+            if (!armorWorkshopMesh) {
+                armorWorkshopMesh = new THREE.Group();
+                armorWorkshopMesh.position.copy(rightPos);
+
+                const up = rightPos.clone().normalize();
+                const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+                armorWorkshopMesh.setRotationFromQuaternion(q);
+
+                scene.add(armorWorkshopMesh);
+            }
+
+            armorWorkshopMesh.clear();
+            if (chestInventory.armorWorkshopLevel === 2) {
+                // Completed: Armor Shop
+                // Wooden, hat stand
+                const base = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.2, 2.5), new THREE.MeshBasicMaterial({ color: 0x8B4513 }));
+                base.position.y = 0.1;
+                armorWorkshopMesh.add(base);
+
+                const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), new THREE.MeshBasicMaterial({ color: 0x8B4513 }));
+                stand.position.y = 0.8;
+                armorWorkshopMesh.add(stand);
+
+                // Hat display
+                const hat = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.3, 16), new THREE.MeshBasicMaterial({ color: 0xD2691E }));
+                hat.position.set(0, 1.6, 0);
+                armorWorkshopMesh.add(hat);
+
+            } else {
+                // Foundation
+                const stickGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.0);
+                const stickMat = new THREE.MeshBasicMaterial({ color: 0xD2691E });
+
+                const offsets = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+                offsets.forEach(off => {
+                    const s = new THREE.Mesh(stickGeo, stickMat);
+                    s.position.set(off[0] * 0.8, 0.5, off[1] * 0.8);
+                    armorWorkshopMesh.add(s);
+                });
+                const base = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide }));
+                base.rotation.x = -Math.PI / 2;
+                base.position.y = 0.05;
+                armorWorkshopMesh.add(base);
+            }
+        }
+
+        // --- Equipment Visuals ---
+        function equipBow(entity) {
+            // Visual
+            const bowGroup = new THREE.Group();
+
+            // Curve approximation
+            const curve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-0.3, 0.5, 0),
+                new THREE.Vector3(0, 0.5, 0.2),
+                new THREE.Vector3(0.3, 0.5, 0)
+            ]);
+            const tube = new THREE.TubeGeometry(curve, 8, 0.03, 4, false);
+            const mesh = new THREE.Mesh(tube, new THREE.MeshBasicMaterial({ color: 0x8B5A2B }));
+            bowGroup.add(mesh);
+
+            // String
+            const stringGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.3, 0.5, 0), new THREE.Vector3(0.3, 0.5, 0)]);
+            const stringLine = new THREE.Line(stringGeo, new THREE.LineBasicMaterial({ color: 0xffffff }));
+            bowGroup.add(stringLine);
+
+            // Attach to body/hand area. 
+            // Entity is either Player (carGroup) or Follower (mesh group)
+            // Player structure: carGroup -> carMesh (body) etc. 
+            // Follower structure: group -> head, body, legs.
+
+            // Just attach to main group
+            const target = entity.mesh || carGroup; // entity.mesh for follower, carGroup for player
+            // But wait, player logic uses carGroup as main transform.
+
+            // Position carefully
+            bowGroup.position.set(0.4, 0.8, 0.3); // Side
+            bowGroup.rotation.y = -Math.PI / 4;
+
+            if (entity === carPhysics) {
+                // Player visual attachment
+                carGroup.add(bowGroup);
+            } else {
+                entity.mesh.add(bowGroup);
+            }
+            entity.bowMesh = bowGroup;
+        }
+
+        function equipHat(entity) {
+            if (entity.hatMesh) return;
+
+            // Wide Brim Hat
+            const hatGroup = new THREE.Group();
+
+            const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.05, 16), new THREE.MeshBasicMaterial({ color: 0xD2691E }));
+            hatGroup.add(brim);
+
+            const top = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.4, 16), new THREE.MeshBasicMaterial({ color: 0xD2691E }));
+            top.position.y = 0.2;
+            hatGroup.add(top);
+
+            const hat = hatGroup;
+
+            if (entity === carPhysics) {
+                hat.position.y = 2.0;
+                carGroup.add(hat);
+            } else {
+                hat.position.y = 1.35;
+                entity.mesh.add(hat);
+            }
+            entity.hatMesh = hat;
+        }
+
+        // --- Arrow System ---
+        function createArrow(start, target) {
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            mesh.position.copy(start);
+            mesh.lookAt(target);
+            mesh.rotateX(Math.PI / 2);
+            scene.add(mesh);
+            return mesh;
+        }
+
+        function updateArrows(dt) {
+            const speed = 20.0;
+            for (let i = arrows.length - 1; i >= 0; i--) {
+                const a = arrows[i];
+                a.life += dt;
+
+                const dir = new THREE.Vector3().subVectors(a.target, a.pos).normalize();
+                const dist = a.mesh.position.distanceTo(a.target);
+
+                if (dist < 0.5 || a.life > 1.0) {
+                    // Hit
+                    scene.remove(a.mesh);
+                    arrows.splice(i, 1);
+
+                    // Damage Area Check
+                    wolves.forEach(w => {
+                        if (w.hp > 0 && w.mesh.position.distanceTo(a.target) < 2.0) {
+                            w.hp -= 50;
+                            if (w.mesh.children[0] && w.mesh.children[0].children) {
+                                w.mesh.children[0].children.forEach(m => {
+                                    // Flash Effect (Optional)
+                                    if (m.material) {
+                                        const oldC = m.material.color.getHex();
+                                        m.material.color.setHex(0xff0000);
+                                        setTimeout(() => { if (m.material) m.material.color.setHex(oldC); }, 100);
+                                    }
+                                });
+                            }
+                        }
+                    });
+
+                } else {
+                    a.mesh.position.add(dir.multiplyScalar(speed * dt));
                 }
             }
         }
@@ -2826,10 +3250,13 @@
 
         // --- 6. Wolf System ---
         const wolves = [];
+        const arrows = []; // Projectiles
 
         function createWolf(pos) {
             const group = new THREE.Group();
             group.position.copy(pos);
+            group.hp = 100; // HP Added
+            group.hp = 100; // HP Added
 
             // Voxel Style Wolf (Grey-ish)
             const mat = new THREE.MeshBasicMaterial({
@@ -3100,6 +3527,7 @@
 
 
             wolves.forEach(w => {
+                if (w.hp <= 0) return;
                 const up = w.mesh.position.clone().normalize();
                 const moveForce = new THREE.Vector3();
                 let currentSpeed = 0;
@@ -3315,10 +3743,16 @@
                     if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                         if ((w.hitCount === undefined || w.hitCount < 5) && d < 1.5 && !f.isDead) {
                             if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
-                                f.isDead = true;
-                                spawnExplosion(f.mesh.position);
-                                w.hitCount = (w.hitCount || 0) + 1;
-                                dropItemFromDeadFollower(f);
+                                if (f.hasHat) {
+                                    f.hasHat = false;
+                                    if (f.hatMesh) { f.mesh.remove(f.hatMesh); f.hatMesh = null; }
+                                    w.hitCount = (w.hitCount || 0) + 1;
+                                } else {
+                                    f.isDead = true;
+                                    spawnExplosion(f.mesh.position);
+                                    w.hitCount = (w.hitCount || 0) + 1;
+                                    dropItemFromDeadFollower(f);
+                                }
                             }
                         }
                     }
@@ -3345,7 +3779,12 @@
                             if (now - lastHitTime > 1.0) {
                                 lastHitTime = now;
                                 w.hitCount = (w.hitCount || 0) + 1;
-                                handleDeath();
+                                if (carPhysics.hasHat) {
+                                    carPhysics.hasHat = false;
+                                    if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
+                                } else {
+                                    handleDeath();
+                                }
                             }
                         }
                     }
@@ -3489,6 +3928,93 @@
                     w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
                 }
             });
+
+            // Cleanup Dead Wolves
+            for (let i = wolves.length - 1; i >= 0; i--) {
+                if (wolves[i].hp <= 0) {
+                    scene.remove(wolves[i].mesh);
+                    wolves.splice(i, 1);
+                }
+            }
+
+            // Update Arrows
+            updateArrows(dt);
+
+            // Auto-Attack Logic
+            [carPhysics, ...followers].forEach(entity => {
+                if (entity.hasBow) {
+                    entity.bowTimer = (entity.bowTimer || 0) + dt;
+                    if (entity.bowTimer > 1.0) {
+                        let nearWolf = null;
+                        let minWD = 15.0;
+                        wolves.forEach(wolf => {
+                            if (wolf.hp <= 0) return;
+                            const d = (entity === carPhysics ? carGroup.position : entity.mesh.position).distanceTo(wolf.mesh.position);
+                            if (d < minWD) {
+                                minWD = d;
+                                nearWolf = wolf;
+                            }
+                        });
+
+                        if (nearWolf) {
+                            entity.bowTimer = 0;
+                            const start = (entity === carPhysics ? carGroup.position : entity.mesh.position).clone().add(new THREE.Vector3(0, 1, 0));
+                            const target = nearWolf.mesh.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+                            arrows.push({
+                                mesh: createArrow(start, target),
+                                pos: start,
+                                target: target,
+                                life: 0
+                            });
+                        }
+                    }
+                }
+            });
+        }
+
+        function createArrow(start, target) {
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            mesh.position.copy(start);
+            mesh.lookAt(target);
+            mesh.rotateX(Math.PI / 2);
+            scene.add(mesh);
+            return mesh;
+        }
+
+        function updateArrows(dt) {
+            const speed = 20.0;
+            for (let i = arrows.length - 1; i >= 0; i--) {
+                const a = arrows[i];
+                a.life += dt;
+
+                const dir = new THREE.Vector3().subVectors(a.target, a.pos).normalize();
+                const dist = a.mesh.position.distanceTo(a.target);
+
+                if (dist < 0.5 || a.life > 1.0) {
+                    // Hit
+                    scene.remove(a.mesh);
+                    arrows.splice(i, 1);
+
+                    // Damage Area Check
+                    wolves.forEach(w => {
+                        if (w.hp > 0 && w.mesh.position.distanceTo(a.target) < 2.0) {
+                            w.hp -= 50;
+                            if (w.mesh.children[0] && w.mesh.children[0].children) {
+                                w.mesh.children[0].children.forEach(m => {
+                                    if (m.material) {
+                                        const oldC = m.material.color.getHex();
+                                        m.material.color.setHex(0xff0000);
+                                        setTimeout(() => { if (m.material) m.material.color.setHex(oldC); }, 100);
+                                    }
+                                });
+                            }
+                        }
+                    });
+
+                } else {
+                    a.mesh.position.add(dir.multiplyScalar(speed * dt));
+                }
+            }
         }
 
         function updateWolvesLegacy(dt) {
@@ -4813,7 +5339,6 @@
         });
         composer.addPass(bokehPass);
         */
-
 
         animate();
 
