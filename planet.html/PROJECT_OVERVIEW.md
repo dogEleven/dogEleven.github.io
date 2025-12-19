@@ -66,7 +66,9 @@
 *   **Visuals**: 优化了跳跃烟尘 (Transparent Smoke) 和死亡特效。
 *   **Game Loop**: 引入了 60秒 资源再生循环。
 *   **Combat**: 强化了狼的攻击能力 (AOE/Multi-kill potential)。
-*   **Chest**: 增加了宝箱存入上限限制 (单个物品种类上限 10)。
+*   **Chest**: 增加了宝箱升级系统 (Dormitory Upgrade System)。
+    *   Level 1 -> Level 2: 需收集 10 树枝 + 10 蘑菇。升级后人口上限提升至 10，外观变为双层木屋。
+    *   Level 2 Task: 需收集 15 石头 + 15 蘑菇。
 
 ---
 *文档生成时间: 2025-12-18*

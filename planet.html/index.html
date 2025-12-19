@@ -1758,133 +1758,155 @@
         inventoryGrid.style.alignItems = 'center';
         chestBubble.appendChild(inventoryGrid);
 
-        // Pre-create Task List Items
-        const taskTypes = ['twig', 'mushroom'];
-        const taskSpans = {};
+        // Dynamic UI Generation
+        function initTaskUI() {
+            inventoryGrid.innerHTML = ''; // Clear
+            const config = levelConfig[chestInventory.level];
+            if (!config) return;
 
-        taskTypes.forEach(type => {
-            // Icon
-            const img = document.createElement('img');
-            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-            // Actually itemIcons are defined LATER in the code (around line 1896). 
-            // So we cannot set src here immediately if this code runs before itemIcons init.
-            // But this code is in the "Init" section?
-            // Let's check line numbers. This is line 1730. `itemIcons` is line ~1900.
-            // So `itemIcons` is undefined here.
-            // Solution: Create separate Image elements, and setting their src in `updateChestLogic` ONCE (or check if src is empty).
-            // OR move this init code later?
-            // BETTER: Initialize them here, set src later, or just use placeholders.
-            // img.className = `icon-${type}`;
+            config.tasks.forEach(task => {
+                const type = task.type;
 
-            img.id = `icon-${type}`; // We will set src later
-            img.style.width = '36px';
-            img.style.height = '36px';
-            img.style.objectFit = 'contain';
+                // Icon
+                const img = document.createElement('img');
+                img.id = `icon-${type}`;
+                // Src will be populated by updateChestLogic (Lazy) or if icons exist
+                img.src = (typeof itemIcons !== 'undefined' && itemIcons[type]) ? itemIcons[type] : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                img.style.width = '36px';
+                img.style.height = '36px';
+                img.style.objectFit = 'contain';
 
-            // Count
-            const txt = document.createElement('span');
-            txt.id = `count-${type}`;
-            txt.textContent = '0/10';
-            txt.style.fontSize = '14px';
-            txt.style.fontWeight = 'bold';
-            txt.style.marginLeft = '5px';
+                // Count
+                const txt = document.createElement('span');
+                txt.id = `count-${type}`;
+                txt.textContent = `0/${task.count}`; // Initial Text
+                txt.style.fontSize = '14px';
+                txt.style.fontWeight = 'bold';
+                txt.style.marginLeft = '5px';
 
-            inventoryGrid.appendChild(img);
-            inventoryGrid.appendChild(txt);
-        });
+                inventoryGrid.appendChild(img);
+                inventoryGrid.appendChild(txt);
+            });
+        }
 
         document.body.appendChild(chestBubble);
 
         // 2. Chest State
+        const itemIcons = {}; // Moved here to avoid TDZ
         const chestInventory = {
             stone: 0,
             twig: 0,
             mushroom: 0,
-            followers: 5 // Stored followers (Start full since none on map)
+            followers: 5, // Stored followers
+            level: 1, // Current Dorm Level
+            maxFollowers: 5
         };
+
+        // Task Configuration per Level
+        const levelConfig = {
+            1: {
+                tasks: [
+                    { type: 'twig', count: 10 },
+                    { type: 'mushroom', count: 10 }
+                ],
+                nextLevelFollowers: 10
+            },
+            2: {
+                tasks: [
+                    { type: 'stone', count: 15 },
+                    { type: 'mushroom', count: 15 }
+                ],
+                nextLevelFollowers: 15 // Hypothretical Level 3
+            }
+        };
+
+        // Initialize UI
+        initTaskUI();
 
         let lastChestDepositTime = 0;
         let lastFollowerStoreTime = 0; // Timer for storing followers
         const chestPos = new THREE.Vector3(0, planetRadius, 15.0); // Z+15
 
-        // 3. Chest Mesh (Thatched Cottage)
-        const cottage = new THREE.Group();
+        // 3. Chest Mesh Factory
+        let chestMesh = null; // Will be assigned
 
-        // House Body (Cylinder - Further Increased Radius)
-        const cottageBodyGeo = new THREE.CylinderGeometry(2.0, 2.0, 1.6, 32);
+        function buildDormitory(level) {
+            const dormGroup = new THREE.Group();
 
-        const cottageBodyMat = new THREE.MeshBasicMaterial({
-            color: 0x957A65
-        }); // Warmer earthy brown like reference
-        const cottageBodyMesh = new THREE.Mesh(cottageBodyGeo, cottageBodyMat);
-        cottageBodyMesh.position.y = 0.8;
-        cottage.add(cottageBodyMesh);
+            if (level === 1) {
+                // House Body (Cylinder)
+                const cottageBodyGeo = new THREE.CylinderGeometry(2.0, 2.0, 1.6, 32);
+                const cottageBodyMat = new THREE.MeshBasicMaterial({ color: 0x957A65 });
+                const cottageBodyMesh = new THREE.Mesh(cottageBodyGeo, cottageBodyMat);
+                cottageBodyMesh.position.y = 0.8;
+                dormGroup.add(cottageBodyMesh);
 
-        // Layered Conical Roof (3 Layers)
-        const roofLayers = 3;
-        const roofBaseRadius = 2.2; // Reduced Radius (2.4 -> 2.2)
-        const roofHeightPerLayer = 0.5;
-        const roofOverlap = 0.1;
+                // Layered Conical Roof (3 Layers)
+                const roofLayers = 3;
+                const roofBaseRadius = 2.2;
+                const roofHeightPerLayer = 0.5;
+                const roofColors = [0xCFB075, 0xEAC987, 0xF9E4B0];
 
-        // Colors from reference: Bottom darker -> Top lighter
-        const roofColors = [0xCFB075, 0xEAC987, 0xF9E4B0];
+                for (let i = 0; i < roofLayers; i++) {
+                    const r = roofBaseRadius * (1.0 - i * 0.25);
+                    const h = 2.2 + i * (roofHeightPerLayer - 0.1);
+                    const layerGeo = new THREE.ConeGeometry(r, roofHeightPerLayer * 2.5, 32);
+                    const layerMat = new THREE.MeshBasicMaterial({ color: roofColors[i] || 0xCEB180 });
+                    const layerMesh = new THREE.Mesh(layerGeo, layerMat);
+                    layerMesh.position.y = h;
+                    dormGroup.add(layerMesh);
+                }
+            } else {
+                // LEVEL 2: "Wood" Walls, Thin Cylindrical Roof, Extra Layer
+                // 1. Base Walls (Wood Color)
+                const baseGeo = new THREE.CylinderGeometry(2.2, 2.2, 2.0, 32);
+                const woodMat = new THREE.MeshBasicMaterial({ color: 0x8B5A2B }); // Wood Brown
+                const baseMesh = new THREE.Mesh(baseGeo, woodMat);
+                baseMesh.position.y = 1.0;
+                dormGroup.add(baseMesh);
 
-        for (let i = 0; i < roofLayers; i++) {
-            const r = roofBaseRadius * (1.0 - i * 0.25); // Decrease radius: 2.4 -> 1.8 -> 1.2
-            // Height moves up - Lifted slightly (2.0 -> 2.2)
-            const h = 2.2 + i * (roofHeightPerLayer - roofOverlap);
+                // 2. Thin Cylindrical Roof (First floor roof)
+                const roof1Geo = new THREE.CylinderGeometry(2.6, 2.6, 0.2, 32);
+                const roofMat = new THREE.MeshBasicMaterial({ color: 0x5D4037 }); // Darker Wood
+                const roof1 = new THREE.Mesh(roof1Geo, roofMat);
+                roof1.position.y = 2.1;
+                dormGroup.add(roof1);
 
-            const layerGeo = new THREE.ConeGeometry(r, roofHeightPerLayer * 2.5, 32); // Slightly taller cones for overlap look
+                // 3. Second Layer (Room) - Smaller cylinder
+                const layer2Geo = new THREE.CylinderGeometry(1.6, 1.6, 1.4, 32);
+                const layer2 = new THREE.Mesh(layer2Geo, woodMat);
+                layer2.position.y = 2.8; // 2.1 + 0.1 + 0.7
+                dormGroup.add(layer2);
 
-            // Use specific color for each layer
-            const col = roofColors[i] || 0xCEB180;
+                // 4. Second Layer Roof
+                const roof2Geo = new THREE.CylinderGeometry(2.0, 2.0, 0.2, 32);
+                const roof2 = new THREE.Mesh(roof2Geo, roofMat);
+                roof2.position.y = 3.6;
+                dormGroup.add(roof2);
+            }
 
-            const layerMat = new THREE.MeshBasicMaterial({
-                color: col
-            });
+            // Door Frame (Generic for now, adjust Z based on radius)
+            const doorRadius = level === 1 ? 2.0 : 2.2;
+            const doorFrameGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.2, 32, 1, false, 0, Math.PI);
+            const doorFrameMat = new THREE.MeshBasicMaterial({ color: 0x5D4037 });
+            const doorFrame = new THREE.Mesh(doorFrameGeo, doorFrameMat);
+            // Position: Ground(Y=0), Protruding(Z)
+            doorFrame.position.set(0, 0, doorRadius - 0.2);
+            doorFrame.rotation.set(0, Math.PI / 2, Math.PI / 2);
+            dormGroup.add(doorFrame);
 
-            const layerMesh = new THREE.Mesh(layerGeo, layerMat);
-            layerMesh.position.y = h;
-            cottage.add(layerMesh);
+            // Door (Inner Block)
+            const doorGeo = new THREE.CylinderGeometry(0.7, 0.7, 1.25, 32, 1, false, 0, Math.PI);
+            const doorMat = new THREE.MeshBasicMaterial({ color: 0x3E2723 });
+            const door = new THREE.Mesh(doorGeo, doorMat);
+            door.position.set(0, 0, doorRadius - 0.15);
+            door.rotation.set(0, Math.PI / 2, Math.PI / 2);
+            dormGroup.add(door);
+
+            return dormGroup;
         }
 
-        // Door Frame (Semi-Cylinder / Arch) - Re-thought
-        // Geometry: TopRadius, BottomRadius, Height(Depth), Segments, HeightSeg, Open, ThetaStart, ThetaLen
-        // We want a "Tunnel" shape along Z axis.
-        // Cylinder default axis is Y. Rotate X -90 makes it Z.
-        // Theta 0..PI creates a half-cylinder. We need to orient the flat side down.
-        const doorFrameGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.2, 32, 1, false, 0, Math.PI);
-
-        const doorFrameMat = new THREE.MeshBasicMaterial({
-            color: 0x5D4037
-        });
-        const doorFrame = new THREE.Mesh(doorFrameGeo, doorFrameMat);
-
-        // Position: Ground(Y=0), Protruding(Z=1.8) - Retracted further
-        // Rotation: User requested Y+90, then Z+90
-        doorFrame.position.set(0, 0, 1.8);
-        doorFrame.rotation.set(0, Math.PI / 2, Math.PI / 2);
-
-        cottage.add(doorFrame);
-
-        // Door (Inner Block)
-        // Slightly recessed or flush? Image implies simple filled arch.
-        const doorGeo = new THREE.CylinderGeometry(0.7, 0.7, 1.25, 32, 1, false, 0, Math.PI);
-
-        const doorMat = new THREE.MeshBasicMaterial({
-            color: 0x3E2723
-        });
-        const door = new THREE.Mesh(doorGeo, doorMat);
-
-        door.position.set(0, 0, 1.85);
-        // Actually, frame should contain door. Let's align centers.
-        // Let's make door "inside" frame.
-        // If frame is Z=2.3 (depth 1.2 -> 1.7 to 2.9).
-        // Door Z=2.35 (depth 1.25 -> 1.725 to 2.975).
-        door.rotation.set(0, Math.PI / 2, Math.PI / 2);
-        cottage.add(door);
-
-        const chestMesh = cottage;
+        chestMesh = buildDormitory(chestInventory.level);
         scene.add(chestMesh);
 
         // 4. Precise Terrain Height Logic (Copied from Terrain Pipeline)
@@ -1955,11 +1977,6 @@
 
         chestMesh.quaternion.setFromRotationMatrix(orientMatrix);
         chestMesh.updateMatrixWorld();
-
-        // 5. Icon Generation
-        const itemIcons = {}
-
-            ;
 
         function generateIcon(geo, color, camPos = null) {
             const size = 64;
@@ -2069,7 +2086,7 @@
         let lastStoredCount = -1; // Cache count to avoid DOM updates
 
         function updateDormLabel() {
-            if (!dormLabel || !cottage) return;
+            if (!dormLabel || !chestMesh) return;
 
             const now = performance.now();
 
@@ -2089,7 +2106,7 @@
             }
 
             // 2. Position Calculation (Every Frame - for Smoothness)
-            const worldPos = cottage.position.clone().add(new THREE.Vector3(0, 4.5, 0));
+            const worldPos = chestMesh.position.clone().add(new THREE.Vector3(0, 4.5, 0));
 
             // 3. Occlusion Check (Throttled to 10fps to save performance)
             if (now - lastDormLabelUpdate > 100) {
@@ -2173,30 +2190,83 @@
             }
         }
 
-        function updateChestLogic(playerPos) {
-            // --- 1. Update UI (Task List) - Efficiently ---
-            const types = ['twig', 'mushroom'];
+        function upgradeDormitoryState() {
+            const currentConfig = levelConfig[chestInventory.level];
 
-            types.forEach(type => {
-                let count = chestInventory[type] || 0;
+            // Consume Resources
+            if (currentConfig && currentConfig.tasks) {
+                currentConfig.tasks.forEach(t => {
+                    chestInventory[t.type] = Math.max(0, (chestInventory[t.type] || 0) - t.count);
+                });
+            }
+
+            // Level Up
+            chestInventory.level++;
+
+            // Update Max Followers based on new level or manual setting
+            // Config says nextLevelFollowers applies to the COMPLETED level reward? 
+            // The prompt says: "storage becomes 10".
+            // My config has 'nextLevelFollowers: 10' for level 1. So if we complete level 1, we get 10.
+            if (currentConfig && currentConfig.nextLevelFollowers) {
+                chestInventory.maxFollowers = currentConfig.nextLevelFollowers;
+            }
+
+            // Update Visuals
+            scene.remove(chestMesh);
+
+            // Rebuild
+            chestMesh = buildDormitory(chestInventory.level);
+            chestMesh.position.copy(chestPos);
+
+            // Re-orient (Standard Logic)
+            const radialUp = chestPos.clone().normalize();
+            const southTangent = new THREE.Vector3(0, 1, 0).projectOnPlane(radialUp).normalize();
+            if (southTangent.lengthSq() < 0.01) southTangent.copy(new THREE.Vector3(0, 0, 1)).projectOnPlane(radialUp).normalize();
+            const eastRight = new THREE.Vector3().crossVectors(radialUp, southTangent).normalize();
+            const orientMatrix = new THREE.Matrix4().makeBasis(eastRight, radialUp, southTangent);
+            chestMesh.quaternion.setFromRotationMatrix(orientMatrix);
+            chestMesh.updateMatrixWorld();
+
+            scene.add(chestMesh);
+
+            // Update UI
+            initTaskUI();
+        }
+
+        function updateChestLogic(playerPos) {
+            const config = levelConfig[chestInventory.level];
+            if (!config) return;
+
+            // --- 1. Update UI (Task List) & Check Upgrade ---
+            let allMet = true;
+
+            config.tasks.forEach(task => {
+                const type = task.type;
+                const count = chestInventory[type] || 0;
+
+                if (count < task.count) allMet = false;
 
                 // Update Text
                 const span = document.getElementById(`count-${type}`);
                 if (span) {
-                    const max = 10;
-                    span.textContent = `${count}/${max}`;
+                    span.textContent = `${count}/${task.count}`;
                 }
 
                 // Update Icon (Lazy Init)
                 const img = document.getElementById(`icon-${type}`);
                 if (img && itemIcons[type]) {
-                    // Check if we still have the placeholder or empty
                     const currentSrc = img.getAttribute('src');
                     if (!currentSrc || currentSrc.startsWith('data:image/gif')) {
                         img.src = itemIcons[type];
                     }
                 }
             });
+
+            // Trigger Upgrade if all tasks met
+            if (allMet && levelConfig[chestInventory.level + 1]) {
+                upgradeDormitoryState();
+                return;
+            }
 
             // --- 2. Interaction Logic (Distance Based) ---
             const dist = playerPos.distanceTo(chestMesh.position);
@@ -2205,22 +2275,28 @@
             if (dist < interactRange) {
                 // Interaction: Deposit
                 if (heldItem) {
-                    const currentQty = chestInventory[heldItem.type] || 0;
-                    if (currentQty < 10) {
-                        const now = clock.getElapsedTime();
+                    // Check if item is relevant for current tasks
+                    const task = config.tasks.find(t => t.type === heldItem.type);
 
-                        if (now - lastChestDepositTime > 1.0) {
-                            // Transition Effect
-                            if (heldItem.mesh) {
-                                scene.attach(heldItem.mesh);
-                                flyingItems.push({
-                                    mesh: heldItem.mesh,
-                                    target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
-                                    type: heldItem.type
-                                });
+                    if (task) {
+                        const currentQty = chestInventory[heldItem.type] || 0;
+                        // Only deposit if we haven't reached the target
+                        if (currentQty < task.count) {
+                            const now = clock.getElapsedTime();
+
+                            if (now - lastChestDepositTime > 1.0) {
+                                // Transition Effect
+                                if (heldItem.mesh) {
+                                    scene.attach(heldItem.mesh);
+                                    flyingItems.push({
+                                        mesh: heldItem.mesh,
+                                        target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
+                                        type: heldItem.type
+                                    });
+                                }
+                                heldItem = null;
+                                lastChestDepositTime = now;
                             }
-                            heldItem = null;
-                            lastChestDepositTime = now;
                         }
                     }
                 }
@@ -2406,8 +2482,13 @@
                     else if (f.heldItem && chestMesh) {
                         const distToChest = f.mesh.position.distanceTo(chestMesh.position);
                         const type = f.heldItem.type;
+
+                        const config = levelConfig[chestInventory.level];
+                        const task = config ? config.tasks.find(t => t.type === type) : null;
+
+                        // If no task for this item, consider it "full" (don't seek chest)
                         const currentCount = chestInventory[type] || 0;
-                        const isFull = currentCount >= 10;
+                        const isFull = task ? currentCount >= task.count : true;
 
                         // User Request: "Small people only go to chest if close"
                         // ADDED: Only if the chest isn't already full of this material
@@ -2612,18 +2693,16 @@
                 }
 
                 // Check Pickup (Always check now)
-                const targets = [ // { mesh: stones, type: 'stone', geo: stoneGeo }, // Stone removed
+                const config = levelConfig[chestInventory.level];
+                const activeTypes = config ? config.tasks.map(t => t.type) : [];
 
-                    {
-                        mesh: twigs, type: 'twig', geo: twigGeo
-                    }
-
-                    ,
-                    {
-                        mesh: mushrooms, type: 'mushroom', geo: mushGeo
-                    }
-
+                const possibleTargets = [
+                    { mesh: stones, type: 'stone', geo: stoneGeo },
+                    { mesh: twigs, type: 'twig', geo: twigGeo },
+                    { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
                 ];
+
+                const targets = possibleTargets.filter(t => activeTypes.includes(t.type));
 
                 // COOLDOWN: If holding an item, wait 1.0s before swapping
                 // Prevent flickering/infinite swap loop with item dropped at feet
@@ -2723,12 +2802,17 @@
                     const distToChest = f.mesh.position.distanceTo(chestMesh.position);
 
                     if (distToChest < 3.0) {
-                        // Check Capacity
+                        // Check Capacity (Dynamic)
+                        const config = levelConfig[chestInventory.level]; // Shadowing? Redundant but safe.
+                        const task = config ? config.tasks.find(t => t.type === f.heldItem.type) : null;
+
+                        // If no task, we can't deposit
+                        if (!task) return;
+
                         const currentCount = chestInventory[f.heldItem.type] || 0;
-                        if (currentCount >= 10) return; // Full
+                        if (currentCount >= task.count) return; // Full
 
                         // Deposit
-                        if (currentCount === 0) chestInventory[f.heldItem.type] = 0; // Initialize if not present
                         chestInventory[f.heldItem.type]++;
 
                         // Visuals
@@ -4520,7 +4604,8 @@
                 const currentTime = clock.getElapsedTime();
 
                 if (currentTime - lastFollowerStoreTime > 5.0) {
-                    if ((chestInventory.followers || 0) + followers.length < 5) {
+                    const max = chestInventory.maxFollowers || 5;
+                    if ((chestInventory.followers || 0) + followers.length < max) {
                         chestInventory.followers++;
                     }
 
