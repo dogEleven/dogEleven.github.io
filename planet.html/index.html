@@ -2871,7 +2871,7 @@
             }
         }
 
-        spawnWolves(5);
+        spawnWolves(3);
 
         let damageCount = 0;
         let isDead = false;
@@ -3018,13 +3018,13 @@
 
                 if (!isBiting) {
                     let bestTarget = null;
-                    let closestDist = 25.0; // Max aggro range
+                    let closestDist = 17.5; // Max aggro range (25.0 * 0.7)
 
                     // 1a. Check Player
                     if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
                         const d = w.mesh.position.distanceTo(playerPos);
 
-                        if (d < 17.5) {
+                        if (d < 12.25) {
                             // Player Aggro Range
                             closestDist = d;
 
@@ -3112,7 +3112,7 @@
                     if (w.combatState === 'circle_fast') {
                         currentSpeed = 14.4; // 9.0 * 1.6
 
-                        if (w.stateTimer > 1.0) {
+                        if (w.stateTimer > 1.4) {
                             // FAST AGGRESSION (was 3.5)
                             w.combatState = 'circle_slow';
                             w.stateTimer = 0;
@@ -3127,7 +3127,7 @@
                     else if (w.combatState === 'circle_slow') {
                         currentSpeed = 4.8; // 3.0 * 1.6
 
-                        if (w.stateTimer > 0.5) {
+                        if (w.stateTimer > 0.7) {
                             // FAST AGGRESSION (was 4.0)
                             w.combatState = 'dash';
                             w.stateTimer = 0;
@@ -3140,7 +3140,7 @@
                     }
 
                     else if (w.combatState === 'dash') {
-                        currentSpeed = 19.2; // 12.0 * 1.6
+                        currentSpeed = 19.2;
 
                         if (w.target && distToTarget < 3.5) {
                             w.combatState = 'bite_attack';
@@ -3698,25 +3698,55 @@
             // Turn Sky (Body Background) Black & White
             document.body.style.background = 'linear-gradient(to top, #000000 0%, #333333 100%)'; // Grayscale of #191970
 
-            const div = document.createElement('div');
-            div.style.position = 'fixed';
-            div.style.top = '50%';
-            div.style.left = '50%';
-            div.style.transform = 'translate(-50%, -50%)';
-            div.style.color = 'red';
-            div.style.fontSize = '64px';
-            div.style.fontWeight = 'bold';
-            div.style.fontFamily = 'Arial, sans-serif';
-            div.style.textShadow = '0 0 10px black';
-            div.innerHTML = 'YOU DIED';
-            div.style.zIndex = '100000';
-            document.body.appendChild(div);
-
             setTimeout(() => {
-                location.reload();
-            }
+                respawnPlayer();
+            }, 4000); // Increased wait for animation
+        }
 
-                , 4000); // Increased wait for animation
+        function respawnPlayer() {
+            isDead = false;
+
+            // 1. Reset Position to Dormitory (Chest)
+            // Find ground height at chest location
+            const groundH = getSurfaceHeight(chestPos.x, chestPos.y, chestPos.z);
+            const respawnPos = chestPos.clone().normalize().multiplyScalar(groundH + 0.5);
+
+            carPhysics.pos.copy(respawnPos);
+            carGroup.position.copy(respawnPos);
+
+            // Reset rotation/up vector
+            carPhysics.up.copy(respawnPos.clone().normalize());
+            carPhysics.smoothedUp.copy(carPhysics.up);
+            characterContainer.rotation.x = 0;
+            characterContainer.rotation.z = 0;
+            carPhysics.deathTime = 0;
+
+            // 2. Reset Visuals
+            const canvas = document.querySelector('canvas');
+            if (canvas) {
+                canvas.style.filter = '';
+            }
+            document.body.style.background = 'linear-gradient(to top, #000000 0%, #191970 100%)';
+
+            const div = document.getElementById('death-message');
+            if (div) div.remove();
+
+            // 3. Reset Health/State
+            damageCount = 0;
+            charMat.color.setRGB(1, 1, 1);
+            lastHitTime = 0;
+
+            // 4. Reset Wolves hit counts so they don't immediately "finish" an old kill
+            wolves.forEach(w => {
+                w.hitCount = 0;
+                w.combatState = 'wander';
+                w.target = null;
+            });
+
+            // 5. Drop current item if any
+            if (heldItem) {
+                dropItem(respawnPos.clone());
+            }
         }
 
 
