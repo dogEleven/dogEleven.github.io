@@ -2205,20 +2205,23 @@
             if (dist < interactRange) {
                 // Interaction: Deposit
                 if (heldItem) {
-                    const now = clock.getElapsedTime();
+                    const currentQty = chestInventory[heldItem.type] || 0;
+                    if (currentQty < 10) {
+                        const now = clock.getElapsedTime();
 
-                    if (now - lastChestDepositTime > 1.0) {
-                        // Transition Effect
-                        if (heldItem.mesh) {
-                            scene.attach(heldItem.mesh);
-                            flyingItems.push({
-                                mesh: heldItem.mesh,
-                                target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
-                                type: heldItem.type
-                            });
+                        if (now - lastChestDepositTime > 1.0) {
+                            // Transition Effect
+                            if (heldItem.mesh) {
+                                scene.attach(heldItem.mesh);
+                                flyingItems.push({
+                                    mesh: heldItem.mesh,
+                                    target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
+                                    type: heldItem.type
+                                });
+                            }
+                            heldItem = null;
+                            lastChestDepositTime = now;
                         }
-                        heldItem = null;
-                        lastChestDepositTime = now;
                     }
                 }
 
