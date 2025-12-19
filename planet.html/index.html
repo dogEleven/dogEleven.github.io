@@ -1956,8 +1956,39 @@
                     layerMesh.position.y = h;
                     dormGroup.add(layerMesh);
                 }
+            } else if (level === 2) {
+                // LEVEL 2: Brown Stone House (Transitional)
+                // Base
+                const baseGeo = new THREE.CylinderGeometry(2.2, 2.2, 2.0, 32);
+                const baseMat = new THREE.MeshBasicMaterial({ color: 0x8B4513 }); // Saddle Brown
+                const base = new THREE.Mesh(baseGeo, baseMat);
+                base.position.y = 1.0;
+                dormGroup.add(base);
+
+                // Mid Ring
+                const ringGeo = new THREE.TorusGeometry(2.3, 0.2, 8, 32);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xA0522D }); // Sienna
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.position.y = 2.0;
+                ring.rotation.x = Math.PI / 2;
+                dormGroup.add(ring);
+
+                // Second Floor
+                const floor2Geo = new THREE.CylinderGeometry(1.8, 1.8, 1.5, 32);
+                const floor2Mat = new THREE.MeshBasicMaterial({ color: 0xD2691E }); // Chocolate
+                const floor2 = new THREE.Mesh(floor2Geo, floor2Mat);
+                floor2.position.y = 2.75;
+                dormGroup.add(floor2);
+
+                // Roof
+                const roofGeo2 = new THREE.ConeGeometry(2.2, 1.5, 32);
+                const roofMat2 = new THREE.MeshBasicMaterial({ color: 0x5D4037 }); // Dark Brown
+                const roof2 = new THREE.Mesh(roofGeo2, roofMat2);
+                roof2.position.y = 4.25;
+                dormGroup.add(roof2);
+
             } else {
-                // LEVEL 2: Grey-Blue Stone, 2 Layers (Floors)
+                // LEVEL 3+: Grey-Blue Stone House (Original Lvl 2 Design)
                 // 1. Base Walls (Grey-Blue Stone)
                 const baseGeo = new THREE.CylinderGeometry(2.2, 2.2, 2.0, 32);
                 const stoneMat = new THREE.MeshBasicMaterial({ color: 0x778899 }); // Grey-Blue
@@ -2409,27 +2440,45 @@
             let validTask = null;
             let targetMesh = null;
             let targetType = null; // 'chest', 'weapon', 'armor'
+            let bestDist = 999;
 
-            if (distChest < interactRange) {
-                // Prioritize tasks WITHOUT target (General Upgrade)
-                if (heldItem) {
-                    validTask = config.tasks.find(t => t.type === heldItem.type && !t.target && (chestInventory[t.type] || 0) < t.count);
-                    if (validTask) { targetMesh = chestMesh; targetType = 'chest'; }
-                }
-            }
+            // Helper to check validity
+            const checkTask = (t, mesh, dist, typeTag) => {
+                // Check if we are physically close enough
+                if (dist < interactRange) {
+                    // Check if this task needs what we have
+                    const needsIt = t.type === heldItem.type;
+                    const notFull = (typeTag === 'weapon' ? (chestInventory.weaponWorkshopProgress || 0) :
+                        typeTag === 'armor' ? (chestInventory.armorWorkshopProgress || 0) :
+                            (chestInventory[t.type] || 0)) < t.count;
 
-            if (!validTask && distWeapon < interactRange && chestInventory.level >= 3) {
-                if (heldItem) {
-                    validTask = config.tasks.find(t => t.type === heldItem.type && t.target === 'weaponWorkshop' && (chestInventory.weaponWorkshopProgress || 0) < t.count);
-                    if (validTask) { targetMesh = weaponWorkshopMesh; targetType = 'weapon'; }
-                }
-            }
+                    // Specific target match?
+                    const targetMatch = (typeTag === 'weapon' && t.target === 'weaponWorkshop') ||
+                        (typeTag === 'armor' && t.target === 'armorWorkshop') ||
+                        (typeTag === 'chest' && !t.target);
 
-            if (!validTask && distArmor < interactRange && chestInventory.level >= 3) {
-                if (heldItem) {
-                    validTask = config.tasks.find(t => t.type === heldItem.type && t.target === 'armorWorkshop' && (chestInventory.armorWorkshopProgress || 0) < t.count);
-                    if (validTask) { targetMesh = armorWorkshopMesh; targetType = 'armor'; }
+                    if (needsIt && notFull && targetMatch) {
+                        // Found a valid task for this building. 
+                        // Is it closer than previous best?
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            validTask = t;
+                            targetMesh = mesh;
+                            targetType = typeTag;
+                        }
+                    }
                 }
+            };
+
+            if (heldItem) {
+                config.tasks.forEach(t => {
+                    // Check Main Chest
+                    checkTask(t, chestMesh, distChest, 'chest');
+                    // Check Weapon Workshop
+                    if (weaponWorkshopMesh && chestInventory.level >= 3) checkTask(t, weaponWorkshopMesh, distWeapon, 'weapon');
+                    // Check Armor Workshop
+                    if (armorWorkshopMesh && chestInventory.level >= 3) checkTask(t, armorWorkshopMesh, distArmor, 'armor');
+                });
             }
 
 
@@ -2902,22 +2951,60 @@
                         }
                     }
 
-                    // Priority 2: Seek Chest if holding item and CLOSE enough (Only if not hiding)
-                    else if (f.heldItem && chestMesh) {
-                        const distToChest = f.mesh.position.distanceTo(chestMesh.position);
+                    // Priority 2: Seek Closest Valid Storage if holding item
+                    else if (f.heldItem) {
                         const type = f.heldItem.type;
-
                         const config = levelConfig[chestInventory.level];
-                        const task = config ? config.tasks.find(t => t.type === type) : null;
 
-                        // If no task for this item, consider it "full" (don't seek chest)
-                        const currentCount = chestInventory[type] || 0;
-                        const isFull = task ? currentCount >= task.count : true;
+                        let bestTarget = null;
+                        let minTargetDist = 999;
 
-                        // User Request: "Small people only go to chest if close"
-                        // ADDED: Only if the chest isn't already full of this material
-                        if (distToChest < 12.0 && !isFull) {
-                            target = chestMesh.position;
+                        // Helper to evaluate targets
+                        const evalTarget = (mesh, targetTag) => {
+                            if (!mesh) return;
+                            const tDist = f.mesh.position.distanceTo(mesh.position);
+
+                            // Check Requirement
+                            let valid = false;
+                            let isFull = true;
+
+                            if (config) {
+                                // Find specific task for this building/item combo
+                                const task = config.tasks.find(t => {
+                                    if (t.type !== type) return false;
+
+                                    if (targetTag === 'chest') return !t.target;
+                                    if (targetTag === 'weapon') return t.target === 'weaponWorkshop';
+                                    if (targetTag === 'armor') return t.target === 'armorWorkshop';
+                                    return false;
+                                });
+
+                                if (task) {
+                                    valid = true;
+                                    const current = (targetTag === 'weapon' ? chestInventory.weaponWorkshopProgress :
+                                        targetTag === 'armor' ? chestInventory.armorWorkshopProgress :
+                                            chestInventory[type]) || 0;
+                                    isFull = current >= task.count;
+                                }
+                            }
+
+                            if (valid && !isFull && tDist < 25.0) { // Range check
+                                if (tDist < minTargetDist) {
+                                    minTargetDist = tDist;
+                                    bestTarget = mesh.position;
+                                }
+                            }
+                        };
+
+                        // Check all buildings
+                        evalTarget(chestMesh, 'chest');
+                        if (chestInventory.level >= 3) {
+                            evalTarget(weaponWorkshopMesh, 'weapon');
+                            evalTarget(armorWorkshopMesh, 'armor');
+                        }
+
+                        if (bestTarget) {
+                            target = bestTarget;
                             stopDist = 2.0;
                             seekWeight = 1.5;
                         }
@@ -3114,6 +3201,20 @@
                     // BUT priority: deliver or swap?
                     // Let's check pickup first. If pickup happens, swap.
                     // If no pickup, verify delivery.
+
+                    // VALIDITY CHECK: If holding item not in current config, drop it
+                    const config = levelConfig[chestInventory.level];
+                    const activeTypes = config ? config.tasks.map(t => t.type) : [];
+                    if (f.heldItem && !activeTypes.includes(f.heldItem.type)) {
+                        // Drop
+                        if (f.heldItem.mesh) {
+                            f.mesh.remove(f.heldItem.mesh);
+                            // Optionally restore to world, but for now just delete/consume
+                            // to avoid littering invalid items. Or drop at feet.
+                        }
+                        f.heldItem = null;
+                        // Continue to pickup
+                    }
                 }
 
                 // Check Pickup (Always check now)
@@ -3218,31 +3319,66 @@
                             }
                             if (didPickup) break;
                         }
-                    }
-                }
+                    } // End of Pickup Loop
 
-                if (f.heldItem && !didPickup) {
-                    // Delivery Logic
-                    const distToChest = f.mesh.position.distanceTo(chestMesh.position);
+                    if (f.heldItem && !didPickup) {
+                        // Delivery Logic - Check Proximity to ANY valid target
+                        const checkDeposit = (mesh, targetTag) => {
+                            if (!mesh) return false;
+                            if (f.mesh.position.distanceTo(mesh.position) < 3.0) {
+                                const config = levelConfig[chestInventory.level];
+                                if (!config) return false;
 
-                    if (distToChest < 3.0) {
-                        // Check Capacity (Dynamic)
-                        const config = levelConfig[chestInventory.level]; // Shadowing? Redundant but safe.
-                        const task = config ? config.tasks.find(t => t.type === f.heldItem.type) : null;
+                                // Find Matching Task
+                                const task = config.tasks.find(t => {
+                                    if (t.type !== f.heldItem.type) return false;
+                                    if (targetTag === 'chest') return !t.target;
+                                    if (targetTag === 'weapon') return t.target === 'weaponWorkshop';
+                                    if (targetTag === 'armor') return t.target === 'armorWorkshop';
+                                    return false;
+                                });
 
-                        // If no task, we can't deposit
-                        if (!task) return;
+                                if (!task) return false;
 
-                        const currentCount = chestInventory[f.heldItem.type] || 0;
-                        if (currentCount >= task.count) return; // Full
+                                // Check Full
+                                let current = (targetTag === 'weapon' ? chestInventory.weaponWorkshopProgress :
+                                    targetTag === 'armor' ? chestInventory.armorWorkshopProgress :
+                                        chestInventory[f.heldItem.type]) || 0;
 
-                        // Deposit
-                        chestInventory[f.heldItem.type]++;
+                                if (current >= task.count) return false;
 
-                        // Visuals
-                        f.mesh.remove(f.heldItem.mesh);
-                        if (f.heldItem.mesh.geometry) f.heldItem.mesh.geometry.dispose();
-                        f.heldItem = null;
+                                // DEPOSIT!
+                                if (targetTag === 'weapon') chestInventory.weaponWorkshopProgress = current + 1;
+                                else if (targetTag === 'armor') chestInventory.armorWorkshopProgress = current + 1;
+                                else chestInventory[f.heldItem.type] = current + 1;
+
+                                // Fly Item Animation
+                                const center = mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
+                                createFlyingItem(f.heldItem.type, f.mesh.position, center, task.target);
+
+                                // Update UI
+                                updateChestLogic(carGroup.position);
+
+                                // Clear Hand
+                                for (let c = f.mesh.children.length - 1; c >= 0; c--) {
+                                    const child = f.mesh.children[c];
+                                    if (child.userData && child.userData.isPickup) {
+                                        f.mesh.remove(child);
+                                        if (child.geometry) child.geometry.dispose();
+                                    }
+                                }
+                                f.heldItem = null;
+                                return true;
+                            }
+                            return false;
+                        };
+
+                        // Try Deposit in order
+                        let deposited = checkDeposit(chestMesh, 'chest');
+                        if (!deposited && chestInventory.level >= 3) {
+                            deposited = checkDeposit(weaponWorkshopMesh, 'weapon');
+                            if (!deposited) deposited = checkDeposit(armorWorkshopMesh, 'armor');
+                        }
                     }
                 }
             });
@@ -3255,7 +3391,6 @@
         function createWolf(pos) {
             const group = new THREE.Group();
             group.position.copy(pos);
-            group.hp = 100; // HP Added
             group.hp = 100; // HP Added
 
             // Voxel Style Wolf (Grey-ish)
@@ -3682,6 +3817,10 @@
                         currentSpeed = 12.8; // 8.0 * 1.6
                         moveForce.copy(w.attackDir);
 
+                        // Initialize hit targets for this swing if not exists
+                        // Note: ideally set when entering state, but lazy init works
+                        if (!w.hitTargets) w.hitTargets = [];
+
                         // Jump Anim
                         const jumpDuration = 0.5;
                         let jumpY = 0;
@@ -3708,6 +3847,7 @@
                             w.stateTimer = 0;
                             w.orbitDir *= -1;
                             if (w.model) w.model.position.y = 0;
+                            w.hitTargets = []; // Clear for next time
                         }
                     }
                 }
@@ -3742,16 +3882,21 @@
 
                     if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                         if ((w.hitCount === undefined || w.hitCount < 5) && d < 1.5 && !f.isDead) {
-                            if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
-                                if (f.hasHat) {
-                                    f.hasHat = false;
-                                    if (f.hatMesh) { f.mesh.remove(f.hatMesh); f.hatMesh = null; }
-                                    w.hitCount = (w.hitCount || 0) + 1;
-                                } else {
-                                    f.isDead = true;
-                                    spawnExplosion(f.mesh.position);
-                                    w.hitCount = (w.hitCount || 0) + 1;
-                                    dropItemFromDeadFollower(f);
+                            // Check if already hit THIS follower this swing
+                            if (!w.hitTargets.includes(f)) {
+                                if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
+                                    w.hitTargets.push(f); // Mark hit
+                                    if (f.hasHat) {
+                                        f.hasHat = false;
+                                        if (f.hatMesh) { f.mesh.remove(f.hatMesh); f.hatMesh = null; }
+                                        w.hitCount = (w.hitCount || 0) + 1;
+                                        // Visual feedback? Hat pop sound?
+                                    } else {
+                                        f.isDead = true;
+                                        spawnExplosion(f.mesh.position);
+                                        w.hitCount = (w.hitCount || 0) + 1;
+                                        dropItemFromDeadFollower(f);
+                                    }
                                 }
                             }
                         }
@@ -3771,19 +3916,24 @@
                 }
 
                 // Player Damage Logic
+                // Player Damage Logic
                 if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
                     if ((w.hitCount === undefined || w.hitCount < 5) && dPlayer < 1.25) {
-                        if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
+                        // Check player hit
+                        if (!w.hitTargets.includes(carPhysics)) {
+                            if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
+                                w.hitTargets.push(carPhysics);
 
-                            // Safe if hidden or in water
-                            if (now - lastHitTime > 1.0) {
-                                lastHitTime = now;
-                                w.hitCount = (w.hitCount || 0) + 1;
-                                if (carPhysics.hasHat) {
-                                    carPhysics.hasHat = false;
-                                    if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
-                                } else {
-                                    handleDeath();
+                                // Safe if hidden or in water
+                                if (now - lastHitTime > 1.0) {
+                                    lastHitTime = now;
+                                    w.hitCount = (w.hitCount || 0) + 1;
+                                    if (carPhysics.hasHat) {
+                                        carPhysics.hasHat = false;
+                                        if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
+                                    } else {
+                                        handleDeath();
+                                    }
                                 }
                             }
                         }
