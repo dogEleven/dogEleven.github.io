@@ -3357,6 +3357,17 @@
                 const h = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
                 w.mesh.position.normalize().multiplyScalar(h);
 
+                // --- 3.5 CHEST COLLISION ---
+                if (typeof chestMesh !== 'undefined' && chestMesh) {
+                    const dChest = w.mesh.position.distanceTo(chestMesh.position);
+                    const minDistChest = 2.4;
+                    if (dChest < minDistChest) {
+                        const pushDir = new THREE.Vector3().subVectors(w.mesh.position, chestMesh.position).normalize();
+                        w.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(minDistChest));
+                        w.mesh.position.normalize().multiplyScalar(h);
+                    }
+                }
+
                 if (w.combatState !== 'bite_attack') {
                     let forward = w.velocity.clone().normalize();
                     forward.projectOnPlane(up);
