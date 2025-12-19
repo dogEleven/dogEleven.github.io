@@ -3709,6 +3709,14 @@
             // Turn Sky (Body Background) Black & White
             document.body.style.background = 'linear-gradient(to top, #000000 0%, #333333 100%)'; // Grayscale of #191970
 
+            // Drop item at death location immediately (snapped to ground)
+            if (typeof heldItem !== 'undefined' && heldItem) {
+                const dropPos = carPhysics.pos.clone();
+                const groundH = getSurfaceHeight(dropPos.x, dropPos.y, dropPos.z);
+                dropPos.normalize().multiplyScalar(groundH);
+                dropItem(dropPos);
+            }
+
             setTimeout(() => {
                 respawnPlayer();
             }, 4000); // Increased wait for animation
@@ -3754,10 +3762,7 @@
                 w.target = null;
             });
 
-            // 5. Drop current item if any
-            if (heldItem) {
-                dropItem(respawnPos.clone());
-            }
+
         }
 
 
