@@ -2402,9 +2402,13 @@
                     // Priority 2: Seek Chest if holding item and CLOSE enough (Only if not hiding)
                     else if (f.heldItem && chestMesh) {
                         const distToChest = f.mesh.position.distanceTo(chestMesh.position);
+                        const type = f.heldItem.type;
+                        const currentCount = chestInventory[type] || 0;
+                        const isFull = currentCount >= 10;
 
                         // User Request: "Small people only go to chest if close"
-                        if (distToChest < 12.0) {
+                        // ADDED: Only if the chest isn't already full of this material
+                        if (distToChest < 12.0 && !isFull) {
                             target = chestMesh.position;
                             stopDist = 2.0;
                             seekWeight = 1.5;
