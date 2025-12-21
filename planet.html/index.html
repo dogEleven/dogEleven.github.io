@@ -2925,6 +2925,8 @@
                 isFollowing: true, // Auto Follow Immediately
                 waterTime: 0,
                 mat: mat,
+                hp: 100, // Follower Health
+                maxHp: 100,
                 isJumping: false,
                 jumpTime: 0,
                 yOffset: 0,
@@ -3248,7 +3250,8 @@
                     if (distToTarget > stopDist) {
                         let dir = new THREE.Vector3().subVectors(target, f.mesh.position).normalize();
                         dir.projectOnPlane(up).normalize();
-                        moveForce.add(dir.multiplyScalar(seekWeight));
+                        const speedMult = gameState ? gameState.stats.moveSpeedMult : 1.0;
+                        moveForce.add(dir.multiplyScalar(seekWeight * speedMult));
                     }
 
 
@@ -4166,14 +4169,32 @@
                                         w.hitCount = (w.hitCount || 0) + 1;
                                         // Visual feedback? Hat pop sound?
                                     } else {
-                                        f.isDead = true;
-                                        spawnExplosion(f.mesh.position);
-                                        w.hitCount = (w.hitCount || 0) + 1;
-                                        dropItemFromDeadFollower(f);
+                                        // New HP Logic for Followers
+                                        let dmg = 34.0; // Base wolf damage to followers (approx 3 hits to kill 100hp)
+                                        // Apply Defense
+                                        dmg *= (1.0 / gameState.stats.defenseMult);
 
-                                        // Damage Log
-                                        const nowMS = new Date().toISOString();
-                                        console.log(`[${nowMS}] Wolf Eat Follower: Damage=FATAL`);
+                                        f.hp -= dmg;
+
+                                        // Visual Feedback
+                                        if (f.mesh.children[0] && f.mesh.children[0].material) {
+                                            f.mesh.children[0].material.color.setHex(0xff0000);
+                                            setTimeout(() => { if (f.mesh.children[0]) f.mesh.children[0].material.color.setHex(0xffffff); }, 200);
+                                        }
+
+                                        w.hitCount = (w.hitCount || 0) + 1;
+
+                                        if (f.hp <= 0) {
+                                            f.isDead = true;
+                                            spawnExplosion(f.mesh.position);
+                                            dropItemFromDeadFollower(f);
+
+                                            // Damage Log
+                                            const nowMS = new Date().toISOString();
+                                            console.log(`[${nowMS}] Wolf Eat Follower: FATAL`);
+                                        } else {
+                                            spawnJumpDust(f.mesh.position); // mild hit effect
+                                        }
                                     }
                                 }
                             }
@@ -4211,14 +4232,19 @@
                                         if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
                                     } else {
                                         // Player Damage (Non-Fatal)
-                                        chestInventory.hp -= 20;
+                                        let dmg = 20;
+                                        // Apply Defense
+                                        dmg *= (1.0 / gameState.stats.defenseMult);
+
+                                        chestInventory.hp -= dmg;
+
                                         if (chestInventory.hp <= 0) {
                                             handleDeath();
                                         }
 
                                         // Damage Log
                                         const nowMS = new Date().toISOString();
-                                        console.log(`[${nowMS}] Wolf Bite Player: Damage=20, HP=${chestInventory.hp}`);
+                                        console.log(`[${nowMS}] Wolf Bite Player: Damage=${dmg.toFixed(1)}, HP=${chestInventory.hp.toFixed(1)}`);
                                     }
                                 }
                             }
