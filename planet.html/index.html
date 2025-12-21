@@ -5259,6 +5259,12 @@
                 // Reset Global Jump Signal each frame
                 window.playerDidJumpGlobal = false;
 
+                // Pause game logic when upgrade UI is shown
+                if (gameState.paused) {
+                    renderer.render(scene, camera);
+                    return;
+                }
+
                 // Rest of animate loop...
 
 
