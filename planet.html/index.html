@@ -2053,7 +2053,8 @@
                 attackFreqMult: 1.0,
                 critRate: 0.0,
                 defenseMult: 1.0
-            }
+            },
+            paused: false
         };
 
         // WAVE CONFIG
@@ -2174,6 +2175,7 @@
         ];
 
         function showRogueUpgrade() {
+            gameState.paused = true;
             const ui = document.getElementById('rogueUpgradeUI');
             const container = document.getElementById('rogueCardOptions');
             container.innerHTML = '';
@@ -2194,6 +2196,8 @@
                     upg.effect();
                     ui.style.display = 'none';
                     // Resume game could be here if we paused
+                    gameState.paused = false;
+                    clock.getDelta(); // Clear accumulated time to prevent jump
                 };
                 container.appendChild(card);
             });
@@ -3050,7 +3054,7 @@
                     // --- Combat Logic (Persistent) ---
                     const aggroRange = f.hasSword ? 15.0 : 5.0;
                     const chaseLimit = 40.0;
-                    const leashDistance = 6.0; // Reduced leash to force return sooner logic
+                    const leashDistance = 12.0; // Reduced leash to force return sooner logic
 
                     // 0. Leash Check (Overrides Combat)
                     if (distToPlayer > leashDistance) {
