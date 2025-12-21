@@ -182,7 +182,7 @@
             border-left: 12px solid transparent;
             border-right: 12px solid transparent;
             border-bottom: 20px solid #ff3333;
-            z-index: 9999;
+            z-index: 10001;
             pointer-events: none;
             display: none;
             filter: drop-shadow(0 0 4px red);
@@ -220,34 +220,36 @@
         @media (max-width: 768px) and (orientation: portrait) {
             .rogue-card-container {
                 flex-direction: column;
-                gap: 15px;
-                max-width: 80vw;
+                gap: 12px;
+                max-width: 85vw;
             }
 
             .rogue-card {
                 width: 100%;
-                max-width: 300px;
+                max-width: 280px;
                 height: auto;
-                min-height: 200px;
-                padding: 15px;
+                min-height: 140px;
+                padding: 12px;
             }
 
             #rogueUpgradeUI h2 {
-                font-size: 24px;
-                margin-bottom: 20px;
+                font-size: 22px;
+                margin-bottom: 16px;
             }
 
             .rogue-card .icon {
-                font-size: 32px;
-                margin-bottom: 10px;
+                font-size: 28px;
+                margin-bottom: 8px;
             }
 
             .rogue-card .title {
-                font-size: 16px;
+                font-size: 15px;
+                margin-bottom: 6px;
             }
 
             .rogue-card .desc {
-                font-size: 12px;
+                font-size: 11px;
+                line-height: 1.3;
             }
         }
 
@@ -1715,32 +1717,6 @@
 
         let seed = 12345;
 
-        // Debug Cheat: Skip Level with 'J'
-        // Debug Cheat: Skip Level with 'J'
-        window.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'j') {
-                const config = levelConfig[chestInventory.level];
-                if (config && config.tasks) {
-                    config.tasks.forEach(task => {
-                        // Max out the progress for this task
-                        if (task.target === 'weaponWorkshop') {
-                            chestInventory.weaponWorkshopProgress = task.count;
-                        } else if (task.target === 'armorWorkshop') {
-                            chestInventory.armorWorkshopProgress = task.count;
-                        } else {
-                            chestInventory[task.type] = task.count; // Max out resource
-                        }
-                    });
-
-                    if (typeof updateChestLogic === 'function' && carPhysics) {
-                        updateChestLogic(carPhysics.position);
-                        initTaskUI();
-                        console.log(`[CHEAT] Skipped Level ${chestInventory.level}`);
-                    }
-                }
-            }
-        });
-
         function seededRandom() {
             seed = (seed * 9301 + 49297) % 233280;
             return seed / 233280;
@@ -2252,13 +2228,20 @@
                     <div class="title">${upg.title}</div>
                     <div class="desc">${upg.desc}</div>
                 `;
-                card.onclick = () => {
+
+                const handleSelect = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     upg.effect();
                     ui.style.display = 'none';
                     // Resume game could be here if we paused
                     gameState.paused = false;
                     clock.getDelta(); // Clear accumulated time to prevent jump
                 };
+
+                card.onclick = handleSelect;
+                card.ontouchend = handleSelect;
+
                 container.appendChild(card);
             });
 
@@ -2705,10 +2688,19 @@
 
             // Only show if 2 or fewer remain
             if (targets.length > 0 && targets.length <= 2) {
+                const playerPos = carGroup.position;
+
                 targets.forEach((t, i) => {
                     if (i >= 2) return;
                     const el = arrows[i];
                     if (!el) return;
+
+                    // Check distance from player
+                    const distToPlayer = t.mesh.position.distanceTo(playerPos);
+                    if (distToPlayer <= 15) {
+                        // Too close, don't show arrow
+                        return;
+                    }
 
                     // Project
                     const pos = t.mesh.position.clone();
@@ -2717,7 +2709,12 @@
                     // Check if off-screen (NDC [-1, 1])
                     const isOffScreen = pos.z > 1 || Math.abs(pos.x) > 0.95 || Math.abs(pos.y) > 0.95;
 
-                    // Always show arrow
+                    // Only show if off-screen
+                    if (!isOffScreen) {
+                        return;
+                    }
+
+                    // Show arrow
                     el.style.display = 'block';
 
                     let nx = pos.x;
@@ -2729,19 +2726,17 @@
                         ny = -ny;
                     }
 
-                    // If off-screen, clamp to edge
-                    if (isOffScreen) {
-                        const absX = Math.abs(nx);
-                        const absY = Math.abs(ny);
+                    // Always clamp to edge
+                    const absX = Math.abs(nx);
+                    const absY = Math.abs(ny);
 
-                        // Clamp to edge
-                        if (absX > absY) {
-                            nx = nx > 0 ? 0.95 : -0.95;
-                            ny = ny * (0.95 / absX);
-                        } else {
-                            ny = ny > 0 ? 0.95 : -0.95;
-                            nx = nx * (0.95 / absY);
-                        }
+                    // Clamp to edge
+                    if (absX > absY) {
+                        nx = nx > 0 ? 0.95 : -0.95;
+                        ny = ny * (0.95 / absX);
+                    } else {
+                        ny = ny > 0 ? 0.95 : -0.95;
+                        nx = nx * (0.95 / absY);
                     }
 
                     // Convert to screen pixels
@@ -2751,7 +2746,7 @@
                     el.style.left = cssX + 'px';
                     el.style.top = cssY + 'px';
 
-                    // Rotation to point towards center (inward) if on-screen, outward if off-screen
+                    // Rotation to point inward (towards enemy direction)
                     const centerX = window.innerWidth / 2;
                     const centerY = window.innerHeight / 2;
                     const dirX = cssX - centerX;
