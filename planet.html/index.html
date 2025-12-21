@@ -4044,8 +4044,11 @@
                     let closestDist = 17.5; // Max aggro range (25.0 * 0.7)
 
                     // 1a. Check Player (HIGHEST PRIORITY)
-                    // If Player is visible and within Aggro Range, IGNORE followers roughly nearby
-                    if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
+                    // Bears ignore water, wolves don't attack players in water
+                    const canTargetPlayerInWater = w.isBear === true;
+                    const playerInWater = isPositionInWater(playerPos);
+
+                    if (!isPositionHidden(playerPos) && (canTargetPlayerInWater || !playerInWater)) {
                         const d = w.mesh.position.distanceTo(playerPos);
 
                         if (d < 12.25) {
