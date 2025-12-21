@@ -1872,11 +1872,7 @@
             mushroom: 0,
             followers: 5, // Stored followers
             level: 1, // Current Dorm Level
-            maxFollowers: 5,
-            weaponWorkshopProgress: 0,
-            armorWorkshopProgress: 0,
-            weaponWorkshopLevel: 0, // 0: None, 1: Foundation, 2: Complete
-            armorWorkshopLevel: 0   // 0: None, 1: Foundation, 2: Complete
+            maxFollowers: 5
         };
 
         // Task Configuration per Level
@@ -1886,38 +1882,23 @@
             1: {
                 description: "Initial Hut",
                 tasks: [
-                    { type: 'twig', count: 10 },
-                    { type: 'mushroom', count: 10 }
+                    { type: 'twig', count: 5 },
+                    { type: 'mushroom', count: 5 }
                 ],
                 reward: {
-                    maxFollowers: 10,   // Population Cap after completing Level 1
-                    description: "Unlock Stone House Upgrade"
+                    maxFollowers: 10,
+                    description: "Upgrade House & Equip Guard"
                 },
-                unlocks: []
+                unlocks: ['guard_gear']
             },
             2: {
-                description: "Stone House Upgrade",
-                tasks: [
-                    { type: 'stone', count: 20 }
-                ],
+                description: "Guard Post",
+                tasks: [],
                 reward: {
-                    maxFollowers: 15,
-                    description: "Unlock Workshop Foundations"
+                    maxFollowers: 10,
+                    description: "Max Level"
                 },
-                unlocks: ['weaponWorkshop', 'armorWorkshop'] // Triggers foundation visibility
-            },
-            3: {
-                description: "Workshop Construction",
-                tasks: [
-                    // Target specific buildings
-                    { type: 'twig', count: 20, target: 'weaponWorkshop', label: 'Weapon Workshop' },
-                    { type: 'twig', count: 20, target: 'armorWorkshop', label: 'Armor Workshop' }
-                ],
-                reward: {
-                    maxFollowers: 20,
-                    description: "Workshops Complete"
-                },
-                unlocks: ['weapon_equip', 'armor_equip'] // Logic flags (handled by inventory state currently)
+                unlocks: []
             }
         };
 
@@ -2304,24 +2285,14 @@
                 else {
 
                     // Arrived
-                    if (item.taskTarget === 'weaponWorkshop') {
-                        chestInventory.weaponWorkshopProgress = (chestInventory.weaponWorkshopProgress || 0) + 1;
-                    } else if (item.taskTarget === 'armorWorkshop') {
-                        chestInventory.armorWorkshopProgress = (chestInventory.armorWorkshopProgress || 0) + 1;
-                    } else if (chestInventory.hasOwnProperty(item.type)) {
+                    if (chestInventory.hasOwnProperty(item.type)) {
                         chestInventory[item.type]++;
-                    }
-
-                    else {
-                        chestInventory[item.type] = 1;
                     }
 
                     // Dispose
                     scene.remove(item.mesh);
                     if (item.mesh.geometry) item.mesh.geometry.dispose();
                     flyingItems.splice(i, 1);
-
-                    // Visual Feedback Removed
                 }
             }
         }
@@ -2373,374 +2344,156 @@
             // --- 1. Update UI (Task List) & Check Upgrade ---
             let allMet = true;
 
-            // Workshop Generation / Updates based on Level
-            // Workshop Generation / Updates based on Level
-            if (chestInventory.level >= 3) {
-                // Ensure Foundation Meshes exist
-                updateWorkshops();
+            if (config.tasks && config.tasks.length > 0) {
+                config.tasks.forEach(task => {
+                    const type = task.type;
+                    const count = chestInventory[type] || 0;
+
+                    if (count < task.count) allMet = false;
+
+                    // Update Text
+                    const span = document.getElementById(`count-${type}`);
+                    if (span) {
+                        span.textContent = `${count}/${task.count}`;
+                    }
+
+                    // Icon update
+                    const img = document.getElementById(`icon-${type}`);
+                    if (img && itemIcons[type]) {
+                        const currentSrc = img.getAttribute('src');
+                        if (!currentSrc || currentSrc.startsWith('data:image/gif')) {
+                            img.src = itemIcons[type];
+                        }
+                    }
+                });
             }
 
-            config.tasks.forEach(task => {
-                const type = task.type;
-                let count = 0;
-
-                if (task.target === 'weaponWorkshop') count = chestInventory.weaponWorkshopProgress || 0;
-                else if (task.target === 'armorWorkshop') count = chestInventory.armorWorkshopProgress || 0;
-                else count = chestInventory[type] || 0;
-
-                if (count < task.count) allMet = false;
-
-                // Update Text
-                const span = document.getElementById(task.target ? `count-${task.target}` : `count-${type}`);
-                if (span) {
-                    span.textContent = `${count}/${task.count}`;
-                }
-
-                // Icon update (standard)
-                const img = document.getElementById(`icon-${type}${task.target ? '-' + task.target : ''}`);
-                if (img && itemIcons[type]) {
-                    const currentSrc = img.getAttribute('src');
-                    if (!currentSrc || currentSrc.startsWith('data:image/gif')) {
-                        img.src = itemIcons[type];
-                    }
-                }
-
-                // COMPLETE BUILDINGS IF MET
-                if (task.target === 'weaponWorkshop' && count >= task.count && chestInventory.weaponWorkshopLevel < 2) {
-                    chestInventory.weaponWorkshopLevel = 2; // Complete
-                    updateWorkshops();
-                }
-                if (task.target === 'armorWorkshop' && count >= task.count && chestInventory.armorWorkshopLevel < 2) {
-                    chestInventory.armorWorkshopLevel = 2; // Complete
-                    updateWorkshops();
-                }
-            });
-
-            // Trigger Global Upgrade (Level 3 or 4)
-            if (allMet && levelConfig[chestInventory.level + 1]) {
-                // For Level 3, we wait for both workshops? Or just auto upgrade?
-                // Current logic: If all tasks in current level met, upgrade.
-                // Level 2 tasks: 20 Stone. Once met -> Level 3.
-                // Level 3 tasks: Workshops. Once met -> Level 4 (or just stay).
+            // Trigger Global Upgrade
+            if (allMet && config.tasks && config.tasks.length > 0 && levelConfig[chestInventory.level + 1]) {
                 upgradeDormitoryState();
                 return;
             }
 
             // --- 2. Interaction Logic (Distance Based) ---
-            // Calculate distances to key Structures
             const distChest = playerPos.distanceTo(chestMesh.position);
-
-            let distWeapon = 999;
-            let distArmor = 999;
-            if (weaponWorkshopMesh) distWeapon = playerPos.distanceTo(weaponWorkshopMesh.position);
-            if (armorWorkshopMesh) distArmor = playerPos.distanceTo(armorWorkshopMesh.position);
-
             const interactRange = 3.0;
 
-            // Determine Deposit Target based on proximity
-            let validTask = null;
-            let targetMesh = null;
-            let targetType = null; // 'chest', 'weapon', 'armor'
-            let bestDist = 999;
-
-            // Helper to check validity
-            const checkTask = (t, mesh, dist, typeTag) => {
-                // Check if we are physically close enough
-                if (dist < interactRange) {
-                    // Check if this task needs what we have
-                    const needsIt = t.type === heldItem.type;
-                    const notFull = (typeTag === 'weapon' ? (chestInventory.weaponWorkshopProgress || 0) :
-                        typeTag === 'armor' ? (chestInventory.armorWorkshopProgress || 0) :
-                            (chestInventory[t.type] || 0)) < t.count;
-
-                    // Specific target match?
-                    const targetMatch = (typeTag === 'weapon' && t.target === 'weaponWorkshop') ||
-                        (typeTag === 'armor' && t.target === 'armorWorkshop') ||
-                        (typeTag === 'chest' && !t.target);
-
-                    if (needsIt && notFull && targetMatch) {
-                        // Found a valid task for this building. 
-                        // Is it closer than previous best?
-                        if (dist < bestDist) {
-                            bestDist = dist;
-                            validTask = t;
-                            targetMesh = mesh;
-                            targetType = typeTag;
+            // Deposit Item
+            if (heldItem && config.tasks) {
+                const task = config.tasks.find(t => t.type === heldItem.type);
+                if (task) {
+                    const current = chestInventory[heldItem.type] || 0;
+                    if (current < task.count && distChest < interactRange) {
+                        const now = clock.getElapsedTime();
+                        if (now - lastChestDepositTime > 1.0) {
+                            if (heldItem.mesh) {
+                                scene.attach(heldItem.mesh);
+                                flyingItems.push({
+                                    mesh: heldItem.mesh,
+                                    target: chestMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
+                                    type: heldItem.type
+                                });
+                            }
+                            heldItem = null;
+                            lastChestDepositTime = now;
                         }
                     }
                 }
-            };
-
-            if (heldItem) {
-                config.tasks.forEach(t => {
-                    // Check Main Chest
-                    checkTask(t, chestMesh, distChest, 'chest');
-                    // Check Weapon Workshop
-                    if (weaponWorkshopMesh && chestInventory.level >= 3) checkTask(t, weaponWorkshopMesh, distWeapon, 'weapon');
-                    // Check Armor Workshop
-                    if (armorWorkshopMesh && chestInventory.level >= 3) checkTask(t, armorWorkshopMesh, distArmor, 'armor');
-                });
             }
 
-
-            if (validTask && targetMesh) {
-                // Interaction: Deposit
+            // Release Followers
+            if (distChest < interactRange && chestInventory.followers > 0) {
                 const now = clock.getElapsedTime();
-                if (now - lastChestDepositTime > 1.0) {
-                    // Transition Effect
-                    if (heldItem.mesh) {
-                        scene.attach(heldItem.mesh);
-                        flyingItems.push({
-                            mesh: heldItem.mesh,
-                            target: targetMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
-                            type: heldItem.type,
-                            taskTarget: validTask.target // Tag for flying update
-                        });
-                    }
-                    heldItem = null;
-                    lastChestDepositTime = now;
+                if (!window.lastFollowerReleaseTime) window.lastFollowerReleaseTime = 0;
+
+                if (now - window.lastFollowerReleaseTime > 0.5) {
+                    chestInventory.followers--;
+                    respawnFollowerAtChest();
+                    window.lastFollowerReleaseTime = now;
                 }
             }
 
-            if (distChest < interactRange) {
-                // Interaction: Release Stored Followers
-                if (chestInventory.followers > 0) {
-                    const now = clock.getElapsedTime();
-                    if (!window.lastFollowerReleaseTime) window.lastFollowerReleaseTime = 0;
-
-                    if (now - window.lastFollowerReleaseTime > 0.5) {
-                        chestInventory.followers--;
-                        respawnFollowerAtChest();
-                        window.lastFollowerReleaseTime = now;
-                    }
-                }
-            }
-
-            // --- 3. Equipment Acquisition Logic ---
-            if (chestInventory.weaponWorkshopLevel === 2 && weaponWorkshopMesh) {
-                // Weapon Workshop Logic
-                [carPhysics, ...followers].forEach(entity => {
-                    const pos = entity === carPhysics ? carGroup.position : entity.mesh.position;
-                    // World Position of workshop? 
-                    // Workshop is children of chestMesh maybe? Or separate scene object? 
-                    // Let's make them separate scene objects for global collision check ease, or transform local to world.
-                    // Implementation choice: Separate scene objects attached to scene but positioned relative to chest.
-
-                    if (weaponWorkshopMesh.parent === scene) {
-                        if (pos.distanceTo(weaponWorkshopMesh.position) < 3.0) {
-                            if (!entity.hasBow) {
-                                entity.hasBow = true;
-                                equipBow(entity);
-                            }
-                        }
-                    }
-                });
-            }
-
-            if (chestInventory.armorWorkshopLevel === 2 && armorWorkshopMesh) {
-                // Armor Workshop Logic
-                [carPhysics, ...followers].forEach(entity => {
-                    const pos = entity === carPhysics ? carGroup.position : entity.mesh.position;
-                    if (armorWorkshopMesh.parent === scene) {
-                        if (pos.distanceTo(armorWorkshopMesh.position) < 3.0) {
-                            if (!entity.hasHat) {
-                                entity.hasHat = true;
-                                equipHat(entity);
-                            }
-                        }
+            // --- 3. Equip Followers (Continuous Check) ---
+            if (chestInventory.level >= 2) {
+                followers.forEach(f => {
+                    if (!f.isDead) {
+                        equipSword(f);
+                        equipShield(f);
                     }
                 });
             }
         }
 
         // --- Workshop System ---
-        let weaponWorkshopMesh = null;
-        let armorWorkshopMesh = null;
 
-        function updateWorkshops() {
-            // Calculate Positions relative to Dorm
-            // Dorm is at chestPos. 
-            // "Left 4m" and "Right 4m". 
-            // We need the orientation vectors.
-            const radialUp = chestPos.clone().normalize();
-            const southTangent = new THREE.Vector3(0, 1, 0).projectOnPlane(radialUp).normalize();
-            if (southTangent.lengthSq() < 0.01) southTangent.copy(new THREE.Vector3(0, 0, 1)).projectOnPlane(radialUp).normalize();
-            const eastRight = new THREE.Vector3().crossVectors(radialUp, southTangent).normalize();
 
-            const leftPos = chestPos.clone().add(eastRight.clone().multiplyScalar(-4.0)); // Left
-            const rightPos = chestPos.clone().add(eastRight.clone().multiplyScalar(4.0)); // Right
+        // --- Equipment Visuals ---
+        function equipSword(entity) {
+            if (entity.hasSword) return;
+            entity.hasSword = true;
 
-            // Snap heights
-            const lh = getSurfaceHeight(leftPos.x, leftPos.y, leftPos.z);
-            leftPos.normalize().multiplyScalar(lh);
+            const group = new THREE.Group();
 
-            const rh = getSurfaceHeight(rightPos.x, rightPos.y, rightPos.z);
-            rightPos.normalize().multiplyScalar(rh);
+            // Blade
+            const bladeGeo = new THREE.BoxGeometry(0.1, 0.8, 0.05);
+            const bladeMat = new THREE.MeshBasicMaterial({ color: 0x8B4513 }); // Wood
+            const blade = new THREE.Mesh(bladeGeo, bladeMat);
+            blade.position.y = 0.4;
+            group.add(blade);
 
-            // 1. Weapon Workshop
-            if (!weaponWorkshopMesh) {
-                weaponWorkshopMesh = new THREE.Group();
-                weaponWorkshopMesh.position.copy(leftPos);
-                weaponWorkshopMesh.lookAt(0, 0, 0); // Orient somewhat upright
-                // Actually align up vector
-                const up = leftPos.clone().normalize();
-                const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
-                weaponWorkshopMesh.setRotationFromQuaternion(q);
+            // Crossguard
+            const guardGeo = new THREE.BoxGeometry(0.3, 0.05, 0.05);
+            const guard = new THREE.Mesh(guardGeo, bladeMat);
+            guard.position.y = 0.1;
+            group.add(guard);
 
-                scene.add(weaponWorkshopMesh);
-            }
+            // Handle
+            const handleGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.3);
+            const handle = new THREE.Mesh(handleGeo, bladeMat);
+            handle.position.y = -0.05;
+            group.add(handle);
 
-            // Update Visuals based on Level/Progress
-            weaponWorkshopMesh.clear();
-            if (chestInventory.weaponWorkshopLevel === 2) {
-                // Completed: Weapon Shop (Visuals from image)
-                // Wooden frame, maybe weapons on display
-                const base = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.2, 2.5), new THREE.MeshBasicMaterial({ color: 0x8B4513 }));
-                base.position.y = 0.1;
-                weaponWorkshopMesh.add(base);
+            // Attach to Right Hand side
+            // For followers: Attached to mesh. 
+            // Position: Right side, sticking out
+            group.position.set(0.35, 0.6, 0.2);
+            group.rotation.x = Math.PI / 4; // Pointing forward/up
 
-                const table = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.8, 1.0), new THREE.MeshBasicMaterial({ color: 0xA0522D }));
-                table.position.y = 0.5;
-                weaponWorkshopMesh.add(table);
+            //entity.mesh.add(group); 
+            // Better attachment point logic? Follower mesh structure:
+            // mesh -> body, head, legs.
+            // Just attach to main mesh group.
+            entity.mesh.add(group);
+        }
 
-                // Bow display
-                const bow = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.05, 8, 16, Math.PI), new THREE.MeshBasicMaterial({ color: 0xFFD700 }));
-                bow.position.set(0, 1.2, 0);
-                bow.rotation.z = Math.PI / 2;
-                weaponWorkshopMesh.add(bow);
+        function equipShield(entity) {
+            if (entity.hasShield) return;
+            entity.hasShield = true;
 
-            } else {
-                // Foundation (4 sticks)
-                const stickGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.0);
-                const stickMat = new THREE.MeshBasicMaterial({ color: 0xD2691E });
+            const group = new THREE.Group();
 
-                const offsets = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
-                offsets.forEach(off => {
-                    const s = new THREE.Mesh(stickGeo, stickMat);
-                    s.position.set(off[0] * 0.8, 0.5, off[1] * 0.8);
-                    weaponWorkshopMesh.add(s);
-                });
+            // Shield Body (Rectangular Wood)
+            const shieldGeo = new THREE.BoxGeometry(0.5, 0.6, 0.05);
+            const shieldMat = new THREE.MeshBasicMaterial({ color: 0x5C4033 }); // Darker Wood
+            const shield = new THREE.Mesh(shieldGeo, shieldMat);
+            group.add(shield);
 
-                // "Foundation" marker
-                const base = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide }));
-                base.rotation.x = -Math.PI / 2;
-                base.position.y = 0.05;
-                weaponWorkshopMesh.add(base);
-            }
+            // Rim/Detail
+            const paintMat = new THREE.MeshBasicMaterial({ color: 0xA0522D });
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.1, 0.06), paintMat);
+            stripe.position.y = 0.1;
+            stripe.position.z = 0.01;
+            group.add(stripe);
 
-            // 2. Armor Workshop
-            if (!armorWorkshopMesh) {
-                armorWorkshopMesh = new THREE.Group();
-                armorWorkshopMesh.position.copy(rightPos);
+            // Attach to Left Hand side
+            group.position.set(-0.35, 0.6, 0.2);
+            group.rotation.y = -Math.PI / 6; // Angled out
 
-                const up = rightPos.clone().normalize();
-                const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
-                armorWorkshopMesh.setRotationFromQuaternion(q);
-
-                scene.add(armorWorkshopMesh);
-            }
-
-            armorWorkshopMesh.clear();
-            if (chestInventory.armorWorkshopLevel === 2) {
-                // Completed: Armor Shop
-                // Wooden, hat stand
-                const base = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.2, 2.5), new THREE.MeshBasicMaterial({ color: 0x8B4513 }));
-                base.position.y = 0.1;
-                armorWorkshopMesh.add(base);
-
-                const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), new THREE.MeshBasicMaterial({ color: 0x8B4513 }));
-                stand.position.y = 0.8;
-                armorWorkshopMesh.add(stand);
-
-                // Hat display
-                const hat = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.3, 16), new THREE.MeshBasicMaterial({ color: 0xD2691E }));
-                hat.position.set(0, 1.6, 0);
-                armorWorkshopMesh.add(hat);
-
-            } else {
-                // Foundation
-                const stickGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.0);
-                const stickMat = new THREE.MeshBasicMaterial({ color: 0xD2691E });
-
-                const offsets = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
-                offsets.forEach(off => {
-                    const s = new THREE.Mesh(stickGeo, stickMat);
-                    s.position.set(off[0] * 0.8, 0.5, off[1] * 0.8);
-                    armorWorkshopMesh.add(s);
-                });
-                const base = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide }));
-                base.rotation.x = -Math.PI / 2;
-                base.position.y = 0.05;
-                armorWorkshopMesh.add(base);
-            }
+            entity.mesh.add(group);
         }
 
         // --- Equipment Visuals ---
-        function equipBow(entity) {
-            // Visual
-            const bowGroup = new THREE.Group();
 
-            // Curve approximation
-            const curve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-0.3, 0.5, 0),
-                new THREE.Vector3(0, 0.5, 0.2),
-                new THREE.Vector3(0.3, 0.5, 0)
-            ]);
-            const tube = new THREE.TubeGeometry(curve, 8, 0.03, 4, false);
-            const mesh = new THREE.Mesh(tube, new THREE.MeshBasicMaterial({ color: 0x8B5A2B }));
-            bowGroup.add(mesh);
-
-            // String
-            const stringGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.3, 0.5, 0), new THREE.Vector3(0.3, 0.5, 0)]);
-            const stringLine = new THREE.Line(stringGeo, new THREE.LineBasicMaterial({ color: 0xffffff }));
-            bowGroup.add(stringLine);
-
-            // Attach to body/hand area. 
-            // Entity is either Player (carGroup) or Follower (mesh group)
-            // Player structure: carGroup -> carMesh (body) etc. 
-            // Follower structure: group -> head, body, legs.
-
-            // Just attach to main group
-            const target = entity.mesh || carGroup; // entity.mesh for follower, carGroup for player
-            // But wait, player logic uses carGroup as main transform.
-
-            // Position carefully
-            bowGroup.position.set(0.4, 0.8, 0.3); // Side
-            bowGroup.rotation.y = -Math.PI / 4;
-
-            if (entity === carPhysics) {
-                // Player visual attachment
-                carGroup.add(bowGroup);
-            } else {
-                entity.mesh.add(bowGroup);
-            }
-            entity.bowMesh = bowGroup;
-        }
-
-        function equipHat(entity) {
-            if (entity.hatMesh) return;
-
-            // Wide Brim Hat
-            const hatGroup = new THREE.Group();
-
-            const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.05, 16), new THREE.MeshBasicMaterial({ color: 0xD2691E }));
-            hatGroup.add(brim);
-
-            const top = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.4, 16), new THREE.MeshBasicMaterial({ color: 0xD2691E }));
-            top.position.y = 0.2;
-            hatGroup.add(top);
-
-            const hat = hatGroup;
-
-            if (entity === carPhysics) {
-                hat.position.y = 2.0;
-                carGroup.add(hat);
-            } else {
-                hat.position.y = 1.35;
-                entity.mesh.add(hat);
-            }
-            entity.hatMesh = hat;
-        }
 
         // --- Arrow System ---
         function createArrow(start, target) {
@@ -2866,6 +2619,12 @@
 
             const newF = createFollower(spawnPos);
             followers.push(newF);
+
+            // Equip if needed
+            if (chestInventory.level >= 2) {
+                equipSword(newF);
+                equipShield(newF);
+            }
         }
 
         function createFlyingItem(type, startPos, targetPos, taskTarget) {
@@ -2974,62 +2733,20 @@
                         }
                     }
 
-                    // Priority 2: Seek Closest Valid Storage if holding item
+                    // Priority 2: Seek Chest if holding item
                     else if (f.heldItem) {
-                        const type = f.heldItem.type;
                         const config = levelConfig[chestInventory.level];
-
-                        let bestTarget = null;
-                        let minTargetDist = 999;
-
-                        // Helper to evaluate targets
-                        const evalTarget = (mesh, targetTag) => {
-                            if (!mesh) return;
-                            const tDist = f.mesh.position.distanceTo(mesh.position);
-
-                            // Check Requirement
-                            let valid = false;
-                            let isFull = true;
-
-                            if (config) {
-                                // Find specific task for this building/item combo
-                                const task = config.tasks.find(t => {
-                                    if (t.type !== type) return false;
-
-                                    if (targetTag === 'chest') return !t.target;
-                                    if (targetTag === 'weapon') return t.target === 'weaponWorkshop';
-                                    if (targetTag === 'armor') return t.target === 'armorWorkshop';
-                                    return false;
-                                });
-
-                                if (task) {
-                                    valid = true;
-                                    const current = (targetTag === 'weapon' ? chestInventory.weaponWorkshopProgress :
-                                        targetTag === 'armor' ? chestInventory.armorWorkshopProgress :
-                                            chestInventory[type]) || 0;
-                                    isFull = current >= task.count;
+                        // Only if we need this item
+                        if (config && config.tasks) {
+                            const t = config.tasks.find(task => task.type === f.heldItem.type);
+                            if (t) {
+                                const current = chestInventory[t.type] || 0;
+                                if (current < t.count) {
+                                    target = chestMesh.position;
+                                    stopDist = 2.0;
+                                    seekWeight = 1.5;
                                 }
                             }
-
-                            if (valid && !isFull && tDist < 25.0) { // Range check
-                                if (tDist < minTargetDist) {
-                                    minTargetDist = tDist;
-                                    bestTarget = mesh.position;
-                                }
-                            }
-                        };
-
-                        // Check all buildings
-                        evalTarget(chestMesh, 'chest');
-                        if (chestInventory.level >= 3) {
-                            evalTarget(weaponWorkshopMesh, 'weapon');
-                            evalTarget(armorWorkshopMesh, 'armor');
-                        }
-
-                        if (bestTarget) {
-                            target = bestTarget;
-                            stopDist = 2.0;
-                            seekWeight = 1.5;
                         }
                     }
 
@@ -3345,63 +3062,34 @@
                     } // End of Pickup Loop
 
                     if (f.heldItem && !didPickup) {
-                        // Delivery Logic - Check Proximity to ANY valid target
-                        const checkDeposit = (mesh, targetTag) => {
-                            if (!mesh) return false;
-                            if (f.mesh.position.distanceTo(mesh.position) < 3.0) {
-                                const config = levelConfig[chestInventory.level];
-                                if (!config) return false;
+                        // Delivery Logic - Check Proximity to Chest
+                        if (f.mesh.position.distanceTo(chestMesh.position) < 3.0) {
+                            const config = levelConfig[chestInventory.level];
+                            if (config && config.tasks) {
+                                const task = config.tasks.find(t => t.type === f.heldItem.type);
+                                if (task) {
+                                    const current = chestInventory[f.heldItem.type] || 0;
+                                    if (current < task.count) {
+                                        // DEPOSIT
+                                        // Fly Item Animation
+                                        const center = chestMesh.position.clone().add(new THREE.Vector3(0, 2, 0));
+                                        createFlyingItem(f.heldItem.type, f.mesh.position, center, null);
 
-                                // Find Matching Task
-                                const task = config.tasks.find(t => {
-                                    if (t.type !== f.heldItem.type) return false;
-                                    if (targetTag === 'chest') return !t.target;
-                                    if (targetTag === 'weapon') return t.target === 'weaponWorkshop';
-                                    if (targetTag === 'armor') return t.target === 'armorWorkshop';
-                                    return false;
-                                });
+                                        // Update UI
+                                        updateChestLogic(carGroup.position);
 
-                                if (!task) return false;
-
-                                // Check Full
-                                let current = (targetTag === 'weapon' ? chestInventory.weaponWorkshopProgress :
-                                    targetTag === 'armor' ? chestInventory.armorWorkshopProgress :
-                                        chestInventory[f.heldItem.type]) || 0;
-
-                                if (current >= task.count) return false;
-
-                                // DEPOSIT!
-                                // Increment handled by updateFlyingItems on arrival
-                                // if (targetTag === 'weapon') chestInventory.weaponWorkshopProgress = current + 1;
-                                // else if (targetTag === 'armor') chestInventory.armorWorkshopProgress = current + 1;
-                                // else chestInventory[f.heldItem.type] = current + 1;
-
-                                // Fly Item Animation
-                                const center = mesh.position.clone().add(new THREE.Vector3(0, 2, 0));
-                                createFlyingItem(f.heldItem.type, f.mesh.position, center, task.target);
-
-                                // Update UI
-                                updateChestLogic(carGroup.position);
-
-                                // Clear Hand
-                                for (let c = f.mesh.children.length - 1; c >= 0; c--) {
-                                    const child = f.mesh.children[c];
-                                    if (child.userData && child.userData.isPickup) {
-                                        f.mesh.remove(child);
-                                        if (child.geometry) child.geometry.dispose();
+                                        // Clear Hand
+                                        for (let c = f.mesh.children.length - 1; c >= 0; c--) {
+                                            const child = f.mesh.children[c];
+                                            if (child.userData && child.userData.isPickup) {
+                                                f.mesh.remove(child);
+                                                if (child.geometry) child.geometry.dispose();
+                                            }
+                                        }
+                                        f.heldItem = null;
                                     }
                                 }
-                                f.heldItem = null;
-                                return true;
                             }
-                            return false;
-                        };
-
-                        // Try Deposit in order
-                        let deposited = checkDeposit(chestMesh, 'chest');
-                        if (!deposited && chestInventory.level >= 3) {
-                            deposited = checkDeposit(weaponWorkshopMesh, 'weapon');
-                            if (!deposited) deposited = checkDeposit(armorWorkshopMesh, 'armor');
                         }
                     }
                 }
