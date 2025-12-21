@@ -5153,7 +5153,7 @@
                 if (!lastFollowerStoreTime) lastFollowerStoreTime = 0;
                 const currentTime = clock.getElapsedTime();
 
-                if (currentTime - lastFollowerStoreTime > 5.0) {
+                if (currentTime - lastFollowerStoreTime > 1.0) {
                     const max = chestInventory.maxFollowers || 5;
                     if ((chestInventory.followers || 0) + followers.length < max) {
                         chestInventory.followers++;
