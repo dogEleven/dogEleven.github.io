@@ -2723,6 +2723,7 @@
 
             followers.forEach(f => {
                 const distToPlayer = f.mesh.position.distanceTo(playerPos);
+                const up = f.mesh.position.clone().normalize();
 
                 // Activation
                 if (distToPlayer < 10.0 && !f.isFollowing) {
@@ -2765,7 +2766,6 @@
                 // } else 
                 if (f.isFollowing) {
                     // Normal Following Logic
-                    const up = f.mesh.position.clone().normalize();
 
                     let target = playerPos;
                     let stopDist = 3.0;
@@ -2825,13 +2825,14 @@
                         seekWeight = 10.0;
 
                         // Attack Logic (Ground Thrust)
-                        if (minWolfDist < 2.5) {
+                        if (minWolfDist < 1.5) { // Updated Distance to 1.5m
                             const now = clock.getElapsedTime();
-                            if (now - (f.lastAttackTime || 0) > 0.8) { // Faster cooldown for thrust
+                            if (now - (f.lastAttackTime || 0) > 3.0) { // Cooldown increased to 3s
                                 f.lastAttackTime = now;
                                 f.isAttacking = true;
                                 f.attackTimer = 0;
                                 f.attackTargetW = combatTarget;
+                                f.hasHit = false; // Initialize hit flag
 
                                 // No jump - stays on ground
                                 f.vSpeed = 0;
@@ -2853,19 +2854,27 @@
                                 f.mesh.rotation.x = -0.5; // Tilt forward
 
                                 // Rapidly dash towards wolf
-                                if (f.attackTargetW && f.attackTargetW.hp > 0) {
-                                    const toWolf = new THREE.Vector3().subVectors(f.attackTargetW.mesh.position, f.mesh.position);
-                                    toWolf.projectOnPlane(up).normalize();
-                                    f.mesh.position.add(toWolf.multiplyScalar(30.0 * dt)); // Dash speed 30
-                                }
+                                const toWolf = new THREE.Vector3().subVectors(f.attackTargetW.mesh.position, f.mesh.position);
+                                toWolf.projectOnPlane(up).normalize();
+                                f.mesh.position.add(toWolf.multiplyScalar(30.0 * dt)); // Dash speed 30
+
+                                // SNAP TO SURFACE to prevent clipping into the spherical planet
+                                const h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                                f.mesh.position.normalize().multiplyScalar(h);
                             } else if (f.attackTimer < totalDuration) {
                                 // 2. RECOVERY PHASE
-                                if (f.mesh.rotation.x !== 0) {
+                                if (!f.hasHit) {
+                                    f.hasHit = true; // Mark as hit occurred
                                     // Trigger Hit exactly at the end of thrust
                                     if (f.attackTargetW && f.attackTargetW.hp > 0) {
                                         f.attackTargetW.hp -= 1;
                                         f.attackTargetW.flashTimer = 0.3;
                                         spawnJumpDust(f.attackTargetW.mesh.position);
+
+                                        // Damage Log
+                                        const nowMS = new Date().toISOString();
+                                        console.log(`[${nowMS}] Follower Hit Wolf: Damage=1, TargetHP=${f.attackTargetW.hp}`);
+
                                         if (f.attackTargetW.hp <= 0) {
                                             spawnExplosion(f.attackTargetW.mesh.position);
                                             f.combatTarget = null;
@@ -2945,337 +2954,335 @@
                         dir.projectOnPlane(up).normalize();
                         moveForce.add(dir.multiplyScalar(seekWeight));
                     }
-                }
 
-                // B. Separation (Swarm)
-                let sepForce = new THREE.Vector3();
-                let neighborCount = 0;
 
-                followers.forEach(neighbor => {
-                    if (f === neighbor) return;
-                    const d = f.mesh.position.distanceTo(neighbor.mesh.position);
+                    // B. Separation (Swarm)
+                    let sepForce = new THREE.Vector3();
+                    let neighborCount = 0;
 
-                    if (d < separationRadius) {
-                        const push = new THREE.Vector3().subVectors(f.mesh.position, neighbor.mesh.position).normalize();
-                        // Weight by distance (closer = stronger)
-                        push.divideScalar(d + 0.1);
-                        sepForce.add(push);
-                        neighborCount++;
+                    followers.forEach(neighbor => {
+                        if (f === neighbor) return;
+                        const d = f.mesh.position.distanceTo(neighbor.mesh.position);
+
+                        if (d < separationRadius) {
+                            const push = new THREE.Vector3().subVectors(f.mesh.position, neighbor.mesh.position).normalize();
+                            // Weight by distance (closer = stronger)
+                            push.divideScalar(d + 0.1);
+                            sepForce.add(push);
+                            neighborCount++;
+                        }
+                    });
+
+                    if (neighborCount > 0) {
+                        // Strong separation weight to guarantee space
+                        moveForce.add(sepForce.normalize().multiplyScalar(2.5));
                     }
-                });
 
-                if (neighborCount > 0) {
-                    // Strong separation weight to guarantee space
-                    moveForce.add(sepForce.normalize().multiplyScalar(2.5));
-                }
+                    // Apply to Velocity
+                    // Apply to Velocity
+                    // Apply to Velocity
+                    let maxSpeed = 13.65;
+                    if (f.combatTarget) maxSpeed *= 1.5; // Sprint when chasing
 
-                // Apply to Velocity
-                // Apply to Velocity
-                // Apply to Velocity
-                let maxSpeed = 13.65;
-                if (f.combatTarget) maxSpeed *= 1.5; // Sprint when chasing
-
-                // If we have any desire to move
-                if (moveForce.lengthSq() > 0.01) {
-                    moveForce.normalize().multiplyScalar(maxSpeed);
-                    // Smooth visual acceleration
-                    f.velocity.lerp(moveForce, 2.0 * dt);
-                }
-
-                else {
-                    // Stop
-                    f.velocity.lerp(new THREE.Vector3(0, 0, 0), 2.0 * dt);
-                }
-
-                // Move
-                if (f.velocity.lengthSq() > 0.01) {
-                    f.mesh.position.add(f.velocity.clone().multiplyScalar(dt));
-                }
-
-                // Chest Collision (Followers)
-                if (chestMesh) {
-                    const fDist = f.mesh.position.distanceTo(chestMesh.position);
-
-                    if (fDist < 2.4) {
-                        // Updated to match Player Collision Radius (Body 2.0 + Buffer)
-                        const pushDir = new THREE.Vector3().subVectors(f.mesh.position, chestMesh.position).normalize();
-                        f.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(2.4));
-                    }
-                }
-
-                // ALWAYS Snap & Orient (Fix Lying Down)
-                let h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
-
-                // --- Physics Jump Logic ---
-                if (f.yOffset === undefined) f.yOffset = 0;
-                if (f.vSpeed === undefined) f.vSpeed = 0;
-
-                // 1. Check Jump Signal (Global) - BEFORE Gravity
-                if (window.playerDidJumpGlobal && f.isFollowing && f.yOffset <= 0.5) {
-                    f.vSpeed = 20.0; // Increased Jump Force
-                    f.yOffset = 0.1; // Lift off
-                    spawnJumpDust(f.mesh.position);
-                }
-
-                // 2. Apply Gravity
-                const gravity = -50.0;
-                f.vSpeed += gravity * dt;
-                f.yOffset += f.vSpeed * dt;
-
-                // 3. Ground Collision
-                if (f.yOffset <= 0) {
-                    f.yOffset = 0;
-                    f.vSpeed = 0;
-                }
-
-                // Add physics offset to surface height
-                h += f.yOffset;
-
-                f.mesh.position.normalize().multiplyScalar(h);
-
-                const up = f.mesh.position.clone().normalize();
-
-                // Determine Forward
-                let forward;
-
-                if (f.velocity.lengthSq() > 0.05) {
-                    forward = f.velocity.clone().normalize();
-                }
-
-                else {
-                    // Fallback to current rotation's forward (Z)
-                    forward = new THREE.Vector3(0, 0, 1).applyQuaternion(f.mesh.quaternion);
-                }
-
-                // Ensure Orthogonal
-                forward.projectOnPlane(up);
-
-                // Robust Fallback (Fix Pole/Zero Singularity)
-                if (forward.lengthSq() < 0.0001) {
-                    forward.set(1, 0, 0).projectOnPlane(up);
-                    if (forward.lengthSq() < 0.0001) forward.set(0, 0, 1).projectOnPlane(up);
-                }
-
-                forward.normalize();
-
-                // Rotation using LookAt (Robust)
-                const _dummy = new THREE.Object3D();
-                _dummy.position.copy(f.mesh.position);
-                _dummy.up.copy(up);
-                _dummy.lookAt(f.mesh.position.clone().add(forward));
-
-                f.mesh.quaternion.slerp(_dummy.quaternion, 5.0 * dt);
-
-                // Animation
-                // Animation
-                const speed = f.velocity.length();
-
-                if (speed > 0.5) {
-                    // Minimum cadence: ensure legs swing at least once per 0.5s
-                    const animSpeed = Math.max(speed, 8.0);
-                    f.walkTime = (f.walkTime || 0) + dt * animSpeed * 1.5;
-                    f.leftLeg.rotation.x = Math.sin(f.walkTime) * 1.5;
-                    f.rightLeg.rotation.x = -Math.sin(f.walkTime) * 1.5;
-                }
-
-                else {
-                    // Idle state
-                    f.leftLeg.rotation.x = 0;
-                    f.rightLeg.rotation.x = 0;
-                }
-
-                // --- Follower Water Logic ---
-                if (!f.isDead) {
-
-                    // Only living followers check water
-                    if (isPositionInWater(f.mesh.position, 1.0)) {
-                        f.waterTime += dt;
+                    // If we have any desire to move
+                    if (moveForce.lengthSq() > 0.01) {
+                        moveForce.normalize().multiplyScalar(maxSpeed);
+                        // Smooth visual acceleration
+                        f.velocity.lerp(moveForce, 2.0 * dt);
                     }
 
                     else {
-                        // Gradual Oxygen Recovery (Holding Breath Logic)
-                        f.waterTime = Math.max(0, f.waterTime - dt * 10.0);
+                        // Stop
+                        f.velocity.lerp(new THREE.Vector3(0, 0, 0), 2.0 * dt);
                     }
 
-                    if (f.waterTime > 0.0) {
-                        // Immediate Darkening: 0s -> 10s
-                        let t = f.waterTime / 10.0;
-                        if (t > 1.0) t = 1.0;
-                        const c = 1.0 - t;
-                        f.mat.color.setRGB(c, c, c);
+                    // Move
+                    if (f.velocity.lengthSq() > 0.01) {
+                        f.mesh.position.add(f.velocity.clone().multiplyScalar(dt));
+                    }
 
-                        if (f.waterTime > 10.0) {
-                            f.isDead = true;
-                            spawnExplosion(f.mesh.position);
-                            dropItemFromDeadFollower(f); // Ensure item drops on water death too
+                    // Chest Collision (Followers)
+                    if (chestMesh) {
+                        const fDist = f.mesh.position.distanceTo(chestMesh.position);
+
+                        if (fDist < 2.4) {
+                            // Updated to match Player Collision Radius (Body 2.0 + Buffer)
+                            const pushDir = new THREE.Vector3().subVectors(f.mesh.position, chestMesh.position).normalize();
+                            f.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(2.4));
                         }
                     }
 
-                    else {
+                    // ALWAYS Snap & Orient (Fix Lying Down)
+                    let h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
 
-                        // Smooth Recovery
-                        if (f.mat.color.r < 1.0) {
-                            let c = f.mat.color.r + dt * 0.5; // Recover over ~2 seconds
-                            if (c > 1.0) c = 1.0;
+                    // --- Physics Jump Logic ---
+                    if (f.yOffset === undefined) f.yOffset = 0;
+                    if (f.vSpeed === undefined) f.vSpeed = 0;
+
+                    // 1. Check Jump Signal (Global) - BEFORE Gravity
+                    if (window.playerDidJumpGlobal && f.isFollowing && f.yOffset <= 0.5) {
+                        f.vSpeed = 20.0; // Increased Jump Force
+                        f.yOffset = 0.1; // Lift off
+                        spawnJumpDust(f.mesh.position);
+                    }
+
+                    // 2. Apply Gravity
+                    const gravity = -50.0;
+                    f.vSpeed += gravity * dt;
+                    f.yOffset += f.vSpeed * dt;
+
+                    // 3. Ground Collision
+                    if (f.yOffset <= 0) {
+                        f.yOffset = 0;
+                        f.vSpeed = 0;
+                    }
+
+                    // Add physics offset to surface height
+                    h += f.yOffset;
+                    f.mesh.position.normalize().multiplyScalar(h);
+
+                    // Determine Forward
+                    let forward;
+
+                    if (f.velocity.lengthSq() > 0.05) {
+                        forward = f.velocity.clone().normalize();
+                    }
+
+                    else {
+                        // Fallback to current rotation's forward (Z)
+                        forward = new THREE.Vector3(0, 0, 1).applyQuaternion(f.mesh.quaternion);
+                    }
+
+                    // Ensure Orthogonal
+                    forward.projectOnPlane(up);
+
+                    // Robust Fallback (Fix Pole/Zero Singularity)
+                    if (forward.lengthSq() < 0.0001) {
+                        forward.set(1, 0, 0).projectOnPlane(up);
+                        if (forward.lengthSq() < 0.0001) forward.set(0, 0, 1).projectOnPlane(up);
+                    }
+
+                    forward.normalize();
+
+                    // Rotation using LookAt (Robust)
+                    const _dummy = new THREE.Object3D();
+                    _dummy.position.copy(f.mesh.position);
+                    _dummy.up.copy(up);
+                    _dummy.lookAt(f.mesh.position.clone().add(forward));
+
+                    f.mesh.quaternion.slerp(_dummy.quaternion, 5.0 * dt);
+
+                    // Animation
+                    // Animation
+                    const speed = f.velocity.length();
+
+                    if (speed > 0.5) {
+                        // Minimum cadence: ensure legs swing at least once per 0.5s
+                        const animSpeed = Math.max(speed, 8.0);
+                        f.walkTime = (f.walkTime || 0) + dt * animSpeed * 1.5;
+                        f.leftLeg.rotation.x = Math.sin(f.walkTime) * 1.5;
+                        f.rightLeg.rotation.x = -Math.sin(f.walkTime) * 1.5;
+                    }
+
+                    else {
+                        // Idle state
+                        f.leftLeg.rotation.x = 0;
+                        f.rightLeg.rotation.x = 0;
+                    }
+
+                    // --- Follower Water Logic ---
+                    if (!f.isDead) {
+
+                        // Only living followers check water
+                        if (isPositionInWater(f.mesh.position, 1.0)) {
+                            f.waterTime += dt;
+                        }
+
+                        else {
+                            // Gradual Oxygen Recovery (Holding Breath Logic)
+                            f.waterTime = Math.max(0, f.waterTime - dt * 10.0);
+                        }
+
+                        if (f.waterTime > 0.0) {
+                            // Immediate Darkening: 0s -> 10s
+                            let t = f.waterTime / 10.0;
+                            if (t > 1.0) t = 1.0;
+                            const c = 1.0 - t;
                             f.mat.color.setRGB(c, c, c);
+
+                            if (f.waterTime > 10.0) {
+                                f.isDead = true;
+                                spawnExplosion(f.mesh.position);
+                                dropItemFromDeadFollower(f); // Ensure item drops on water death too
+                            }
+                        }
+
+                        else {
+
+                            // Smooth Recovery
+                            if (f.mat.color.r < 1.0) {
+                                let c = f.mat.color.r + dt * 0.5; // Recover over ~2 seconds
+                                if (c > 1.0) c = 1.0;
+                                f.mat.color.setRGB(c, c, c);
+                            }
                         }
                     }
-                }
 
-                // --- Interaction: Pickup & Drop ---
-                if (f.heldItem) {
-                    // Start delivery? Yes, unless we find something better?
-                    // User Rule: "Little guy holding stuff can also change to new found stuff"
-                    // So we must scan for items even if holding.
-                    // BUT priority: deliver or swap?
-                    // Let's check pickup first. If pickup happens, swap.
-                    // If no pickup, verify delivery.
+                    // --- Interaction: Pickup & Drop ---
+                    if (f.heldItem) {
+                        // Start delivery? Yes, unless we find something better?
+                        // User Rule: "Little guy holding stuff can also change to new found stuff"
+                        // So we must scan for items even if holding.
+                        // BUT priority: deliver or swap?
+                        // Let's check pickup first. If pickup happens, swap.
+                        // If no pickup, verify delivery.
 
-                    // VALIDITY CHECK: If holding item not in current config, drop it
+                        // VALIDITY CHECK: If holding item not in current config, drop it
+                        const config = levelConfig[chestInventory.level];
+                        const activeTypes = config ? config.tasks.map(t => t.type) : [];
+                        if (f.heldItem && !activeTypes.includes(f.heldItem.type)) {
+                            // Drop
+                            if (f.heldItem.mesh) {
+                                f.mesh.remove(f.heldItem.mesh);
+                                // Optionally restore to world, but for now just delete/consume
+                                // to avoid littering invalid items. Or drop at feet.
+                            }
+                            f.heldItem = null;
+                            // Continue to pickup
+                        }
+                    }
+
+                    // Check Pickup (Always check now)
                     const config = levelConfig[chestInventory.level];
                     const activeTypes = config ? config.tasks.map(t => t.type) : [];
-                    if (f.heldItem && !activeTypes.includes(f.heldItem.type)) {
-                        // Drop
-                        if (f.heldItem.mesh) {
-                            f.mesh.remove(f.heldItem.mesh);
-                            // Optionally restore to world, but for now just delete/consume
-                            // to avoid littering invalid items. Or drop at feet.
-                        }
-                        f.heldItem = null;
-                        // Continue to pickup
-                    }
-                }
 
-                // Check Pickup (Always check now)
-                const config = levelConfig[chestInventory.level];
-                const activeTypes = config ? config.tasks.map(t => t.type) : [];
+                    const possibleTargets = [
+                        { mesh: stones, type: 'stone', geo: stoneGeo },
+                        { mesh: twigs, type: 'twig', geo: twigGeo },
+                        { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
+                    ];
 
-                const possibleTargets = [
-                    { mesh: stones, type: 'stone', geo: stoneGeo },
-                    { mesh: twigs, type: 'twig', geo: twigGeo },
-                    { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
-                ];
+                    const targets = possibleTargets.filter(t => activeTypes.includes(t.type));
 
-                const targets = possibleTargets.filter(t => activeTypes.includes(t.type));
+                    // COOLDOWN: If holding an item, wait 1.0s before swapping
+                    // Prevent flickering/infinite swap loop with item dropped at feet
+                    const canPickup = !f.heldItem || (clock.getElapsedTime() - f.lastPickupTime > 1.0);
 
-                // COOLDOWN: If holding an item, wait 1.0s before swapping
-                // Prevent flickering/infinite swap loop with item dropped at feet
-                const canPickup = !f.heldItem || (clock.getElapsedTime() - f.lastPickupTime > 1.0);
+                    let didPickup = false;
 
-                let didPickup = false;
+                    if (canPickup) {
+                        for (let t of targets) {
+                            const count = t.mesh.geometry.attributes.scale.count;
+                            const scales = t.mesh.geometry.attributes.scale;
+                            const offsets = t.mesh.geometry.attributes.offset;
 
-                if (canPickup) {
-                    for (let t of targets) {
-                        const count = t.mesh.geometry.attributes.scale.count;
-                        const scales = t.mesh.geometry.attributes.scale;
-                        const offsets = t.mesh.geometry.attributes.offset;
+                            for (let i = 0; i < count; i++) {
+                                if (scales.getX(i) < 0.01) continue; // Already taken
 
-                        for (let i = 0; i < count; i++) {
-                            if (scales.getX(i) < 0.01) continue; // Already taken
+                                const dx = f.mesh.position.x - offsets.getX(i);
+                                const dy = f.mesh.position.y - offsets.getY(i);
+                                const dz = f.mesh.position.z - offsets.getZ(i);
+                                const dSq = dx * dx + dy * dy + dz * dz;
 
-                            const dx = f.mesh.position.x - offsets.getX(i);
-                            const dy = f.mesh.position.y - offsets.getY(i);
-                            const dz = f.mesh.position.z - offsets.getZ(i);
-                            const dSq = dx * dx + dy * dy + dz * dz;
+                                if (dSq < 2.25) {
+                                    // 1.5 distance
+                                    // Pickup!
 
-                            if (dSq < 2.25) {
-                                // 1.5 distance
-                                // Pickup!
+                                    // If holding, drop old item back to world
+                                    if (f.heldItem) {
+                                        if (f.heldItem.sourceMesh) {
+                                            const oldMesh = f.heldItem.sourceMesh;
+                                            const oldIdx = f.heldItem.sourceIndex;
+                                            const oldScale = f.heldItem.originalScale || 1.0;
 
-                                // If holding, drop old item back to world
-                                if (f.heldItem) {
-                                    if (f.heldItem.sourceMesh) {
-                                        const oldMesh = f.heldItem.sourceMesh;
-                                        const oldIdx = f.heldItem.sourceIndex;
-                                        const oldScale = f.heldItem.originalScale || 1.0;
+                                            const attrOff = oldMesh.geometry.attributes.offset;
+                                            const attrScale = oldMesh.geometry.attributes.scale;
 
-                                        const attrOff = oldMesh.geometry.attributes.offset;
-                                        const attrScale = oldMesh.geometry.attributes.scale;
+                                            // Drop at current feet
+                                            attrOff.setXYZ(oldIdx, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                                            attrOff.needsUpdate = true;
 
-                                        // Drop at current feet
-                                        attrOff.setXYZ(oldIdx, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
-                                        attrOff.needsUpdate = true;
-
-                                        // Restore visibility
-                                        attrScale.setX(oldIdx, oldScale);
-                                        attrScale.needsUpdate = true;
-                                    }
-                                    f.heldItem = null;
-                                }
-
-                                // ROBUST CLEANUP: Remove any existing visual pickups
-                                for (let c = f.mesh.children.length - 1; c >= 0; c--) {
-                                    const child = f.mesh.children[c];
-                                    if (child.userData && child.userData.isPickup) {
-                                        f.mesh.remove(child);
-                                        if (child.geometry) child.geometry.dispose();
-                                    }
-                                }
-
-                                const currentScale = scales.getX(i);
-                                scales.setX(i, 0);
-                                scales.needsUpdate = true;
-
-                                // Create Visual
-                                const cloneGeo = t.geo.clone();
-                                if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
-
-                                const valMat = new THREE.MeshBasicMaterial({
-                                    vertexColors: true, side: THREE.DoubleSide
-                                });
-                                const valMesh = new THREE.Mesh(cloneGeo, valMat);
-
-                                // Attach to follower
-                                valMesh.userData.isPickup = true; // Mark as pickup
-                                valMesh.scale.setScalar(currentScale); // Use original size
-                                valMesh.position.set(0, 0.5, 0.5);
-                                f.mesh.add(valMesh);
-
-                                f.heldItem = {
-                                    type: t.type,
-                                    mesh: valMesh,
-                                    sourceMesh: t.mesh,
-                                    sourceIndex: i,
-                                    originalScale: currentScale
-                                };
-
-                                ;
-                                // Update Pickup Time
-                                f.lastPickupTime = clock.getElapsedTime();
-
-                                didPickup = true;
-                                break;
-                            }
-                            if (didPickup) break;
-                        }
-                    } // End of Pickup Loop
-
-                    if (f.heldItem && !didPickup) {
-                        // Delivery Logic - Check Proximity to Chest
-                        if (f.mesh.position.distanceTo(chestMesh.position) < 3.0) {
-                            const config = levelConfig[chestInventory.level];
-                            if (config && config.tasks) {
-                                const task = config.tasks.find(t => t.type === f.heldItem.type);
-                                if (task) {
-                                    const current = chestInventory[f.heldItem.type] || 0;
-                                    if (current < task.count) {
-                                        // DEPOSIT
-                                        // Fly Item Animation
-                                        const center = chestMesh.position.clone().add(new THREE.Vector3(0, 2, 0));
-                                        createFlyingItem(f.heldItem.type, f.mesh.position, center, null);
-
-                                        // Update UI
-                                        updateChestLogic(carGroup.position);
-
-                                        // Clear Hand
-                                        for (let c = f.mesh.children.length - 1; c >= 0; c--) {
-                                            const child = f.mesh.children[c];
-                                            if (child.userData && child.userData.isPickup) {
-                                                f.mesh.remove(child);
-                                                if (child.geometry) child.geometry.dispose();
-                                            }
+                                            // Restore visibility
+                                            attrScale.setX(oldIdx, oldScale);
+                                            attrScale.needsUpdate = true;
                                         }
                                         f.heldItem = null;
+                                    }
+
+                                    // ROBUST CLEANUP: Remove any existing visual pickups
+                                    for (let c = f.mesh.children.length - 1; c >= 0; c--) {
+                                        const child = f.mesh.children[c];
+                                        if (child.userData && child.userData.isPickup) {
+                                            f.mesh.remove(child);
+                                            if (child.geometry) child.geometry.dispose();
+                                        }
+                                    }
+
+                                    const currentScale = scales.getX(i);
+                                    scales.setX(i, 0);
+                                    scales.needsUpdate = true;
+
+                                    // Create Visual
+                                    const cloneGeo = t.geo.clone();
+                                    if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
+
+                                    const valMat = new THREE.MeshBasicMaterial({
+                                        vertexColors: true, side: THREE.DoubleSide
+                                    });
+                                    const valMesh = new THREE.Mesh(cloneGeo, valMat);
+
+                                    // Attach to follower
+                                    valMesh.userData.isPickup = true; // Mark as pickup
+                                    valMesh.scale.setScalar(currentScale); // Use original size
+                                    valMesh.position.set(0, 0.5, 0.5);
+                                    f.mesh.add(valMesh);
+
+                                    f.heldItem = {
+                                        type: t.type,
+                                        mesh: valMesh,
+                                        sourceMesh: t.mesh,
+                                        sourceIndex: i,
+                                        originalScale: currentScale
+                                    };
+
+                                    ;
+                                    // Update Pickup Time
+                                    f.lastPickupTime = clock.getElapsedTime();
+
+                                    didPickup = true;
+                                    break;
+                                }
+                                if (didPickup) break;
+                            }
+                        } // End of Pickup Loop
+
+                        if (f.heldItem && !didPickup) {
+                            // Delivery Logic - Check Proximity to Chest
+                            if (f.mesh.position.distanceTo(chestMesh.position) < 3.0) {
+                                const config = levelConfig[chestInventory.level];
+                                if (config && config.tasks) {
+                                    const task = config.tasks.find(t => t.type === f.heldItem.type);
+                                    if (task) {
+                                        const current = chestInventory[f.heldItem.type] || 0;
+                                        if (current < task.count) {
+                                            // DEPOSIT
+                                            // Fly Item Animation
+                                            const center = chestMesh.position.clone().add(new THREE.Vector3(0, 2, 0));
+                                            createFlyingItem(f.heldItem.type, f.mesh.position, center, null);
+
+                                            // Update UI
+                                            updateChestLogic(carGroup.position);
+
+                                            // Clear Hand
+                                            for (let c = f.mesh.children.length - 1; c >= 0; c--) {
+                                                const child = f.mesh.children[c];
+                                                if (child.userData && child.userData.isPickup) {
+                                                    f.mesh.remove(child);
+                                                    if (child.geometry) child.geometry.dispose();
+                                                }
+                                            }
+                                            f.heldItem = null;
+                                        }
                                     }
                                 }
                             }
@@ -3851,7 +3858,8 @@
                     }
 
                     if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
-                        if ((w.hitCount === undefined || w.hitCount < 5) && d < 1.5 && !f.isDead) {
+                        // Followers are INVINCIBLE during their own attack dash
+                        if ((w.hitCount === undefined || w.hitCount < 5) && d < 1.5 && !f.isDead && !f.isAttacking) {
                             // Check if already hit THIS follower this swing
                             if (!w.hitTargets.includes(f)) {
                                 if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
@@ -3866,6 +3874,10 @@
                                         spawnExplosion(f.mesh.position);
                                         w.hitCount = (w.hitCount || 0) + 1;
                                         dropItemFromDeadFollower(f);
+
+                                        // Damage Log
+                                        const nowMS = new Date().toISOString();
+                                        console.log(`[${nowMS}] Wolf Eat Follower: Damage=FATAL`);
                                     }
                                 }
                             }
@@ -3903,6 +3915,10 @@
                                         if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
                                     } else {
                                         handleDeath();
+
+                                        // Damage Log
+                                        const nowMS = new Date().toISOString();
+                                        console.log(`[${nowMS}] Wolf Eat Player: Damage=FATAL`);
                                     }
                                 }
                             }
@@ -3920,6 +3936,10 @@
                                 console.log("Dormitory Destroyed!");
                                 // Future: Implement Game Over screen
                             }
+
+                            // Damage Log
+                            const nowMS = new Date().toISOString();
+                            console.log(`[${nowMS}] Wolf Bite Dorm: Damage=5, DormHP=${chestInventory.hp}`);
                         }
                     }
                 }
@@ -4133,6 +4153,10 @@
                     wolves.forEach(w => {
                         if (w.hp > 0 && w.mesh.position.distanceTo(a.target) < 2.0) {
                             w.hp -= 50;
+
+                            // Damage Log
+                            const nowMS = new Date().toISOString();
+                            console.log(`[${nowMS}] Archer Arrow Hit Wolf: Damage=50, TargetHP=${w.hp}`);
                             if (w.mesh.children[0] && w.mesh.children[0].children) {
                                 w.mesh.children[0].children.forEach(m => {
                                     if (m.material) {
