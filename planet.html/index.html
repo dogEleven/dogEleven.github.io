@@ -2079,8 +2079,9 @@
         }
 
         async function startNextWave() {
-            gameState.wave++;
+            if (gameState.waveState === 'transition') return;
             gameState.waveState = 'transition';
+            gameState.wave++;
 
             const overlay = document.getElementById('waveTransitionOverlay');
             const text = document.getElementById('waveText');
@@ -2118,8 +2119,9 @@
             console.log(`Starting Wave ${gameState.wave}: ${config.wolves} Wolves, ${config.bears} Bears`);
 
             // Clear existing (just in case)
-            // wolves.forEach(w => scene.remove(w.mesh));
-            // wolves.length = 0;
+            // Clear existing (just in case)
+            wolves.forEach(w => scene.remove(w.mesh));
+            wolves.length = 0;
 
             // Spawn Wolves
             for (let i = 0; i < config.wolves; i++) {
@@ -3046,7 +3048,7 @@
                     // --- Combat Logic (Persistent) ---
                     const aggroRange = f.hasSword ? 15.0 : 5.0;
                     const chaseLimit = 40.0;
-                    const leashDistance = 15.0; // Distance to force return to player
+                    const leashDistance = 6.0; // Reduced leash to force return sooner logic
 
                     // 0. Leash Check (Overrides Combat)
                     if (distToPlayer > leashDistance) {
@@ -3093,7 +3095,13 @@
                     const baseCooldown = 3.0;
                     const onCooldown = (clock.getElapsedTime() - (f.lastAttackTime || 0)) < (baseCooldown / gameState.stats.attackFreqMult);
 
-                    // Priority 0: Combat (Only if ready or mid-attack)
+                    // Priority 0: Combat (Only if ready or mid-attack AND within Leash)
+                    // Explicitly BREAK combat if too far from player
+                    if (distToPlayer > leashDistance) {
+                        combatTarget = null;
+                        f.combatTarget = null;
+                    }
+
                     if (combatTarget && (!onCooldown || f.isAttacking)) {
                         target = combatTarget.mesh.position;
                         stopDist = 0.5;
@@ -3488,6 +3496,15 @@
             const bl = createLeg(-0.5, -0.9);
             const br = createLeg(0.5, -0.9);
 
+            // Dummy Eyes for animation compatibility
+            const eyeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const leftEye = new THREE.Mesh(eyeGeo, blackMat); // Hidden/Dummy
+            leftEye.visible = false;
+            const rightEye = new THREE.Mesh(eyeGeo, blackMat); // Hidden/Dummy
+            rightEye.visible = false;
+            headGroup.add(leftEye);
+            headGroup.add(rightEye);
+
             scene.add(group);
 
             const speed = 4.5 + Math.random() * 1.5;
@@ -3496,13 +3513,15 @@
                 mesh: group,
                 head: headGroup,
                 snout: snout,
-                // eyes?
+                // Eyes (Add dummies to prevent crash in updateWolves)
+                leftEye: leftEye,
+                rightEye: rightEye,
                 model: bearMesh,
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
                 speed: speed, // Slower than wolf
-                hp: 30,
-                maxHp: 30, // For boss bar if needed
+                hp: 15,
+                maxHp: 15,
                 flashTimer: 0,
                 originalColor: mat.color.clone(),
                 wanderTimer: 0,
@@ -3513,7 +3532,7 @@
                 attackDir: new THREE.Vector3(),
                 hasHitTarget: false,
                 orbitDir: Math.random() < 0.5 ? 1 : -1,
-                eyesMat: blackMat // dummy
+                eyesMat: blackMat // dummy material
             };
         }
 
@@ -3793,7 +3812,7 @@
             const playerPos = carGroup.position;
 
             // Start First Wave if inactive
-            if (gameState.wave === 0) {
+            if (gameState.wave === 0 && gameState.waveState === 'waiting') {
                 startNextWave();
                 return;
             }
@@ -3865,45 +3884,50 @@
                     let bestTarget = null;
                     let closestDist = 17.5; // Max aggro range (25.0 * 0.7)
 
-                    // 1a. Check Player
+                    // 1a. Check Player (HIGHEST PRIORITY)
+                    // If Player is visible and within Aggro Range, IGNORE followers roughly nearby
                     if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
                         const d = w.mesh.position.distanceTo(playerPos);
 
                         if (d < 12.25) {
                             // Player Aggro Range
-                            closestDist = d;
-
+                            closestDist = d; // Still track distance
                             bestTarget = {
                                 type: 'player', pos: playerPos, mesh: carGroup
-                            }
-
-                                ;
+                            };
+                            // Priority Lock: If found, we prefer player.
+                            // Only switch to follower if player is significantly farther? 
+                            // User Request: "If multiple targets, prioritize player" -> So we stick with player.
                         }
                     }
 
-                    // 1b. Check Followers
-                    followers.forEach(f => {
-                        if (!f.isDead && !isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
-                            const d = w.mesh.position.distanceTo(f.mesh.position);
-
-                            if (d < closestDist) {
-                                // Strict closest priority
-                                closestDist = d;
-
-                                bestTarget = {
-                                    type: 'follower', pos: f.mesh.position, mesh: f.mesh, entity: f
+                    // 1b. Check Followers (Only if Player not found OR overrides based on logic?)
+                    // User Request: "Prioritize should follow player" implies if Player is valid target, choose Player.
+                    // So we only check followers if bestTarget is still null (i.e. Player not valid).
+                    if (!bestTarget) {
+                        followers.forEach(f => {
+                            if (!f.isDead && !isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
+                                const d = w.mesh.position.distanceTo(f.mesh.position);
+                                if (d < closestDist) {
+                                    closestDist = d;
+                                    bestTarget = {
+                                        type: 'follower', pos: f.mesh.position, mesh: f.mesh, entity: f
+                                    };
                                 }
-
-                                    ;
                             }
-                        }
-                    });
+                        });
+                    }
+                    else {
+                        // Optional: If Player IS target, do we switch if follower is REALLY close? 
+                        // "Prioritize player" usually means even if follower is closer, go for player.
+                        // But let's say if follower is literally biting the wolf (d < 2.0) maybe self defense?
+                        // For now, strict User Request: Follow Player Priority. We skip Follower check if Player is target.
+                    }
 
                     // 1c. Check Dormitory (Lowest Priority)
-                    if (gameState.waveActive && chestMesh) {
+                    if (!bestTarget && gameState.waveActive && chestMesh) {
                         const d = w.mesh.position.distanceTo(chestMesh.position);
                         if (d < 50.0 && d < closestDist) {
-                            // Only target dorm if no player/follower is in aggro range
                             bestTarget = {
                                 type: 'dorm', pos: chestMesh.position, mesh: chestMesh
                             };
