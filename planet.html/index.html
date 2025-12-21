@@ -3402,6 +3402,9 @@
             return {
                 mesh: group,
                 head: headGroup, // Expose Head for animation
+                snout: snout,    // Expose Snout for animation
+                leftEye: leftEye,
+                rightEye: rightEye,
                 eyesMat: blackMat, // Expose Eyes Material for color change
                 model: wolfMesh, // Expose Model for jumping
                 fl, fr, bl, br,
@@ -3771,8 +3774,8 @@
                         currentSpeed = 2.5; // Reduced from 4.8
 
                         if (w.stateTimer > 0.7) {
-                            // FAST AGGRESSION (was 4.0)
-                            w.combatState = 'dash';
+                            // Telegraph before dash
+                            w.combatState = 'telegraph';
                             w.stateTimer = 0;
                         }
 
@@ -3780,6 +3783,53 @@
                         moveForce.copy(tangent).multiplyScalar(1.0);
                         moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.5));
 
+                    }
+
+                    else if (w.combatState === 'telegraph') {
+                        currentSpeed = 0; // Stop
+                        moveForce.set(0, 0, 0);
+                        w.velocity.set(0, 0, 0); // Immediate stop
+
+                        // Force body to face target during telegraph
+                        if (w.target) {
+                            const targetPos = w.target.pos.clone();
+                            const toTarget = new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize().projectOnPlane(up).normalize();
+                            const _dummy = new THREE.Object3D();
+                            _dummy.position.copy(w.mesh.position);
+                            _dummy.up.copy(up);
+                            _dummy.lookAt(w.mesh.position.clone().add(toTarget));
+                            w.mesh.quaternion.slerp(_dummy.quaternion, 10.0 * dt);
+                        }
+
+                        // Mouth (Snout) Animation: Open/Close 2 times
+                        // stateTimer is 1.0s total.
+                        // Open at 0.1-0.3, 0.5-0.7
+                        const mouthOpen = (w.stateTimer > 0.1 && w.stateTimer < 0.3) || (w.stateTimer > 0.5 && w.stateTimer < 0.7);
+                        if (mouthOpen) {
+                            w.snout.rotation.x = 0.5; // "Open"
+                            w.head.rotation.x = -0.2; // Tilt head up
+                        } else {
+                            w.snout.rotation.x = 0;
+                            w.head.rotation.x = 0;
+                        }
+
+                        // Eyes: Enlarge and Flash
+                        const eyeScale = 1.0 + Math.sin(w.stateTimer * 20.0) * 0.5;
+                        w.leftEye.scale.set(eyeScale, eyeScale, 1.0);
+                        w.rightEye.scale.set(eyeScale, eyeScale, 1.0);
+
+                        // Color Flash (Red/White)
+                        const flashRed = Math.sin(w.stateTimer * 30.0) > 0;
+                        w.eyesMat.color.setHex(flashRed ? 0xff0000 : 0xffffff);
+
+                        if (w.stateTimer > 1.0) {
+                            w.combatState = 'dash';
+                            w.stateTimer = 0;
+                            // Reset eyes scale and mat
+                            w.leftEye.scale.set(1, 1, 1);
+                            w.rightEye.scale.set(1, 1, 1);
+                            w.eyesMat.color.setHex(0xff0000);
+                        }
                     }
 
                     else if (w.combatState === 'dash') {
