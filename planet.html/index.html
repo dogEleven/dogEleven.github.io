@@ -16,8 +16,8 @@
 
         #dormLabel {
             position: absolute;
-            display: none;
-            /* Controlled by JS */
+            display: none !important;
+            /* Force hide */
             flex-direction: row;
             align-items: center;
             justify-content: center;
@@ -80,8 +80,8 @@
             top: 20px;
             left: 20px;
             z-index: 10000;
-            display: none;
-            /* Shown after first wolf death */
+            display: none !important;
+            /* Force hide */
             flex-direction: column;
             gap: 4px;
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
@@ -140,6 +140,47 @@
             color: white;
         }
 
+        /* Player Health Bar UI */
+        #playerHealthUI {
+            position: absolute;
+            top: 60px;
+            /* Moved down to avoid potential top-left overlaps */
+            left: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+        }
+
+        #playerHealthUI .label {
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #playerHealthUI .bar-bg {
+            width: 300px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #playerHealthUI .bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #41ff6c, #2bff4b);
+            /* Green for Player */
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 15px rgba(43, 255, 75, 0.6);
+        }
+
         #rogueUpgradeUI h2 {
             font-size: 32px;
             margin-bottom: 40px;
@@ -194,6 +235,34 @@
             font-size: 14px;
             color: #ccc;
         }
+
+        #pop-hud {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 20px;
+            z-index: 10001;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        #pop-hud .icon {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+        }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -210,6 +279,8 @@
 </head>
 
 <body>
+    <!-- Duplicate HUD Elements Removed -->
+
     <!-- ROGUE UPGRADE SCREEN -->
     <div id="rogueUpgradeUI">
         <h2>Choose Your Blessing</h2>
@@ -271,12 +342,16 @@
     <div id="dormLabel"></div>
 
     <!-- Dormitory Health UI -->
-    <div id="dormHealthUI">
-        <div class="label">Dormitory Condition</div>
+    <div id="pop-hud">
+        <div class="icon"></div>
+        <span id="pop-text">0 / 5</span>
+    </div>
+
+    <div id="playerHealthUI">
+        <div class="label" style="font-size: 14px; margin-bottom: 2px;">PLAYER HEALTH</div>
         <div class="bar-bg">
-            <div id="dormHealthFill" class="bar-fill"></div>
+            <div id="playerHealthFill" class="bar-fill"></div>
         </div>
-        <div id="dormTaskMsg" class="task-msg">Protect the Dormitory!</div>
     </div>
     <div style="position: absolute; top: 20px; right: 20px; z-index: 9999; pointer-events: none;"> <a
             href="../index.html/index.html"
@@ -1923,119 +1998,16 @@
 
         // --- Chest Implementation ---
 
-        // 1. UI Bubble
-        // Create Task List UI (replaces chestBubble)
-        const chestBubble = document.createElement('div');
-        chestBubble.id = 'taskListUI';
-        chestBubble.style.position = 'absolute'; // Fixed top-left
-        chestBubble.style.fontFamily = "'Inter', sans-serif"; // Consistent Font
-        chestBubble.style.top = '20px';
-        chestBubble.style.left = '20px';
-        chestBubble.style.zIndex = '100';
-        chestBubble.style.padding = '10px'; // Padding for container
-        chestBubble.style.background = 'transparent'; // Remove big container bg
-        chestBubble.style.boxShadow = 'none';
-        chestBubble.style.backdropFilter = 'none';
-        chestBubble.style.display = 'flex';
-        chestBubble.style.flexDirection = 'column';
-        chestBubble.style.alignItems = 'flex-start'; // Align left
+        // 1. UI Bubble (REMOVED for Rogue Mode)
+        const chestBubble = document.createElement('div'); // Dummy to prevent errors if referenced
+        chestBubble.style.display = 'none';
 
-        // Remove Inventory Grid (Old)
-        // const inventoryGrid = document.createElement('div'); ...
-
-        // Dynamic UI Generation
-        // Dynamic UI Generation
+        // Dynamic UI Generation (Disabled)
         function initTaskUI() {
-            chestBubble.innerHTML = ''; // Clear main container
-            const config = levelConfig[chestInventory.level];
-            if (!config) return;
-
-            // Group tasks by target
-            const groups = {};
-            config.tasks.forEach(task => {
-                const targetKey = task.target || 'default';
-                if (!groups[targetKey]) {
-                    groups[targetKey] = {
-                        label: task.label || (config.description || "Upgrade"), // Use task label or level desc
-                        tasks: []
-                    };
-                }
-                groups[targetKey].tasks.push(task);
-            });
-
-            // Create Card per Group
-            Object.keys(groups).forEach(key => {
-                const group = groups[key];
-
-                // Card Container
-                const card = document.createElement('div');
-                card.style.background = 'rgba(0, 0, 0, 0.6)';
-                card.style.backdropFilter = 'blur(4px)';
-                card.style.borderRadius = '12px';
-                card.style.padding = '8px 12px';
-                card.style.marginBottom = '8px';
-                card.style.display = 'flex';
-                card.style.flexDirection = 'column'; // Stack rows vertically
-                card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-                card.style.minWidth = '180px';
-
-                // Title (Building Name)
-                const titleDiv = document.createElement('div');
-                titleDiv.textContent = group.label;
-                titleDiv.style.color = '#ccc';
-                titleDiv.style.fontSize = '10px';
-                titleDiv.style.fontWeight = 'bold';
-                titleDiv.style.marginBottom = '6px';
-                titleDiv.style.textTransform = 'uppercase';
-                titleDiv.style.letterSpacing = '0.5px';
-                card.appendChild(titleDiv);
-
-                // Resource Rows
-                group.tasks.forEach(task => {
-                    const row = document.createElement('div');
-                    row.style.display = 'flex';
-                    row.style.alignItems = 'center';
-                    row.style.marginBottom = '4px';
-
-                    const type = task.type;
-                    const uniqueIdSuffix = task.target ? `-${task.target}` : '';
-
-                    // Icon
-                    const img = document.createElement('img');
-                    img.id = `icon-${type}${uniqueIdSuffix}`;
-                    img.src = (typeof itemIcons !== 'undefined' && itemIcons[type]) ? itemIcons[type] : 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                    img.style.width = '24px'; // Slightly smaller in list
-                    img.style.height = '24px';
-                    img.style.objectFit = 'contain';
-                    img.style.marginRight = '8px';
-                    row.appendChild(img);
-
-                    // Count
-                    const countSpan = document.createElement('span');
-                    countSpan.id = task.target ? `count-${task.target}` : `count-${type}`;
-                    // Note: If multiple tasks of same type exist for SAME target, IDs collide.
-                    // Assuming 1 type per target for now based on config.
-                    // If complex config needed, ID should be count-{type}-{target} always.
-
-                    let displayCount = 0;
-                    if (task.target === 'weaponWorkshop') displayCount = chestInventory.weaponWorkshopProgress || 0;
-                    else if (task.target === 'armorWorkshop') displayCount = chestInventory.armorWorkshopProgress || 0;
-                    else displayCount = chestInventory[type] || 0;
-
-                    countSpan.textContent = `${displayCount}/${task.count}`;
-                    countSpan.style.color = '#fff';
-                    countSpan.style.fontWeight = 'bold';
-                    countSpan.style.fontSize = '14px';
-                    row.appendChild(countSpan);
-
-                    card.appendChild(row);
-                });
-
-                chestBubble.appendChild(card);
-            });
+            // No-op for Rogue Mode
         }
 
-        document.body.appendChild(chestBubble);
+        // document.body.appendChild(chestBubble); // Removed
 
         // 2. Chest State
         const itemIcons = {}; // Moved here to avoid TDZ
@@ -2043,7 +2015,7 @@
             stone: 0,
             twig: 0,
             mushroom: 0,
-            followers: 5, // Stored followers
+            followers: 0, // Stored followers
             level: 1, // Current Dorm Level
             maxFollowers: 5,
             hp: 100,
@@ -2249,8 +2221,9 @@
             return dormGroup;
         }
 
-        chestMesh = buildDormitory(chestInventory.level);
-        scene.add(chestMesh);
+        // chestMesh = buildDormitory(chestInventory.level);
+        // scene.add(chestMesh);
+        chestMesh = null; // Essentially removed
 
         // 4. Precise Terrain Height Logic (Copied from Terrain Pipeline)
         function getSurfaceHeight(x, y, z) {
@@ -2298,7 +2271,8 @@
             return planetRadius + h;
         }
 
-        // Init Chest Pos
+        // Init Chest Pos (Disabled)
+        /*
         const groundH = getSurfaceHeight(chestPos.x, chestPos.y, chestPos.z);
         chestPos.normalize().multiplyScalar(groundH);
         chestMesh.position.copy(chestPos);
@@ -2320,6 +2294,7 @@
 
         chestMesh.quaternion.setFromRotationMatrix(orientMatrix);
         chestMesh.updateMatrixWorld();
+        */
 
         function generateIcon(geo, color, camPos = null) {
             const size = 64;
@@ -2817,12 +2792,12 @@
 
             scene.add(group);
 
-            return {
+            const f = {
                 mesh: group,
                 leftLeg,
                 rightLeg,
                 velocity: new THREE.Vector3(),
-                isFollowing: false,
+                isFollowing: true, // Auto Follow Immediately
                 waterTime: 0,
                 mat: mat,
                 isJumping: false,
@@ -2832,10 +2807,16 @@
                 lastPickupTime: 0,
                 hp: 10,
                 maxHp: 10
-            }
+            };
+
+            // Equip default gear
+            equipSword(f);
+            equipShield(f);
+
+            return f;
 
 
-                ;
+            ;
         }
 
 
@@ -3313,165 +3294,7 @@
                     }
 
                     // --- Interaction: Pickup & Drop ---
-                    if (f.heldItem) {
-                        // Start delivery? Yes, unless we find something better?
-                        // User Rule: "Little guy holding stuff can also change to new found stuff"
-                        // So we must scan for items even if holding.
-                        // BUT priority: deliver or swap?
-                        // Let's check pickup first. If pickup happens, swap.
-                        // If no pickup, verify delivery.
-
-                        // VALIDITY CHECK: If holding item not in current config, drop it
-                        const config = levelConfig[chestInventory.level];
-                        const activeTypes = config ? config.tasks.map(t => t.type) : [];
-                        if (f.heldItem && !activeTypes.includes(f.heldItem.type)) {
-                            // Drop
-                            if (f.heldItem.mesh) {
-                                f.mesh.remove(f.heldItem.mesh);
-                                // Optionally restore to world, but for now just delete/consume
-                                // to avoid littering invalid items. Or drop at feet.
-                            }
-                            f.heldItem = null;
-                            // Continue to pickup
-                        }
-                    }
-
-                    // Check Pickup (Always check now)
-                    const config = levelConfig[chestInventory.level];
-                    const activeTypes = config ? config.tasks.map(t => t.type) : [];
-
-                    const possibleTargets = [
-                        { mesh: stones, type: 'stone', geo: stoneGeo },
-                        { mesh: twigs, type: 'twig', geo: twigGeo },
-                        { mesh: mushrooms, type: 'mushroom', geo: mushGeo }
-                    ];
-
-                    const targets = possibleTargets.filter(t => activeTypes.includes(t.type));
-
-                    // COOLDOWN: If holding an item, wait 1.0s before swapping
-                    // Prevent flickering/infinite swap loop with item dropped at feet
-                    const canPickup = !f.heldItem || (clock.getElapsedTime() - f.lastPickupTime > 1.0);
-
-                    let didPickup = false;
-
-                    if (canPickup) {
-                        for (let t of targets) {
-                            const count = t.mesh.geometry.attributes.scale.count;
-                            const scales = t.mesh.geometry.attributes.scale;
-                            const offsets = t.mesh.geometry.attributes.offset;
-
-                            for (let i = 0; i < count; i++) {
-                                if (scales.getX(i) < 0.01) continue; // Already taken
-
-                                const dx = f.mesh.position.x - offsets.getX(i);
-                                const dy = f.mesh.position.y - offsets.getY(i);
-                                const dz = f.mesh.position.z - offsets.getZ(i);
-                                const dSq = dx * dx + dy * dy + dz * dz;
-
-                                if (dSq < 2.25) {
-                                    // 1.5 distance
-                                    // Pickup!
-
-                                    // If holding, drop old item back to world
-                                    if (f.heldItem) {
-                                        if (f.heldItem.sourceMesh) {
-                                            const oldMesh = f.heldItem.sourceMesh;
-                                            const oldIdx = f.heldItem.sourceIndex;
-                                            const oldScale = f.heldItem.originalScale || 1.0;
-
-                                            const attrOff = oldMesh.geometry.attributes.offset;
-                                            const attrScale = oldMesh.geometry.attributes.scale;
-
-                                            // Drop at current feet
-                                            attrOff.setXYZ(oldIdx, f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
-                                            attrOff.needsUpdate = true;
-
-                                            // Restore visibility
-                                            attrScale.setX(oldIdx, oldScale);
-                                            attrScale.needsUpdate = true;
-                                        }
-                                        f.heldItem = null;
-                                    }
-
-                                    // ROBUST CLEANUP: Remove any existing visual pickups
-                                    for (let c = f.mesh.children.length - 1; c >= 0; c--) {
-                                        const child = f.mesh.children[c];
-                                        if (child.userData && child.userData.isPickup) {
-                                            f.mesh.remove(child);
-                                            if (child.geometry) child.geometry.dispose();
-                                        }
-                                    }
-
-                                    const currentScale = scales.getX(i);
-                                    scales.setX(i, 0);
-                                    scales.needsUpdate = true;
-
-                                    // Create Visual
-                                    const cloneGeo = t.geo.clone();
-                                    if (cloneGeo.attributes.aColor) cloneGeo.setAttribute('color', cloneGeo.attributes.aColor);
-
-                                    const valMat = new THREE.MeshBasicMaterial({
-                                        vertexColors: true, side: THREE.DoubleSide
-                                    });
-                                    const valMesh = new THREE.Mesh(cloneGeo, valMat);
-
-                                    // Attach to follower
-                                    valMesh.userData.isPickup = true; // Mark as pickup
-                                    valMesh.scale.setScalar(currentScale); // Use original size
-                                    valMesh.position.set(0, 0.5, 0.5);
-                                    f.mesh.add(valMesh);
-
-                                    f.heldItem = {
-                                        type: t.type,
-                                        mesh: valMesh,
-                                        sourceMesh: t.mesh,
-                                        sourceIndex: i,
-                                        originalScale: currentScale
-                                    };
-
-                                    ;
-                                    // Update Pickup Time
-                                    f.lastPickupTime = clock.getElapsedTime();
-
-                                    didPickup = true;
-                                    break;
-                                }
-                                if (didPickup) break;
-                            }
-                        } // End of Pickup Loop
-
-                        if (f.heldItem && !didPickup) {
-                            // Delivery Logic - Check Proximity to Chest
-                            if (f.mesh.position.distanceTo(chestMesh.position) < 3.0) {
-                                const config = levelConfig[chestInventory.level];
-                                if (config && config.tasks) {
-                                    const task = config.tasks.find(t => t.type === f.heldItem.type);
-                                    if (task) {
-                                        const current = chestInventory[f.heldItem.type] || 0;
-                                        if (current < task.count) {
-                                            // DEPOSIT
-                                            // Fly Item Animation
-                                            const center = chestMesh.position.clone().add(new THREE.Vector3(0, 2, 0));
-                                            createFlyingItem(f.heldItem.type, f.mesh.position, center, null);
-
-                                            // Update UI
-                                            updateChestLogic(carGroup.position);
-
-                                            // Clear Hand
-                                            for (let c = f.mesh.children.length - 1; c >= 0; c--) {
-                                                const child = f.mesh.children[c];
-                                                if (child.userData && child.userData.isPickup) {
-                                                    f.mesh.remove(child);
-                                                    if (child.geometry) child.geometry.dispose();
-                                                }
-                                            }
-                                            f.heldItem = null;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // REMOVED for pure Rogue mode
                 }
             });
         }
@@ -3752,33 +3575,7 @@
         function updateWolves(dt) {
             if (isDead) return;
 
-            // Game Over Check
-            if (chestInventory.hp <= 0 && !gameState.gameOver) {
-                gameState.gameOver = true;
-                if (typeof chestMesh !== 'undefined' && chestMesh) {
-                    spawnExplosion(chestMesh.position);
-                }
-                const overlay = document.getElementById('game-over-overlay');
-                if (overlay) {
-                    overlay.style.display = 'flex';
-                    setTimeout(() => {
-                        overlay.style.opacity = '1';
-                    }, 100);
-
-                    // Show restart message after 5 seconds
-                    setTimeout(() => {
-                        const restartMsg = document.getElementById('game-over-restart-msg');
-                        if (restartMsg) restartMsg.style.opacity = '1';
-
-                        // Allow restart
-                        const restartAction = () => {
-                            window.location.reload();
-                        };
-                        window.addEventListener('click', restartAction);
-                        window.addEventListener('keydown', restartAction);
-                    }, 5000);
-                }
-            }
+            // Dormitory Game Over Check Removed
 
             if (gameState.gameOver) return;
 
@@ -3796,7 +3593,7 @@
                         gameState.waveActive = true;
                         gameState.lastSpawnTime = now;
                         gameState.spawnInterval = 10.0; // Start at 10s
-                        document.getElementById('dormHealthUI').style.display = 'flex';
+                        // document.getElementById('dormHealthUI').style.display = 'flex'; // REMOVED
                     }
                 }
             }
@@ -3805,6 +3602,10 @@
             if (gameState.waveActive) {
                 const nowS = now;
                 if (nowS - gameState.lastSpawnTime > gameState.spawnInterval) {
+                    if (wolves.length >= 30) {
+                        gameState.lastSpawnTime = nowS; // Still update time to prevent burst spawn later
+                        return;
+                    }
                     gameState.lastSpawnTime = nowS;
 
                     // Calculate opposite side from player
@@ -3833,9 +3634,7 @@
             }
 
             // Update UI
-            if (document.getElementById('dormHealthUI').style.display === 'flex') {
-                document.getElementById('dormHealthFill').style.width = chestInventory.hp + '%';
-            }
+            // Update UI (Old Dorm UI Removed)
 
             wolves.forEach(w => {
                 const up = w.mesh.position.clone().normalize();
@@ -4197,34 +3996,22 @@
                                         carPhysics.hasHat = false;
                                         if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
                                     } else {
-                                        handleDeath();
+                                        // Player Damage (Non-Fatal)
+                                        chestInventory.hp -= 20;
+                                        if (chestInventory.hp <= 0) {
+                                            handleDeath();
+                                        }
 
                                         // Damage Log
                                         const nowMS = new Date().toISOString();
-                                        console.log(`[${nowMS}] Wolf Eat Player: Damage=FATAL`);
+                                        console.log(`[${nowMS}] Wolf Bite Player: Damage=20, HP=${chestInventory.hp}`);
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Dormitory Damage Logic
-                    if (gameState.waveActive && chestMesh) {
-                        const dToChest = w.mesh.position.distanceTo(chestMesh.position);
-                        if (dToChest < 3.5 && !w.hitTargets.includes(chestMesh)) {
-                            w.hitTargets.push(chestMesh);
-                            chestInventory.hp = Math.max(0, chestInventory.hp - 5);
-                            spawnJumpDust(w.mesh.position);
-                            if (chestInventory.hp <= 0) {
-                                console.log("Dormitory Destroyed!");
-                                // Future: Implement Game Over screen
-                            }
-
-                            // Damage Log
-                            const nowMS = new Date().toISOString();
-                            console.log(`[${nowMS}] Wolf Bite Dorm: Damage=5, DormHP=${chestInventory.hp}`);
-                        }
-                    }
+                    // Dormitory Damage Logic Removed
                 }
 
                 // --- GLOBAL HEAD LOOK LOGIC ---
@@ -4324,16 +4111,7 @@
                 const h = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
                 w.mesh.position.normalize().multiplyScalar(h);
 
-                // --- 3.5 CHEST COLLISION ---
-                if (typeof chestMesh !== 'undefined' && chestMesh) {
-                    const dChest = w.mesh.position.distanceTo(chestMesh.position);
-                    const minDistChest = 2.4;
-                    if (dChest < minDistChest) {
-                        const pushDir = new THREE.Vector3().subVectors(w.mesh.position, chestMesh.position).normalize();
-                        w.mesh.position.copy(chestMesh.position).add(pushDir.multiplyScalar(minDistChest));
-                        w.mesh.position.normalize().multiplyScalar(h);
-                    }
-                }
+                // Chest Collision Removed
 
                 if (w.combatState !== 'bite_attack') {
                     let forward = w.velocity.clone().normalize();
@@ -5027,190 +4805,19 @@
             return clone;
         }
 
-        // Drop currently held item at specific position (or current feet)
+        // Drop currently held item (Stubbed)
         function dropItem(dropPos, isSwap = false) {
-            if (!heldItem) return;
-
-            const instIdx = heldItem.sourceIndex;
-            const mesh = heldItem.sourceMesh;
-
-            // 1. Restore Instance
-            if (mesh && mesh.geometry && mesh.geometry.attributes.offset) {
-                const offsets = mesh.geometry.attributes.offset;
-                const scales = mesh.geometry.attributes.scale;
-
-                // Update Position to Drop Location
-                offsets.setXYZ(instIdx, dropPos.x, dropPos.y, dropPos.z);
-                offsets.needsUpdate = true;
-
-                // Restore Scale
-                scales.setX(instIdx, heldItem.originalScale);
-                scales.needsUpdate = true;
-            }
-
-            // 2. Remove Visual
-            if (heldItem.mesh) {
-                if (heldItem.mesh.parent) heldItem.mesh.parent.remove(heldItem.mesh);
-                if (heldItem.mesh.geometry) heldItem.mesh.geometry.dispose();
-            }
-
-            // 3. Mark Cooldown (to avoid immediate re-pickup of same item)
-            lastDropTime = clock.getElapsedTime();
-            lastDroppedIndex = instIdx;
-            lastDroppedType = heldItem.type;
-
-            heldItem = null;
+            // REMOVED for Pure Rogue Mode
         }
 
         function pickupItem(t, i, currentScale) {
-            // Safety: Update heldItem null state first if we are here (should be null)
-            heldItem = null;
-
-            // Hide Original
-            const scales = t.mesh.geometry.attributes.scale;
-            scales.setX(i, 0);
-            scales.needsUpdate = true;
-
-            // SAFETY: Remove any existing pickup visuals (Prevent "holding two" bug or visual ghosts)
-            if (characterContainer && characterContainer.children) {
-                for (let c = characterContainer.children.length - 1; c >= 0; c--) {
-                    const child = characterContainer.children[c];
-
-                    if (child.userData && child.userData.isPickup) {
-                        characterContainer.remove(child);
-                        if (child.geometry) child.geometry.dispose();
-                    }
-                }
-            }
-
-            // Create Visual
-            const visGeo = getVisualGeometry(t.geo);
-
-            const visMat = new THREE.MeshBasicMaterial({
-                vertexColors: true, side: THREE.DoubleSide
-            });
-            const visMesh = new THREE.Mesh(visGeo, visMat);
-
-            // Tag it
-            visMesh.userData.isPickup = true;
-
-            // Attach
-            characterContainer.add(visMesh);
-
-            // Setup Animation State
-            visMesh.position.set(0, 0.5, 1.5); // Start low/forward
-            visMesh.rotation.y = t.mesh.geometry.attributes.rot.getX(i);
-            visMesh.scale.setScalar(currentScale);
-
-            // Record Pickup Time
-            lastPickupTime = clock.getElapsedTime();
-
-            heldItem = {
-                mesh: visMesh,
-                sourceMesh: t.mesh,
-                sourceIndex: i,
-                type: t.type,
-                originalScale: currentScale,
-                isAnimating: true,
-                animStartTime: lastPickupTime
-            }
-
-                ;
+            // REMOVED for Pure Rogue Mode
         }
 
         let lastStandTime = 0; // Track when we last stood still
 
         function tryPickup(pos) {
-            const now = clock.getElapsedTime();
-
-            // Movement Check
-            if (!carPhysics.velocity || carPhysics.velocity.length() < 0.5) {
-                // We are standing still (or moving very slowly)
-                lastStandTime = now;
-                return;
-            }
-
-            else {
-                // We are moving.
-                // Rule: Cannot pickup if we just started moving (within 1 second)
-                // This prevents picking up the item we just stood on/dropped instantly.
-                if (now - lastStandTime < 1.0) return;
-            }
-
-            // Global Pickup Cooldown: 1.0s wait after picking up anything
-            if (now - lastPickupTime < 1.0) return;
-
-            // Global Cooldown check (short)
-            // if (now - lastDropTime < 0.2) return; 
-
-            const targets = [{
-                mesh: stones, type: 'stone', geo: stoneGeo
-            }
-
-                ,
-            {
-                mesh: twigs, type: 'twig', geo: twigGeo
-            }
-
-                ,
-            {
-                mesh: mushrooms, type: 'mushroom', geo: mushGeo
-            }
-
-            ];
-
-            // Find closest candidate
-            let closestDist = pickupDist;
-            let candidate = null;
-
-            for (let t of targets) {
-                const mesh = t.mesh;
-                const count = mesh.geometry.attributes.scale.count;
-                const offsets = mesh.geometry.attributes.offset;
-                const scales = mesh.geometry.attributes.scale;
-
-                for (let i = 0; i < count; i++) {
-                    // 1. Skip if hidden (already held by someone/us)
-                    if (scales.getX(i) < 0.01) continue;
-
-                    // 2. Skip if we just dropped this specific instance (Cooldown)
-                    // Prevent "Swap -> Pick up old one immediately" loop
-                    if (now - lastDropTime < 1.0) {
-                        if (lastDroppedIndex === i && lastDroppedType === t.type) continue;
-                    }
-
-                    const ox = offsets.getX(i);
-                    const oy = offsets.getY(i);
-                    const oz = offsets.getZ(i);
-                    // Distance Sq for speed?
-                    const dx = pos.x - ox;
-                    const dy = pos.y - oy;
-                    const dz = pos.z - oz;
-                    const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-                    if (d < closestDist) {
-                        closestDist = d;
-
-                        candidate = {
-                            t: t, i: i, scale: scales.getX(i)
-                        }
-
-                            ;
-                    }
-                }
-            }
-
-            if (candidate) {
-
-                // If we are holding something, swap it!
-                if (heldItem) {
-                    // Drop current item AT CURRENT FEET
-                    dropItem(pos, true);
-                }
-
-                // Pick up new item
-                pickupItem(candidate.t, candidate.i, candidate.scale);
-            }
+            // REMOVED for Pure Rogue Mode
         }
 
         const animate = () => {
@@ -5543,28 +5150,9 @@
                     console.error("Entity Update Error", e);
                 }
 
-                // --- Pickup Animation & Logic ---
-                // Add Try-Catch for pickup specifically if it's suspicious
-                try {
-                    tryPickup(carPhysics.pos);
-                }
+                // Pickup Logic Removed
 
-                catch (e) {
-                    console.error("Pickup Error", e);
-                }
-
-                if (heldItem && heldItem.isAnimating) {
-                    const t = (clock.getElapsedTime() - heldItem.animStartTime) / 0.3; // 0.3s transition
-
-                    if (t >= 1.0) {
-                        heldItem.mesh.position.set(0, 2.5, 0);
-                        heldItem.isAnimating = false;
-                    }
-
-                    else {
-                        heldItem.mesh.position.lerpVectors(new THREE.Vector3(0, 0.5, 1.5), new THREE.Vector3(0, 2.5, 0), t);
-                    }
-                }
+                // Held Item Anim Removed
 
                 // --- Chest Logic ---
                 // --- Follower Storage Logic ---
@@ -5580,9 +5168,11 @@
                     lastFollowerStoreTime = currentTime;
                 }
 
-                updateFlyingItems(dt);
-                updateChestLogic(carPhysics.pos);
-                updateDormLabel();
+                // updateFlyingItems(dt);
+                // updateChestLogic(carPhysics.pos);
+                // updateDormLabel();
+
+                // UI Update Duplicates Removed
 
                 // --- Arrow Navigation Logic (2D HUD) ---
                 const distToChest = chestMesh ? carPhysics.pos.distanceTo(chestMesh.position) : 0;
@@ -5736,6 +5326,33 @@
                     scene.fog.color.setHex(0x000000);
                     scene.fog.near = 20;
                     scene.fog.far = 150;
+                }
+
+                // UI Update for Population
+                const popText = document.getElementById('pop-text');
+                if (popText) popText.textContent = `${followers.length} / ${chestInventory.maxFollowers}`;
+
+                // UI Update for Player Health
+                const pHealthFill = document.getElementById('playerHealthFill');
+                if (pHealthFill) {
+                    const pct = Math.max(0, (chestInventory.hp / chestInventory.maxHp) * 100);
+                    pHealthFill.style.width = `${pct}%`;
+                }
+
+                // --- Follower Summon Logic ---
+                if (!window.followerSummonTimer) window.followerSummonTimer = 0;
+                window.followerSummonTimer += dt;
+                if (window.followerSummonTimer > 2.0) {
+                    window.followerSummonTimer = 0;
+                    if (followers.length < chestInventory.maxFollowers) {
+                        // Spawn near player
+                        const offset = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize().multiplyScalar(5.0);
+                        const spawnPos = carGroup.position.clone().add(offset);
+                        const h = getSurfaceHeight(spawnPos.x, spawnPos.y, spawnPos.z);
+                        spawnPos.normalize().multiplyScalar(h);
+                        const f = createFollower(spawnPos);
+                        followers.push(f);
+                    }
                 }
 
                 if (stars) stars.rotation.y += 0.0003;
