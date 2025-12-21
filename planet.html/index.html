@@ -3957,7 +3957,7 @@
 
                 // --- 2. BEHAVIOR STATE MACHINE ---
                 if (w.combatState === 'wander') {
-                    currentSpeed = 3.5; // Reduced from 9.6
+                    currentSpeed = 2.8; // Reduced 20% from 3.5
                     w.wanderTimer -= dt;
 
                     if (w.wanderTimer <= 0) {
@@ -3990,9 +3990,9 @@
                     const tangent = new THREE.Vector3().crossVectors(dirToTarget, up).normalize().multiplyScalar(w.orbitDir);
 
                     if (w.combatState === 'circle_fast') {
-                        currentSpeed = 7.0; // Reduced from 14.4
+                        currentSpeed = 5.6; // Reduced 20% from 7.0
 
-                        if (w.stateTimer > 1.4) {
+                        if (w.stateTimer > 1.8) { // Increased wait (slower updates)
                             // FAST AGGRESSION (was 3.5)
                             w.combatState = 'circle_slow';
                             w.stateTimer = 0;
@@ -4005,9 +4005,9 @@
                     }
 
                     else if (w.combatState === 'circle_slow') {
-                        currentSpeed = 2.5; // Reduced from 4.8
+                        currentSpeed = 2.0; // Reduced 20% from 2.5
 
-                        if (w.stateTimer > 0.7) {
+                        if (w.stateTimer > 1.0) { // Increased wait before attacking (0.7 -> 1.0)
                             // Telegraph before dash
                             w.combatState = 'telegraph';
                             w.stateTimer = 0;
@@ -4067,7 +4067,7 @@
                     }
 
                     else if (w.combatState === 'dash') {
-                        currentSpeed = 10.0; // Reduced from 19.2
+                        currentSpeed = 8.0; // Reduced 20% from 10.0
 
                         if (w.target && distToTarget < 3.5) {
                             w.combatState = 'bite_attack';
@@ -4087,7 +4087,7 @@
                     }
 
                     else if (w.combatState === 'bite_attack') {
-                        currentSpeed = 6.0; // Reduced from 12.8
+                        currentSpeed = 4.8; // Reduced 20% from 6.0
                         moveForce.copy(w.attackDir);
 
                         // Initialize hit targets for this swing if not exists
