@@ -311,6 +311,15 @@
             style="color: #444; font-size: 16px; margin-top: 60px; opacity: 0; transition: opacity 1s;">CLICK ANYWHERE
             OR PRESS ANY KEY TO RESTART</div>
     </div>
+
+    <!-- WAVE TRANSITION OVERLAY -->
+    <div id="waveTransitionOverlay"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; pointer-events: none; opacity: 0; transition: opacity 2.0s; z-index: 150000; display: flex; justify-content: center; align-items: center;">
+        <div id="waveText"
+            style="color: white; font-family: 'Inter', sans-serif; font-size: 60px; font-weight: 900; letter-spacing: 8px; text-transform: uppercase;">
+            DAY 1
+        </div>
+    </div>
     <script> (function () {
             const bar = document.getElementById('loading-bar');
             const screen = document.getElementById('loading-overlay');
@@ -345,6 +354,13 @@
     <div id="pop-hud">
         <div class="icon"></div>
         <span id="pop-text">0 / 5</span>
+    </div>
+
+    <div id="waveInfoUI"
+        style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 20px; border: 2px solid rgba(255, 50, 50, 0.4); color: #ff6b6b; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 16px; z-index: 10001; display: none; text-transform: uppercase; align-items: center; gap: 8px;">
+        <span>💀</span>
+        <span>ENEMIES:</span>
+        <span id="enemyCountText" style="color: white; font-size: 20px;">0</span>
     </div>
 
     <div id="playerHealthUI">
@@ -1816,7 +1832,7 @@
         }
 
         seed = 12345; // Reset seed
-        const trees = scatterObjects(treeGeo, 117, 'tree', 3.0); // Reduced count 117 (Target 40% reduction), MinDist 3.0
+        const trees = scatterObjects(treeGeo, 58, 'tree', 3.0); // Reduced count to 58 (user request half)
         const mushrooms = scatterObjects(mushGeo, 200, 'mushroom'); // Reduced 200
         const flowers = scatterObjects(flowerGeo, 250, 'flower'); // Reduced 50% again (500 -> 250)
 
@@ -2023,10 +2039,11 @@
         };
 
         const gameState = {
-            waveActive: false,
-            firstWolfKilled: false,
-            lastSpawnTime: 0,
-            spawnInterval: 10.0,
+            waveActive: false, // Legacy flag, effectively true during waves
+            wave: 0, // Current Wave (Starts at 0, goes to 1 on init)
+            waveState: 'waiting', // 'spawning', 'active', 'cleared', 'transition'
+            enemiesRemaining: 0,
+
             gameOver: false,
             wolfKills: 0,
             stats: {
@@ -2038,6 +2055,112 @@
                 defenseMult: 1.0
             }
         };
+
+        // WAVE CONFIG
+        function getWaveConfig(wave) {
+            // "Day 1: 3 wolves"
+            // "Day 2: 5 wolves"
+            // "Day 3: 5 wolves + 5 bears"
+            // "Every 3 levels increase a kind of monster"
+
+            let wolves = 0;
+            let bears = 0;
+
+            if (wave === 1) wolves = 3;
+            else if (wave === 2) wolves = 5;
+            else {
+                // Algorithmic growth
+                wolves = 5 + Math.floor((wave - 3) * 1.5);
+                bears = 5 + Math.floor((wave - 3) * 1.0);
+            }
+
+            // Cap for performance if needed, but 30 waves is fine
+            return { wolves, bears };
+        }
+
+        async function startNextWave() {
+            gameState.wave++;
+            gameState.waveState = 'transition';
+
+            const overlay = document.getElementById('waveTransitionOverlay');
+            const text = document.getElementById('waveText');
+
+            // 1. Fade OUT (Black) - End of previous day
+            if (gameState.wave > 1) {
+                overlay.style.backgroundColor = 'black';
+                overlay.style.opacity = '1';
+                text.textContent = `DAY ${gameState.wave - 1} COMPLETED`;
+                text.style.opacity = '1';
+                await new Promise(r => setTimeout(r, 3000));
+            }
+
+            // 2. Fade IN (White/Clear) - Start of new day
+            // "First day end, light white: second day start"
+            // Interpretation: Fade to black, then flash white/fade in?
+
+            text.textContent = `DAY ${gameState.wave}`;
+            overlay.style.backgroundColor = 'black'; // Keep black bg for text
+            overlay.style.opacity = '1';
+
+            await new Promise(r => setTimeout(r, 2000));
+
+            // Fade to game
+            overlay.style.opacity = '0';
+
+            // Generate Enemies
+            const config = getWaveConfig(gameState.wave);
+            spawnWaveEnemies(config);
+
+            gameState.waveState = 'active';
+        }
+
+        function spawnWaveEnemies(config) {
+            console.log(`Starting Wave ${gameState.wave}: ${config.wolves} Wolves, ${config.bears} Bears`);
+
+            // Clear existing (just in case)
+            // wolves.forEach(w => scene.remove(w.mesh));
+            // wolves.length = 0;
+
+            // Spawn Wolves
+            for (let i = 0; i < config.wolves; i++) {
+                const pos = getSpawnPosition();
+                const w = createWolf(pos);
+                wolves.push(w);
+            }
+
+            // Spawn Bears
+            for (let i = 0; i < config.bears; i++) {
+                const pos = getSpawnPosition();
+                const b = createBear(pos); // Changed from createWolf to createBear
+                wolves.push(b); // We store bears in 'wolves' array for shared logic for now (rename array later?)
+            }
+
+            gameState.enemiesRemaining = wolves.length;
+
+            // UI Update
+            const ui = document.getElementById('waveInfoUI');
+            const countText = document.getElementById('enemyCountText');
+            if (ui && countText) {
+                ui.style.display = 'flex';
+                countText.textContent = gameState.enemiesRemaining;
+            }
+        }
+
+        function getSpawnPosition() {
+            // Calculate opposite side from player
+            const pPosNorm = carGroup.position.clone().normalize();
+            const spawnBase = pPosNorm.multiplyScalar(-1); // Reverse direction
+
+            // Add some random spread
+            const spread = 0.8;
+            const spreadVec = new THREE.Vector3(
+                (Math.random() - 0.5) * spread,
+                (Math.random() - 0.5) * spread,
+                (Math.random() - 0.5) * spread
+            );
+            const spawnDir = spawnBase.add(spreadVec).normalize();
+            return spawnDir.multiplyScalar(planetRadius + 10); // Start in air
+        }
 
         const rogueUpgrades = [
             { id: 1, title: "+10% Population", icon: "👥", desc: "Increase follower capacity by 10%", effect: () => { gameState.stats.followerPopMult *= 1.1; chestInventory.maxFollowers = Math.ceil(5 * gameState.stats.followerPopMult); } },
@@ -2084,8 +2207,8 @@
             1: {
                 description: "Initial Hut",
                 tasks: [
-                    { type: 'twig', count: 5 },
-                    { type: 'mushroom', count: 5 }
+                    { type: 'twig', count: 3 },
+                    { type: 'mushroom', count: 3 }
                 ],
                 reward: {
                     maxFollowers: 10,
@@ -3303,10 +3426,101 @@
         const wolves = [];
         const arrows = []; // Projectiles
 
+        // --- BEAR CREATION ---
+        function createBear(pos) {
+            const group = new THREE.Group();
+            group.position.copy(pos);
+            group.hp = 15; // Bear HP 15 (Half of 30)
+            group.isBear = true;
+
+            // Bear Style (Brown)
+            const mat = new THREE.MeshBasicMaterial({ color: 0x8B4513 }); // SaddleBrown
+            const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+            const s = 1.0; // Bigger than wolf
+            const bearMesh = new THREE.Group();
+            bearMesh.scale.set(s, s, s);
+            bearMesh.position.y = 0;
+            group.add(bearMesh);
+
+            // 1. Body (Bulkier)
+            const bodyGeo = new THREE.BoxGeometry(1.4, 1.4, 2.2);
+            const body = new THREE.Mesh(bodyGeo, mat);
+            body.position.set(0, 1.5, 0);
+            bearMesh.add(body);
+
+            // 2. Head
+            const headGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+            const headGroup = new THREE.Group();
+            headGroup.position.set(0, 2.3, 1.3);
+            const headMesh = new THREE.Mesh(headGeo, mat);
+            headGroup.add(headMesh);
+            bearMesh.add(headGroup);
+
+            // 3. Snout ( wider/shorter)
+            const snoutGeo = new THREE.BoxGeometry(0.6, 0.5, 0.4);
+            const snout = new THREE.Mesh(snoutGeo, mat);
+            snout.position.set(0, -0.3, 0.7);
+            headGroup.add(snout);
+
+            // 4. Ears (Small round)
+            const earGeo = new THREE.BoxGeometry(0.3, 0.3, 0.1);
+            const leftEar = new THREE.Mesh(earGeo, mat);
+            leftEar.position.set(-0.5, 0.7, 0);
+            headGroup.add(leftEar);
+            const rightEar = new THREE.Mesh(earGeo, mat);
+            rightEar.position.set(0.5, 0.7, 0);
+            headGroup.add(rightEar);
+
+            // Legs (Thick)
+            const legGeo = new THREE.BoxGeometry(0.5, 1.0, 0.5);
+            function createLeg(x, z) {
+                const pivot = new THREE.Group();
+                pivot.position.set(x, 1.0, z);
+                const mesh = new THREE.Mesh(legGeo, mat);
+                mesh.position.y = -0.5;
+                pivot.add(mesh);
+                bearMesh.add(pivot);
+                return pivot;
+            }
+            const fl = createLeg(-0.5, 0.9);
+            const fr = createLeg(0.5, 0.9);
+            const bl = createLeg(-0.5, -0.9);
+            const br = createLeg(0.5, -0.9);
+
+            scene.add(group);
+
+            const speed = 4.5 + Math.random() * 1.5;
+
+            return {
+                mesh: group,
+                head: headGroup,
+                snout: snout,
+                // eyes?
+                model: bearMesh,
+                fl, fr, bl, br,
+                velocity: new THREE.Vector3(),
+                speed: speed, // Slower than wolf
+                hp: 30,
+                maxHp: 30, // For boss bar if needed
+                flashTimer: 0,
+                originalColor: mat.color.clone(),
+                wanderTimer: 0,
+                wanderDir: new THREE.Vector3(),
+                walkTime: 0,
+                combatState: 'wander',
+                stateTimer: 0,
+                attackDir: new THREE.Vector3(),
+                hasHitTarget: false,
+                orbitDir: Math.random() < 0.5 ? 1 : -1,
+                eyesMat: blackMat // dummy
+            };
+        }
+
         function createWolf(pos) {
             const group = new THREE.Group();
             group.position.copy(pos);
-            group.hp = 10; // Wolf HP 10
+            group.hp = 5; // Wolf HP 5 (Half of 10)
 
             // Voxel Style Wolf (Grey-ish)
             const mat = new THREE.MeshBasicMaterial({
@@ -3574,64 +3788,40 @@
 
         function updateWolves(dt) {
             if (isDead) return;
-
-            // Dormitory Game Over Check Removed
-
             if (gameState.gameOver) return;
 
             const playerPos = carGroup.position;
+
+            // Start First Wave if inactive
+            if (gameState.wave === 0) {
+                startNextWave();
+                return;
+            }
+
             const now = clock.getElapsedTime();
 
+            // Check Wave End
+            // If active and enemies killed
+            if (gameState.waveState === 'active' && wolves.length === 0) {
+                console.log("Wave Cleared!");
+                startNextWave();
+                return;
+            }
+
             for (let i = wolves.length - 1; i >= 0; i--) {
-                if (wolves[i].hp <= 0) {
-                    scene.remove(wolves[i].mesh);
+                const enemy = wolves[i];
+                if (enemy.hp <= 0) {
+                    scene.remove(enemy.mesh);
                     wolves.splice(i, 1);
+                    gameState.enemiesRemaining--;
 
-                    // Trigger Wave Mission
-                    if (!gameState.firstWolfKilled) {
-                        gameState.firstWolfKilled = true;
-                        gameState.waveActive = true;
-                        gameState.lastSpawnTime = now;
-                        gameState.spawnInterval = 10.0; // Start at 10s
-                        // document.getElementById('dormHealthUI').style.display = 'flex'; // REMOVED
-                    }
+                    // Update UI
+                    const countText = document.getElementById('enemyCountText');
+                    if (countText) countText.textContent = gameState.enemiesRemaining;
                 }
             }
 
-            // Spawn Logic
-            if (gameState.waveActive) {
-                const nowS = now;
-                if (nowS - gameState.lastSpawnTime > gameState.spawnInterval) {
-                    if (wolves.length >= 30) {
-                        gameState.lastSpawnTime = nowS; // Still update time to prevent burst spawn later
-                        return;
-                    }
-                    gameState.lastSpawnTime = nowS;
-
-                    // Calculate opposite side from player
-                    const pPosNorm = carGroup.position.clone().normalize();
-                    const spawnBase = pPosNorm.multiplyScalar(-1); // Reverse direction
-
-                    // Add some random spread around the opposite point
-                    const spread = 0.5;
-                    const spreadVec = new THREE.Vector3(
-                        (Math.random() - 0.5) * spread,
-                        (Math.random() - 0.5) * spread,
-                        (Math.random() - 0.5) * spread
-                    );
-                    const spawnDir = spawnBase.add(spreadVec).normalize();
-
-                    const rPos = spawnDir.multiplyScalar(planetRadius + 10);
-                    wolves.push(createWolf(rPos));
-
-                    // Reduce spawn interval by 25% for next one
-                    gameState.spawnInterval *= 0.75;
-                    // Cap it at a reasonable minimum (e.g. 1s) to prevent infinite wolves
-                    if (gameState.spawnInterval < 1.0) gameState.spawnInterval = 1.0;
-
-                    console.log(`Wolf Spawned! Next in: ${gameState.spawnInterval.toFixed(2)}s`);
-                }
-            }
+            // No active spawning loop here anymore - all spawned at startNextWave
 
             // Update UI
             // Update UI (Old Dorm UI Removed)
@@ -3659,7 +3849,7 @@
                     w.mesh.traverse(child => {
                         if (child.isMesh && child.material && child.material.color) {
                             if (child.material !== w.eyesMat) {
-                                child.material.color.setHex(0x6e7e85);
+                                child.material.color.copy(w.originalColor);
                             }
                         }
                     });
