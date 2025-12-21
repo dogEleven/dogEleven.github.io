@@ -2095,6 +2095,8 @@
 
             gameOver: false,
             wolfKills: 0,
+            playerHP: 100,
+            playerMaxHP: 100,
             stats: {
                 followerPopMult: 1.0,
                 moveSpeedMult: 1.0,
@@ -2688,87 +2690,96 @@
         }
 
 
+
         function updateEnemyIndicators() {
             const arrow1 = document.getElementById('enemyArrow1');
             const arrow2 = document.getElementById('enemyArrow2');
-            const arrows = [arrow1, arrow2];
 
-            // Default Hide
-            arrows.forEach(a => { if (a) a.style.display = 'none'; });
+            // Hide both arrows by default
+            if (arrow1) arrow1.style.display = 'none';
+            if (arrow2) arrow2.style.display = 'none';
 
-            // Filter Alive Enemies
-            const targets = wolves.filter(w => w.hp > 0);
+            // Filter alive enemies
+            const aliveEnemies = wolves.filter(w => w && w.hp > 0 && w.mesh);
 
-            // Only show if 2 or fewer remain
-            if (targets.length > 0 && targets.length <= 2) {
-                const playerPos = carGroup.position;
+            // No enemies, no indicators
+            if (aliveEnemies.length === 0) return;
 
-                targets.forEach((t, i) => {
-                    if (i >= 2) return;
-                    const el = arrows[i];
-                    if (!el) return;
+            const playerPos = carGroup.position;
+            if (!playerPos) return;
 
-                    // Check distance from player
-                    const distToPlayer = t.mesh.position.distanceTo(playerPos);
-                    if (distToPlayer <= 15) {
-                        // Too close, don't show arrow
-                        return;
-                    }
+            // Check if any enemy is within 15m
+            const hasNearbyEnemy = aliveEnemies.some(enemy => {
+                const dist = enemy.mesh.position.distanceTo(playerPos);
+                return dist <= 15;
+            });
 
-                    // Project
-                    const pos = t.mesh.position.clone();
-                    pos.project(camera);
+            // If there's an enemy within 15m, don't show indicator
+            if (hasNearbyEnemy) return;
 
-                    // Check if off-screen (NDC [-1, 1])
-                    const isOffScreen = pos.z > 1 || Math.abs(pos.x) > 0.95 || Math.abs(pos.y) > 0.95;
+            // Find the nearest enemy (must be >15m away at this point)
+            let nearestEnemy = null;
+            let nearestDist = Infinity;
 
-                    // Only show if off-screen
-                    if (!isOffScreen) {
-                        return;
-                    }
+            aliveEnemies.forEach(enemy => {
+                const dist = enemy.mesh.position.distanceTo(playerPos);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestEnemy = enemy;
+                }
+            });
 
-                    // Show arrow
-                    el.style.display = 'block';
+            // No nearest enemy found
+            if (!nearestEnemy) return;
 
-                    let nx = pos.x;
-                    let ny = pos.y;
+            // Use arrow1 to show the nearest enemy
+            const el = arrow1;
+            if (!el) return;
 
-                    // If behind camera, invert
-                    if (pos.z > 1) {
-                        nx = -nx;
-                        ny = -ny;
-                    }
+            // Project enemy position to screen
+            const pos = nearestEnemy.mesh.position.clone();
+            pos.project(camera);
 
-                    // Always clamp to edge
-                    const absX = Math.abs(nx);
-                    const absY = Math.abs(ny);
+            // Show arrow (always, since enemy is >15m away)
+            el.style.display = 'block';
 
-                    // Clamp to edge
-                    if (absX > absY) {
-                        nx = nx > 0 ? 0.95 : -0.95;
-                        ny = ny * (0.95 / absX);
-                    } else {
-                        ny = ny > 0 ? 0.95 : -0.95;
-                        nx = nx * (0.95 / absY);
-                    }
+            let nx = pos.x;
+            let ny = pos.y;
 
-                    // Convert to screen pixels
-                    const cssX = (nx * 0.5 + 0.5) * window.innerWidth;
-                    const cssY = -(ny * 0.5 - 0.5) * window.innerHeight;
-
-                    el.style.left = cssX + 'px';
-                    el.style.top = cssY + 'px';
-
-                    // Rotation to point inward (towards enemy direction)
-                    const centerX = window.innerWidth / 2;
-                    const centerY = window.innerHeight / 2;
-                    const dirX = cssX - centerX;
-                    const dirY = cssY - centerY;
-                    const rad = Math.atan2(dirY, dirX) + Math.PI / 2; // +90deg for arrow pointing up
-
-                    el.style.transform = `translate(-50%, -50%) rotate(${rad}rad)`;
-                });
+            // If behind camera, invert
+            if (pos.z > 1) {
+                nx = -nx;
+                ny = -ny;
             }
+
+            // Clamp to screen edge
+            const absX = Math.abs(nx);
+            const absY = Math.abs(ny);
+            const edgeMargin = 0.9;
+
+            if (absX > absY) {
+                nx = nx > 0 ? edgeMargin : -edgeMargin;
+                ny = ny * (edgeMargin / absX);
+            } else {
+                ny = ny > 0 ? edgeMargin : -edgeMargin;
+                nx = nx * (edgeMargin / absY);
+            }
+
+            // Convert to screen pixels
+            const cssX = (nx * 0.5 + 0.5) * window.innerWidth;
+            const cssY = -(ny * 0.5 - 0.5) * window.innerHeight;
+
+            el.style.left = cssX + 'px';
+            el.style.top = cssY + 'px';
+
+            // Rotation to point towards enemy
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+            const dirX = cssX - centerX;
+            const dirY = cssY - centerY;
+            const rad = Math.atan2(dirY, dirX) + Math.PI / 2;
+
+            el.style.transform = `translate(-50%, -50%) rotate(${rad}rad)`;
         }
 
         function upgradeDormitoryState() {
