@@ -2660,8 +2660,6 @@
             // Default Hide
             arrows.forEach(a => { if (a) a.style.display = 'none'; });
 
-            if (!gameState.waveActive) return;
-
             // Filter Alive Enemies
             const targets = wolves.filter(w => w.hp > 0);
 
@@ -5228,6 +5226,9 @@
                 catch (e) {
                     console.error("Wolf Error", e);
                 }
+
+                // Update enemy arrow indicators
+                updateEnemyIndicators();
 
                 // updateFollowers(dt); // Moved to end
 
