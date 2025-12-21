@@ -172,6 +172,21 @@
             position: relative;
         }
 
+        /* Enemy Indicators */
+        .enemy-arrow-indicator {
+            position: fixed;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 20px solid #ff3333;
+            z-index: 9999;
+            pointer-events: none;
+            display: none;
+            filter: drop-shadow(0 0 4px red);
+            transform-origin: 50% 50%;
+        }
+
         #playerHealthUI .bar-fill {
             width: 100%;
             height: 100%;
@@ -281,7 +296,12 @@
 <body>
     <!-- Duplicate HUD Elements Removed -->
 
+    <!-- Enemy Arrow Indicators -->
+    <div id="enemyArrow1" class="enemy-arrow-indicator"></div>
+    <div id="enemyArrow2" class="enemy-arrow-indicator"></div>
+
     <!-- ROGUE UPGRADE SCREEN -->
+
     <div id="rogueUpgradeUI">
         <h2>Choose Your Blessing</h2>
         <div class="rogue-card-container" id="rogueCardOptions">
@@ -2628,6 +2648,80 @@
                     if (item.mesh.geometry) item.mesh.geometry.dispose();
                     flyingItems.splice(i, 1);
                 }
+            }
+        }
+
+
+        function updateEnemyIndicators() {
+            const arrow1 = document.getElementById('enemyArrow1');
+            const arrow2 = document.getElementById('enemyArrow2');
+            const arrows = [arrow1, arrow2];
+
+            // Default Hide
+            arrows.forEach(a => { if (a) a.style.display = 'none'; });
+
+            if (!gameState.waveActive) return;
+
+            // Filter Alive Enemies
+            const targets = wolves.filter(w => w.hp > 0);
+
+            // Only show if 2 or fewer remain
+            if (targets.length > 0 && targets.length <= 2) {
+                targets.forEach((t, i) => {
+                    if (i >= 2) return;
+                    const el = arrows[i];
+                    if (!el) return;
+
+                    // Project
+                    const pos = t.mesh.position.clone();
+                    pos.project(camera);
+
+                    // Check if off-screen (NDC [-1, 1])
+                    // We treat z > 1 as off-screen (behind)
+                    const isOffScreen = pos.z > 1 || Math.abs(pos.x) > 0.95 || Math.abs(pos.y) > 0.95;
+
+                    if (isOffScreen) {
+                        el.style.display = 'block';
+
+                        let nx = pos.x;
+                        let ny = pos.y;
+
+                        // Identify edge
+                        if (pos.z > 1) {
+                            // Behind camera: invert
+                            nx = -nx;
+                            ny = -ny;
+                        }
+
+                        const absX = Math.abs(nx);
+                        const absY = Math.abs(ny);
+
+                        // Clamp to edge
+                        if (absX > absY) {
+                            nx = nx > 0 ? 0.95 : -0.95;
+                            ny = ny * (0.95 / absX);
+                        } else {
+                            ny = ny > 0 ? 0.95 : -0.95;
+                            nx = nx * (0.95 / absY);
+                        }
+
+                        // Convert to screen pixels
+                        const cssX = (nx * 0.5 + 0.5) * window.innerWidth;
+                        const cssY = -(ny * 0.5 - 0.5) * window.innerHeight;
+
+                        el.style.left = cssX + 'px';
+                        el.style.top = cssY + 'px';
+
+                        // Rotation to point outwards/towards direction
+                        const centerX = window.innerWidth / 2;
+                        const centerY = window.innerHeight / 2;
+                        const dirX = cssX - centerX;
+                        const dirY = cssY - centerY;
+                        const rad = Math.atan2(dirY, dirX) + Math.PI / 2; // +90deg for arrow pointing up
+
+                        el.style.transform = `translate(-50%, -50%) rotate(${rad}rad)`;
+                    }
+                });
             }
         }
 
