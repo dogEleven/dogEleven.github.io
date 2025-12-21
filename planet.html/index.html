@@ -2821,7 +2821,9 @@
                     // Priority 0: Combat
                     if (combatTarget) {
                         target = combatTarget.mesh.position;
-                        stopDist = 0.5;
+                        const onCooldown = (clock.getElapsedTime() - (f.lastAttackTime || 0)) < 3.0;
+                        // On cooldown: wait at distance (2.5m). Ready: move in (0.5m).
+                        stopDist = onCooldown ? 2.5 : 0.5;
                         seekWeight = 10.0;
 
                         // Attack Logic (Ground Thrust)
@@ -2833,6 +2835,7 @@
                                 f.attackTimer = 0;
                                 f.attackTargetW = combatTarget;
                                 f.hasHit = false; // Initialize hit flag
+                                f.attackStartPos = f.mesh.position.clone(); // Record starting point
 
                                 // No jump - stays on ground
                                 f.vSpeed = 0;
@@ -2846,7 +2849,8 @@
 
                             const thrustDuration = 0.2; // Quick impact
                             const recoveryDuration = 0.2;
-                            const totalDuration = thrustDuration + recoveryDuration;
+                            const retreatDuration = 0.4;
+                            const totalDuration = thrustDuration + recoveryDuration + retreatDuration;
 
                             if (f.attackTimer < thrustDuration) {
                                 // 1. THRUST PHASE
@@ -2861,7 +2865,7 @@
                                 // SNAP TO SURFACE to prevent clipping into the spherical planet
                                 const h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
                                 f.mesh.position.normalize().multiplyScalar(h);
-                            } else if (f.attackTimer < totalDuration) {
+                            } else if (f.attackTimer < (thrustDuration + recoveryDuration)) {
                                 // 2. RECOVERY PHASE
                                 if (!f.hasHit) {
                                     f.hasHit = true; // Mark as hit occurred
@@ -2882,7 +2886,15 @@
                                     }
                                     f.mesh.rotation.x = 0; // Reset tilt
                                 }
-                                // Slight recoil/pause
+                                // Slight pause after impact
+                            } else if (f.attackTimer < totalDuration) {
+                                // 3. RETREAT PHASE
+                                // Quickly move back to recorded attackStartPos
+                                f.mesh.position.lerp(f.attackStartPos, 10.0 * dt);
+
+                                // SNAP TO SURFACE
+                                const h = getSurfaceHeight(f.mesh.position.x, f.mesh.position.y, f.mesh.position.z);
+                                f.mesh.position.normalize().multiplyScalar(h);
                             } else {
                                 f.isAttacking = false;
                             }
