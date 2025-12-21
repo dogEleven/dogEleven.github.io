@@ -4793,13 +4793,49 @@
                 dropItem(dropPos);
             }
 
+            // Disable controls or auto-respawn timer
+            // setTimeout(() => {
+            //     respawnPlayer();
+            // }, 4000); 
+
+            // Show Game Over UI
+            const overlay = document.getElementById('waveTransitionOverlay');
+            const text = document.getElementById('waveText');
+            if (overlay && text) {
+                overlay.style.display = 'flex';
+                overlay.style.backgroundColor = 'rgba(0,0,0,0.7)'; // Transparent dark
+                overlay.style.opacity = '1';
+                text.textContent = "GAME OVER";
+                text.style.color = '#ff0000'; // Classic Red Game Over
+                text.style.fontSize = '4em';
+            }
+
+            // Wait 3 seconds before allowing restart
             setTimeout(() => {
-                respawnPlayer();
-            }, 4000); // Increased wait for animation
+                if (text) {
+                    text.innerHTML = "GAME OVER<br><span style='font-size:0.4em; color:white; margin-top:20px; display:block;'>TAP OR PRESS ANY KEY TO RESTART</span>";
+                }
+
+                const restartHandler = () => {
+                    document.removeEventListener('click', restartHandler);
+                    document.removeEventListener('keydown', restartHandler);
+                    window.location.reload();
+                };
+
+                document.addEventListener('click', restartHandler);
+                document.addEventListener('keydown', restartHandler);
+            }, 3000);
         }
 
         function respawnPlayer() {
             isDead = false;
+
+            // Hide Game Over UI
+            const overlay = document.getElementById('waveTransitionOverlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                setTimeout(() => { overlay.style.display = 'none'; }, 1000);
+            }
 
             // 1. Reset Position to Dormitory (Chest)
             // Find ground height at chest location
