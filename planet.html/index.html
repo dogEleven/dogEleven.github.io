@@ -2675,22 +2675,22 @@
                     pos.project(camera);
 
                     // Check if off-screen (NDC [-1, 1])
-                    // We treat z > 1 as off-screen (behind)
                     const isOffScreen = pos.z > 1 || Math.abs(pos.x) > 0.95 || Math.abs(pos.y) > 0.95;
 
+                    // Always show arrow
+                    el.style.display = 'block';
+
+                    let nx = pos.x;
+                    let ny = pos.y;
+
+                    // If behind camera, invert
+                    if (pos.z > 1) {
+                        nx = -nx;
+                        ny = -ny;
+                    }
+
+                    // If off-screen, clamp to edge
                     if (isOffScreen) {
-                        el.style.display = 'block';
-
-                        let nx = pos.x;
-                        let ny = pos.y;
-
-                        // Identify edge
-                        if (pos.z > 1) {
-                            // Behind camera: invert
-                            nx = -nx;
-                            ny = -ny;
-                        }
-
                         const absX = Math.abs(nx);
                         const absY = Math.abs(ny);
 
@@ -2702,23 +2702,23 @@
                             ny = ny > 0 ? 0.95 : -0.95;
                             nx = nx * (0.95 / absY);
                         }
-
-                        // Convert to screen pixels
-                        const cssX = (nx * 0.5 + 0.5) * window.innerWidth;
-                        const cssY = -(ny * 0.5 - 0.5) * window.innerHeight;
-
-                        el.style.left = cssX + 'px';
-                        el.style.top = cssY + 'px';
-
-                        // Rotation to point outwards/towards direction
-                        const centerX = window.innerWidth / 2;
-                        const centerY = window.innerHeight / 2;
-                        const dirX = cssX - centerX;
-                        const dirY = cssY - centerY;
-                        const rad = Math.atan2(dirY, dirX) + Math.PI / 2; // +90deg for arrow pointing up
-
-                        el.style.transform = `translate(-50%, -50%) rotate(${rad}rad)`;
                     }
+
+                    // Convert to screen pixels
+                    const cssX = (nx * 0.5 + 0.5) * window.innerWidth;
+                    const cssY = -(ny * 0.5 - 0.5) * window.innerHeight;
+
+                    el.style.left = cssX + 'px';
+                    el.style.top = cssY + 'px';
+
+                    // Rotation to point towards center (inward) if on-screen, outward if off-screen
+                    const centerX = window.innerWidth / 2;
+                    const centerY = window.innerHeight / 2;
+                    const dirX = cssX - centerX;
+                    const dirY = cssY - centerY;
+                    const rad = Math.atan2(dirY, dirX) + Math.PI / 2; // +90deg for arrow pointing up
+
+                    el.style.transform = `translate(-50%, -50%) rotate(${rad}rad)`;
                 });
             }
         }
