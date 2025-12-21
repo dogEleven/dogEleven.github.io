@@ -2680,6 +2680,19 @@
                     moveForce.add(pushDir.clone().negate().multiplyScalar(force));
                 }
 
+                // Wake Up Check (Wolves)
+                if (!f.isFollowing) {
+                    const wakeDist = f.hasSword ? 15.0 : 5.0;
+                    for (let w of wolves) {
+                        if (w.hp > 0 && f.mesh.position.distanceTo(w.mesh.position) < wakeDist) {
+                            f.isFollowing = true;
+                            f.vSpeed = 10.0;
+                            f.yOffset = 0.1;
+                            break;
+                        }
+                    }
+                }
+
                 // State Logic
                 // State Logic
                 // if (f.isJumping) {
@@ -2693,8 +2706,78 @@
                     let stopDist = 3.0;
                     let seekWeight = 1.0;
 
+                    // --- Combat Logic (Persistent) ---
+                    const aggroRange = f.hasSword ? 15.0 : 5.0;
+                    const chaseLimit = 40.0;
+                    const leashDistance = 15.0; // Distance to force return to player
+
+                    // 0. Leash Check (Overrides Combat)
+                    if (distToPlayer > leashDistance) {
+                        f.combatTarget = null; // Disengage
+                    }
+
+                    // 1. Validate Current Target
+                    if (f.combatTarget) {
+                        if (f.combatTarget.hp <= 0 || f.mesh.position.distanceTo(f.combatTarget.mesh.position) > chaseLimit) {
+                            f.combatTarget = null;
+                        }
+                    }
+
+                    // 2. Scan for New Target (Only if safe distance from player)
+                    if (!f.combatTarget && distToPlayer < leashDistance) {
+                        let bestW = null;
+                        let minD = aggroRange;
+
+                        wolves.forEach(w => {
+                            if (w.hp > 0) {
+                                const d = f.mesh.position.distanceTo(w.mesh.position);
+                                if (d < minD) {
+                                    minD = d;
+                                    bestW = w;
+                                }
+                            }
+                        });
+
+                        if (bestW) f.combatTarget = bestW;
+                    }
+
+                    // Adapter
+                    let combatTarget = f.combatTarget;
+                    let minWolfDist = combatTarget ? f.mesh.position.distanceTo(combatTarget.mesh.position) : Infinity;
+
+                    // Restore Visuals (Remove Debug Red/White)
+                    if (f.mesh.children[0] && f.mesh.children[0].material) {
+                        // Reset to default material logic if needed, or just leave it. 
+                        // Currently we just want to remove the debug override.
+                        // We can set it back to white for safety or implement proper tinting later.
+                        f.mesh.children[0].material.color.setHex(0xffffff);
+                    }
+
+                    // Priority 0: Combat
+                    if (combatTarget) {
+                        target = combatTarget.mesh.position;
+                        stopDist = 0.5;
+                        seekWeight = 10.0;
+
+                        // Attack Logic
+                        if (minWolfDist < 2.0) {
+                            const now = clock.getElapsedTime();
+                            if (now - (f.lastAttackTime || 0) > 1.0) {
+                                f.lastAttackTime = now;
+                                combatTarget.hp -= 1;
+                                f.vSpeed = 5.0;
+                                f.yOffset = 0.1;
+                                spawnJumpDust(combatTarget.mesh.position);
+                                if (combatTarget.hp <= 0) {
+                                    spawnExplosion(combatTarget.mesh.position);
+                                    f.combatTarget = null;
+                                }
+                            }
+                        }
+                    }
+
                     // Priority 1: Mimic Hiding (If Player is in a Bush AND Standing Still)
-                    if (isPositionHidden(playerPos) && carPhysics.velocity.length() < 0.5) {
+                    else if (isPositionHidden(playerPos) && carPhysics.velocity.length() < 0.5) {
                         let bestBush = null;
                         let minDSq = Infinity;
 
@@ -3103,7 +3186,7 @@
         function createWolf(pos) {
             const group = new THREE.Group();
             group.position.copy(pos);
-            group.hp = 100; // HP Added
+            group.hp = 10; // Wolf HP 10
 
             // Voxel Style Wolf (Grey-ish)
             const mat = new THREE.MeshBasicMaterial({
@@ -3199,12 +3282,11 @@
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
                 speed: speed,
+                hp: 10, // Explicitly set HP on the wrapper object
                 wanderTimer: 0,
                 wanderDir: new THREE.Vector3(),
                 walkTime: 0,
                 combatState: 'wander',
-                combatState: 'wander',
-                stateTimer: 0,
                 stateTimer: 0,
                 attackDir: new THREE.Vector3(),
                 hasHitTarget: false,
@@ -3373,8 +3455,15 @@
             // waterLevel and isPositionInWater are now global
 
 
+            // Clean up dead wolves
+            for (let i = wolves.length - 1; i >= 0; i--) {
+                if (wolves[i].hp <= 0) {
+                    scene.remove(wolves[i].mesh);
+                    wolves.splice(i, 1);
+                }
+            }
+
             wolves.forEach(w => {
-                if (w.hp <= 0) return;
                 const up = w.mesh.position.clone().normalize();
                 const moveForce = new THREE.Vector3();
                 let currentSpeed = 0;
@@ -3443,7 +3532,7 @@
 
                 // --- 2. BEHAVIOR STATE MACHINE ---
                 if (w.combatState === 'wander') {
-                    currentSpeed = 9.6; // 6.0 * 1.6
+                    currentSpeed = 3.5; // Reduced from 9.6
                     w.wanderTimer -= dt;
 
                     if (w.wanderTimer <= 0) {
@@ -3476,7 +3565,7 @@
                     const tangent = new THREE.Vector3().crossVectors(dirToTarget, up).normalize().multiplyScalar(w.orbitDir);
 
                     if (w.combatState === 'circle_fast') {
-                        currentSpeed = 14.4; // 9.0 * 1.6
+                        currentSpeed = 7.0; // Reduced from 14.4
 
                         if (w.stateTimer > 1.4) {
                             // FAST AGGRESSION (was 3.5)
@@ -3491,7 +3580,7 @@
                     }
 
                     else if (w.combatState === 'circle_slow') {
-                        currentSpeed = 4.8; // 3.0 * 1.6
+                        currentSpeed = 2.5; // Reduced from 4.8
 
                         if (w.stateTimer > 0.7) {
                             // FAST AGGRESSION (was 4.0)
@@ -3506,7 +3595,7 @@
                     }
 
                     else if (w.combatState === 'dash') {
-                        currentSpeed = 19.2;
+                        currentSpeed = 10.0; // Reduced from 19.2
 
                         if (w.target && distToTarget < 3.5) {
                             w.combatState = 'bite_attack';
@@ -3526,7 +3615,7 @@
                     }
 
                     else if (w.combatState === 'bite_attack') {
-                        currentSpeed = 12.8; // 8.0 * 1.6
+                        currentSpeed = 6.0; // Reduced from 12.8
                         moveForce.copy(w.attackDir);
 
                         // Initialize hit targets for this swing if not exists
@@ -4957,10 +5046,11 @@
                 // Moved here to receive Jump Signal
                 try {
                     updateFollowers(dt);
+                    updateWolves(dt);
                 }
 
                 catch (e) {
-                    console.error("Follower Error", e);
+                    console.error("Entity Update Error", e);
                 }
 
                 // --- Pickup Animation & Logic ---
