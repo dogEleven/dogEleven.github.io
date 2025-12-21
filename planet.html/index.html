@@ -439,7 +439,7 @@
     </div>
 
     <div id="playerHealthUI">
-        <div class="label" style="font-size: 14px; margin-bottom: 2px;">PLAYER HEALTH</div>
+        <div class="label" style="font-size: 14px; margin-bottom: 2px;" id="playerHealthLabel">PLAYER HEALTH</div>
         <div class="bar-bg">
             <div id="playerHealthFill" class="bar-fill"></div>
         </div>
@@ -448,7 +448,110 @@
             href="../index.html/index.html"
             style="color: white; text-decoration: none; font-size: 14px; font-weight: bold; font-family: 'Arial', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;">tofusoup.cc</a>
     </div>
-    <script> // --- 1. Noise Implementation ---
+    <script>
+        // --- 0. Localization System ---
+        const translations = {
+            en: {
+                loading: "LOADING...",
+                gameOver: "GAME OVER",
+                dormDestroyed: "The Dormitory has been destroyed",
+                restartMsg: "CLICK ANYWHERE OR PRESS ANY KEY TO RESTART",
+                chooseBlessing: "CHOOSE YOUR BLESSING",
+                enemies: "ENEMIES:",
+                playerHealth: "PLAYER HEALTH",
+                day: "DAY {0}",
+                dayCompleted: "DAY {0} COMPLETED",
+                // Rogue Upgrades
+                popTitle: "+10% Population",
+                popDesc: "Increase follower capacity by 10%",
+                speedTitle: "+10% Move Speed",
+                speedDesc: "Followers move 10% faster",
+                attackTitle: "+10% Attack",
+                attackDesc: "Increase attack damage by 10%",
+                freqTitle: "+10% Attack Freq",
+                freqDesc: "Increase attack speed by 10%",
+                critTitle: "+5% Crit Rate",
+                critDesc: "5% chance to deal 150% damage",
+                defTitle: "+10% Defense",
+                defDesc: "Reduce damage taken by 10%",
+                // Console messages
+                bearSpawned: "Bear spawned near player!",
+                bearJump: "Bear initiating jump attack! (Distance: {0}m)",
+                bearLand: "Bear landed!",
+                playerDodge: "Player dodged bear slam! (Height: {0}m)",
+                bearHitPlayer: "Bear slam hit player! HP: {0}/{1}",
+                bearHitFollowers: "Bear slam hit {0} follower(s)!",
+                waveStart: "Starting Wave {0}: {1} Wolves, {2} Bears",
+                critHit: "CRITICAL HIT!",
+                hitLog: "[{0}] Follower Hit {1}: Damage={2}, TargetHP={3}"
+            },
+            zh: {
+                loading: "加载中...",
+                gameOver: "游戏结束",
+                dormDestroyed: "大本营已被摧毁",
+                restartMsg: "点击任意位置或按任意键重新开始",
+                chooseBlessing: "选择你的祝福",
+                enemies: "敌人：",
+                playerHealth: "玩家生命",
+                day: "第 {0} 天",
+                dayCompleted: "第 {0} 天已结束",
+                // Rogue Upgrades
+                popTitle: "+10% 人口上限",
+                popDesc: "增加 10% 的随从容量",
+                speedTitle: "+10% 移动速度",
+                speedDesc: "随从移动速度增加 10%",
+                attackTitle: "+10% 攻击力",
+                attackDesc: "增加 10% 的攻击伤害",
+                freqTitle: "+10% 攻击频率",
+                freqDesc: "增加 10% 的攻击速度",
+                critTitle: "+5% 暴击率",
+                critDesc: "5% 概率造成 150% 伤害",
+                defTitle: "+10% 防御力",
+                defDesc: "减少 10% 受到的伤害",
+                // Console messages
+                bearSpawned: "熊在玩家附近出现了！",
+                bearJump: "熊发动了弹跳攻击！（距离：{0}米）",
+                bearLand: "熊落地了！",
+                playerDodge: "玩家躲开了震击！（高度：{0}米）",
+                bearHitPlayer: "熊的震击命中了玩家！HP: {0}/{1}",
+                bearHitFollowers: "熊的震击命中了 {0} 个随从！",
+                waveStart: "开始第 {0} 天：{1} 狼，{2} 熊",
+                critHit: "暴击！",
+                hitLog: "[{0}] 随从击中了 {1}: 伤害={2}, 目标HP={3}"
+            }
+        };
+
+        const userLang = (navigator.language || navigator.userLanguage || "en").startsWith('zh') ? 'zh' : 'en';
+        function t(key, ...args) {
+            let str = (translations[userLang] && translations[userLang][key]) ? translations[userLang][key] : (translations['en'][key] || key);
+            args.forEach((arg, i) => {
+                str = str.replace(`{${i}}`, arg);
+            });
+            return str;
+        }
+
+        // Apply translations to static HTML
+        window.addEventListener('DOMContentLoaded', () => {
+            const elUpgTitle = document.querySelector('#rogueUpgradeUI h2');
+            if (elUpgTitle) elUpgTitle.textContent = t('chooseBlessing');
+
+            const elGameOverTitle = document.querySelector('#game-over-overlay h1');
+            if (elGameOverTitle) elGameOverTitle.textContent = t('gameOver');
+
+            const elGameOverDesc = document.querySelector('#game-over-overlay p');
+            if (elGameOverDesc) elGameOverDesc.textContent = t('dormDestroyed');
+
+            const elRestartMsg = document.getElementById('game-over-restart-msg');
+            if (elRestartMsg) elRestartMsg.textContent = t('restartMsg');
+
+            const elEnemiesLabel = document.querySelector('#waveInfoUI span:nth-child(2)');
+            if (elEnemiesLabel) elEnemiesLabel.textContent = t('enemies');
+
+            const elHealthLabel = document.getElementById('playerHealthLabel');
+            if (elHealthLabel) elHealthLabel.textContent = t('playerHealth');
+        });
+
+        // --- 1. Noise Implementation ---
         const p = [151,
             160,
             137,
@@ -2089,7 +2192,7 @@
                 wolves.push(bear);
                 gameState.enemiesRemaining++;
 
-                console.log('Bear spawned near player!');
+                console.log(t('bearSpawned'));
 
                 // Update UI
                 const countText = document.getElementById('enemyCountText');
@@ -2179,7 +2282,7 @@
             if (gameState.wave > 1) {
                 overlay.style.backgroundColor = 'black';
                 overlay.style.opacity = '1';
-                text.textContent = `DAY ${gameState.wave - 1} COMPLETED`;
+                text.textContent = t('dayCompleted', gameState.wave - 1);
                 text.style.opacity = '1';
                 await new Promise(r => setTimeout(r, 3000));
             }
@@ -2188,7 +2291,7 @@
             // "First day end, light white: second day start"
             // Interpretation: Fade to black, then flash white/fade in?
 
-            text.textContent = `DAY ${gameState.wave}`;
+            text.textContent = t('day', gameState.wave);
             overlay.style.backgroundColor = 'black'; // Keep black bg for text
             overlay.style.opacity = '1';
 
@@ -2205,7 +2308,7 @@
         }
 
         function spawnWaveEnemies(config) {
-            console.log(`Starting Wave ${gameState.wave}: ${config.wolves} Wolves, ${config.bears} Bears`);
+            console.log(t('waveStart', gameState.wave, config.wolves, config.bears));
 
             // Clear existing (just in case)
             // Clear existing (just in case)
@@ -2254,12 +2357,12 @@
         }
 
         const rogueUpgrades = [
-            { id: 1, title: "+10% Population", icon: "👥", desc: "Increase follower capacity by 10%", effect: () => { gameState.stats.followerPopMult *= 1.1; chestInventory.maxFollowers = Math.ceil(5 * gameState.stats.followerPopMult); } },
-            { id: 2, title: "+10% Move Speed", icon: "🏃", desc: "Followers move 10% faster", effect: () => { gameState.stats.moveSpeedMult *= 1.1; } },
-            { id: 3, title: "+10% Attack", icon: "⚔️", desc: "Increase attack damage by 10%", effect: () => { gameState.stats.attackDmgMult *= 1.1; } },
-            { id: 4, title: "+10% Attack Freq", icon: "⚡", desc: "Increase attack speed by 10%", effect: () => { gameState.stats.attackFreqMult *= 1.1; } },
-            { id: 5, title: "+5% Crit Rate", icon: "🎯", desc: "5% chance to deal 150% damage", effect: () => { gameState.stats.critRate += 0.05; } },
-            { id: 6, title: "+10% Defense", icon: "🛡️", desc: "Reduce damage taken by 10%", effect: () => { gameState.stats.defenseMult *= 1.1; } }
+            { id: 1, title: t('popTitle'), icon: "👥", desc: t('popDesc'), effect: () => { gameState.stats.followerPopMult *= 1.1; chestInventory.maxFollowers = Math.ceil(5 * gameState.stats.followerPopMult); } },
+            { id: 2, title: t('speedTitle'), icon: "🏃", desc: t('speedDesc'), effect: () => { gameState.stats.moveSpeedMult *= 1.1; } },
+            { id: 3, title: t('attackTitle'), icon: "⚔️", desc: t('attackDesc'), effect: () => { gameState.stats.attackDmgMult *= 1.1; } },
+            { id: 4, title: t('freqTitle'), icon: "⚡", desc: t('freqDesc'), effect: () => { gameState.stats.attackFreqMult *= 1.1; } },
+            { id: 5, title: t('critTitle'), icon: "🎯", desc: t('critDesc'), effect: () => { gameState.stats.critRate += 0.05; } },
+            { id: 6, title: t('defTitle'), icon: "🛡️", desc: t('defDesc'), effect: () => { gameState.stats.defenseMult *= 1.1; } }
         ];
 
         function showRogueUpgrade() {
@@ -3350,7 +3453,7 @@
                                         const isCrit = Math.random() < gameState.stats.critRate;
                                         if (isCrit) {
                                             damage *= 1.5;
-                                            console.log("%c CRITICAL HIT!", "color: orange; font-weight: bold;");
+                                            console.log("%c " + t('critHit'), "color: orange; font-weight: bold;");
                                         }
 
                                         f.attackTargetW.hp -= damage;
@@ -3359,7 +3462,7 @@
 
                                         // Damage Log
                                         const nowMS = new Date().toISOString();
-                                        console.log(`[${nowMS}] Follower Hit Wolf: Damage=${damage.toFixed(2)}, TargetHP=${f.attackTargetW.hp.toFixed(2)}`);
+                                        console.log(t('hitLog', nowMS, "Wolf", damage.toFixed(2), f.attackTargetW.hp.toFixed(2)));
 
                                         if (f.attackTargetW.hp <= 0) {
                                             spawnExplosion(f.attackTargetW.mesh.position);
@@ -4227,7 +4330,7 @@
                     const distToTarget = w.mesh.position.distanceTo(w.target.pos);
                     if (!w.isJumping && w.jumpAttackCooldown <= 0 && distToTarget < 6 && distToTarget > 2) {
                         // Start jump
-                        console.log(`Bear initiating jump attack! Distance: ${distToTarget.toFixed(2)}`);
+                        console.log(t('bearJump', distToTarget.toFixed(2)));
                         w.isJumping = true;
                         w.jumpVelocity = 15; // Initial upward velocity
                         w.jumpStartY = w.mesh.position.length();
@@ -4254,7 +4357,7 @@
                         const surfaceHeight = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
                         if (newRadius <= surfaceHeight) {
                             // Landed!
-                            console.log('Bear landed! Checking for damage...');
+                            console.log(t('bearLand'));
                             w.isJumping = false;
                             w.jumpVelocity = 0;
                             w.mesh.position.normalize().multiplyScalar(surfaceHeight);
@@ -4282,10 +4385,10 @@
 
                             if (playerDist <= slamRadius) {
                                 if (isDodging) {
-                                    console.log(`Player dodged bear slam! (Height: ${playerHeightAboveGround.toFixed(2)}m)`);
+                                    console.log(t('playerDodge', playerHeightAboveGround.toFixed(2)));
                                 } else {
                                     chestInventory.hp -= slamDamage;
-                                    console.log(`Bear slam hit player! HP: ${chestInventory.hp}/${chestInventory.maxHp}`);
+                                    console.log(t('bearHitPlayer', chestInventory.hp.toFixed(1), chestInventory.maxHp));
 
                                     // Update player health UI
                                     const healthFill = document.getElementById('playerHealthFill');
@@ -4324,7 +4427,7 @@
                                 }
                             });
                             if (followersHit > 0) {
-                                console.log(`Bear slam hit ${followersHit} follower(s)!`);
+                                console.log(t('bearHitFollowers', followersHit));
                             }
 
                             // Create expanding circle effect
@@ -5193,7 +5296,7 @@
                 overlay.style.display = 'flex';
                 overlay.style.backgroundColor = 'rgba(0,0,0,0.7)'; // Transparent dark
                 overlay.style.opacity = '1';
-                text.textContent = "GAME OVER";
+                text.textContent = t('gameOver');
                 text.style.color = '#ff0000'; // Classic Red Game Over
                 text.style.fontSize = '4em';
             }
@@ -5201,7 +5304,7 @@
             // Wait 3 seconds before allowing restart
             setTimeout(() => {
                 if (text) {
-                    text.innerHTML = "GAME OVER<br><span style='font-size:0.4em; color:white; margin-top:20px; display:block;'>TAP OR PRESS ANY KEY TO RESTART</span>";
+                    text.innerHTML = t('gameOver') + "<br><span style='font-size:0.4em; color:white; margin-top:20px; display:block;'>" + t('restartMsg') + "</span>";
                 }
 
                 const restartHandler = () => {
