@@ -2131,8 +2131,6 @@
 
             gameOver: false,
             wolfKills: 0,
-            playerHP: 100,
-            playerMaxHP: 100,
             killCount: 0,
             killsForNextUpgrade: 1,
             upgradeLevel: 0,
@@ -3730,7 +3728,11 @@
                 hasHitTarget: false,
                 orbitDir: Math.random() < 0.5 ? 1 : -1,
                 eyesMat: blackMat,
-                isBear: true // Flag for logic differentiation
+                isBear: true, // Flag for logic differentiation
+                jumpAttackCooldown: 0,
+                isJumping: false,
+                jumpVelocity: 0,
+                jumpStartY: 0
             };
         }
 
@@ -3989,15 +3991,56 @@
             }
         }
 
+        function createGroundSlamEffect(pos) {
+            // Create expanding ring effect
+            const ringGeo = new THREE.RingGeometry(0.1, 0.3, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+
+            // Position and orient ring on surface
+            ring.position.copy(pos);
+            const up = pos.clone().normalize();
+            ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
+
+            scene.add(ring);
+
+            // Add to explosions array for animation
+            explosions.push({
+                mesh: ring,
+                velocity: new THREE.Vector3(),
+                life: 0.2,
+                scaleMult: 1.0,
+                isRing: true,
+                startScale: 1.0,
+                maxScale: 20.0
+            });
+        }
+
         function updateExplosions(dt) {
             for (let i = explosions.length - 1; i >= 0; i--) {
                 const p = explosions[i];
                 p.life -= dt;
-                p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
-                p.mesh.scale.setScalar(p.life * (p.scaleMult || 1.0)); // Shrink
+
+                if (p.isRing) {
+                    // Expanding ring animation
+                    const progress = 1 - (p.life / 0.2);
+                    const scale = p.startScale + (p.maxScale - p.startScale) * progress;
+                    p.mesh.scale.setScalar(scale);
+                    p.mesh.material.opacity = 0.8 * (1 - progress);
+                } else {
+                    p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
+                    p.mesh.scale.setScalar(p.life * (p.scaleMult || 1.0)); // Shrink
+                }
 
                 if (p.life <= 0) {
                     scene.remove(p.mesh);
+                    if (p.mesh.geometry) p.mesh.geometry.dispose();
+                    if (p.mesh.material) p.mesh.material.dispose();
                     explosions.splice(i, 1);
                 }
             }
@@ -4173,440 +4216,560 @@
                     }
                 }
 
-                // --- 2. BEHAVIOR STATE MACHINE ---
-                if (w.combatState === 'wander') {
-                    currentSpeed = 2.8; // Reduced 20% from 3.5
-                    w.wanderTimer -= dt;
-
-                    if (w.wanderTimer <= 0) {
-                        w.wanderTimer = 2.0 + Math.random() * 3.0;
-                        const r = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-                        r.projectOnPlane(up).normalize();
-                        w.wanderDir = r;
+                // --- BEAR JUMP ATTACK LOGIC ---
+                if (w.isBear && w.target) {
+                    // Update cooldown
+                    if (w.jumpAttackCooldown > 0) {
+                        w.jumpAttackCooldown -= dt;
                     }
 
-                    // Simple Avoidance: Predict if walking into water
-                    const futurePos = w.mesh.position.clone().add(w.wanderDir.clone().multiplyScalar(2.0));
+                    // Check if should initiate jump attack
+                    const distToTarget = w.mesh.position.distanceTo(w.target.pos);
+                    if (!w.isJumping && w.jumpAttackCooldown <= 0 && distToTarget < 6 && distToTarget > 2) {
+                        // Start jump
+                        console.log(`Bear initiating jump attack! Distance: ${distToTarget.toFixed(2)}`);
+                        w.isJumping = true;
+                        w.jumpVelocity = 15; // Initial upward velocity
+                        w.jumpStartY = w.mesh.position.length();
+                        w.jumpAttackCooldown = 5.0; // 5 second cooldown
 
-                    if (isPositionInWater(futurePos, 0.0)) {
-                        // Turn around / Randomize
-                        w.wanderDir.negate().add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.5)).normalize();
-                        w.wanderDir.projectOnPlane(up).normalize();
+                        // Spread legs during jump
+                        w.fl.rotation.x = -1.5;
+                        w.fr.rotation.x = -1.5;
+                        w.bl.rotation.x = 1.5;
+                        w.br.rotation.x = 1.5;
                     }
 
-                    moveForce.add(w.wanderDir);
-                }
+                    // Handle jump physics
+                    if (w.isJumping) {
+                        const gravity = -30;
+                        w.jumpVelocity += gravity * dt;
 
-                else {
-                    // COMBAT
-                    let targetPos = w.target ? w.target.pos : w.mesh.position;
-                    let distToTarget = w.target ? w.mesh.position.distanceTo(targetPos) : 0;
-                    let dirToTarget = w.target ? new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize() : new THREE.Vector3(1, 0, 0);
+                        // Update position
+                        const currentRadius = w.mesh.position.length();
+                        const newRadius = currentRadius + w.jumpVelocity * dt;
+                        w.mesh.position.normalize().multiplyScalar(newRadius);
 
-                    w.stateTimer += dt;
+                        // Check if landed
+                        const surfaceHeight = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
+                        if (newRadius <= surfaceHeight) {
+                            // Landed!
+                            console.log('Bear landed! Checking for damage...');
+                            w.isJumping = false;
+                            w.jumpVelocity = 0;
+                            w.mesh.position.normalize().multiplyScalar(surfaceHeight);
 
-                    const tangent = new THREE.Vector3().crossVectors(dirToTarget, up).normalize().multiplyScalar(w.orbitDir);
+                            // Reset legs
+                            w.fl.rotation.x = 0;
+                            w.fr.rotation.x = 0;
+                            w.bl.rotation.x = 0;
+                            w.br.rotation.x = 0;
 
-                    if (w.combatState === 'circle_fast') {
-                        currentSpeed = 5.6; // Reduced 20% from 7.0
+                            // Ground slam damage - INCREASED RADIUS
+                            const slamRadius = 6.0; // Increased from 4.0 to 6.0
+                            const slamDamage = 10;
 
-                        if (w.stateTimer > 1.8) { // Increased wait (slower updates)
-                            // FAST AGGRESSION (was 3.5)
-                            w.combatState = 'circle_slow';
-                            w.stateTimer = 0;
-                        }
+                            // Check player
+                            const playerDist = w.mesh.position.distanceTo(carGroup.position);
+                            console.log(`Player distance from slam: ${playerDist.toFixed(2)}m (radius: ${slamRadius}m)`);
 
-                        const radiusError = distToTarget - 8.0;
-                        moveForce.copy(tangent).multiplyScalar(1.0);
-                        moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.2));
+                            // Check if player is dodging by jumping
+                            const pPos = carGroup.position;
+                            const groundH = getSurfaceHeight(pPos.x, pPos.y, pPos.z);
+                            const pHeight = pPos.length();
+                            const playerHeightAboveGround = pHeight - groundH;
+                            const isDodging = playerHeightAboveGround > 0.8; // Corrected threshold
 
-                    }
+                            if (playerDist <= slamRadius) {
+                                if (isDodging) {
+                                    console.log(`Player dodged bear slam! (Height: ${playerHeightAboveGround.toFixed(2)}m)`);
+                                } else {
+                                    chestInventory.hp -= slamDamage;
+                                    console.log(`Bear slam hit player! HP: ${chestInventory.hp}/${chestInventory.maxHp}`);
 
-                    else if (w.combatState === 'circle_slow') {
-                        currentSpeed = 2.0; // Reduced 20% from 2.5
+                                    // Update player health UI
+                                    const healthFill = document.getElementById('playerHealthFill');
+                                    if (healthFill) {
+                                        const healthPercent = (chestInventory.hp / chestInventory.maxHp) * 100;
+                                        healthFill.style.width = healthPercent + '%';
+                                    }
 
-                        if (w.stateTimer > 1.0) { // Increased wait before attacking (0.7 -> 1.0)
-                            // Telegraph before dash
-                            w.combatState = 'telegraph';
-                            w.stateTimer = 0;
-                        }
+                                    if (chestInventory.hp <= 0) {
+                                        if (typeof handleDeath === 'function') handleDeath();
+                                        else if (typeof gameOver === 'function') gameOver();
+                                        else console.error("Death handler not found");
+                                    }
+                                }
+                            }
 
-                        const radiusError = distToTarget - 7.0;
-                        moveForce.copy(tangent).multiplyScalar(1.0);
-                        moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.5));
+                            // Check followers
+                            let followersHit = 0;
+                            followers.forEach(f => {
+                                if (!f.isDead) {
+                                    const fDist = w.mesh.position.distanceTo(f.mesh.position);
+                                    const fIsDodging = (f.yOffset || 0) > 0.8;
 
-                    }
-
-                    else if (w.combatState === 'telegraph') {
-                        currentSpeed = 0; // Stop
-                        moveForce.set(0, 0, 0);
-                        w.velocity.set(0, 0, 0); // Immediate stop
-
-                        // Force body to face target during telegraph
-                        if (w.target) {
-                            const targetPos = w.target.pos.clone();
-                            const toTarget = new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize().projectOnPlane(up).normalize();
-                            const _dummy = new THREE.Object3D();
-                            _dummy.position.copy(w.mesh.position);
-                            _dummy.up.copy(up);
-                            _dummy.lookAt(w.mesh.position.clone().add(toTarget));
-                            w.mesh.quaternion.slerp(_dummy.quaternion, 10.0 * dt);
-                        }
-
-                        // Mouth (Snout) Animation: Open/Close 2 times
-                        // stateTimer is 1.0s total.
-                        // Open at 0.1-0.3, 0.5-0.7
-                        const mouthOpen = (w.stateTimer > 0.1 && w.stateTimer < 0.3) || (w.stateTimer > 0.5 && w.stateTimer < 0.7);
-                        if (mouthOpen) {
-                            w.snout.rotation.x = 0.5; // "Open"
-                            w.head.rotation.x = -0.2; // Tilt head up
-                        } else {
-                            w.snout.rotation.x = 0;
-                            w.head.rotation.x = 0;
-                        }
-
-                        // Eyes: Enlarge and Flash
-                        const eyeScale = 1.0 + Math.sin(w.stateTimer * 20.0) * 0.5;
-                        w.leftEye.scale.set(eyeScale, eyeScale, 1.0);
-                        w.rightEye.scale.set(eyeScale, eyeScale, 1.0);
-
-                        // Color Flash (Red/White)
-                        const flashRed = Math.sin(w.stateTimer * 30.0) > 0;
-                        w.eyesMat.color.setHex(flashRed ? 0xff0000 : 0xffffff);
-
-                        if (w.stateTimer > 1.0) {
-                            w.combatState = 'dash';
-                            w.stateTimer = 0;
-                            // Reset eyes scale and mat
-                            w.leftEye.scale.set(1, 1, 1);
-                            w.rightEye.scale.set(1, 1, 1);
-                            w.eyesMat.color.setHex(0xff0000);
-                        }
-                    }
-
-                    else if (w.combatState === 'dash') {
-                        currentSpeed = 8.0; // Reduced 20% from 10.0
-
-                        if (w.target && distToTarget < 3.5) {
-                            w.combatState = 'bite_attack';
-                            w.stateTimer = 0;
-                            w.attackDir.copy(dirToTarget); // Lock direction
-                            w.hitCount = 0;
-                        }
-
-                        else if (w.stateTimer > 1.5) {
-                            w.combatState = 'circle_fast';
-                            w.stateTimer = 0;
-                            w.orbitDir *= -1;
-                        }
-
-                        moveForce.copy(dirToTarget);
-
-                    }
-
-                    else if (w.combatState === 'bite_attack') {
-                        currentSpeed = 4.8; // Reduced 20% from 6.0
-                        moveForce.copy(w.attackDir);
-
-                        // Initialize hit targets for this swing if not exists
-                        // Note: ideally set when entering state, but lazy init works
-                        if (!w.hitTargets) w.hitTargets = [];
-
-                        // Jump Anim
-                        const jumpDuration = 0.5;
-                        let jumpY = 0;
-
-                        if (w.stateTimer < jumpDuration) {
-                            const t = w.stateTimer / jumpDuration;
-                            jumpY = 4.0 * 1.0 * t * (1.0 - t);
-                        }
-
-                        if (w.model) w.model.position.y = jumpY;
-
-                        // Shake Head (Bite)
-                        if (w.stateTimer > 0.1 && w.stateTimer < 0.4) {
-                            w.head.rotation.y = Math.sin(w.stateTimer * 40.0) * 0.6;
-                        }
-
-                        else {
-                            w.head.rotation.y = 0;
-                        }
-
-                        // End
-                        if (w.stateTimer > jumpDuration) {
-                            w.combatState = 'circle_fast';
-                            w.stateTimer = 0;
-                            w.orbitDir *= -1;
-                            if (w.model) w.model.position.y = 0;
-                            w.hitTargets = []; // Clear for next time
-                        }
-                    }
-                    // SPEED MODIFIER FOR BEARS (Slower/Tankier)
-                    if (w.isBear) {
-                        currentSpeed *= 0.6;
-                    }
-                }
-
-
-                // --- 3. COLLISIONS & INTERACTION ---
-
-                // Wolf Separation
-                wolves.forEach(neighbor => {
-                    if (w === neighbor) return;
-                    const d = w.mesh.position.distanceTo(neighbor.mesh.position);
-
-                    if (d < 1.25) {
-                        const push = new THREE.Vector3().subVectors(w.mesh.position, neighbor.mesh.position).normalize();
-                        moveForce.add(push.multiplyScalar(3.0 / (d + 0.1)));
-                    }
-                });
-
-
-
-                // Follower Collision
-                followers.forEach(f => {
-                    const d = w.mesh.position.distanceTo(f.mesh.position);
-
-                    // Bear Collision Radius is bigger
-                    const colDist = w.isBear ? 1.8 : 1.2;
-
-                    if (d < colDist) {
-                        // Collision Radius
-                        const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
-                        // Smooth Push (Velocity Impulse)
-                        const pushStrength = (1.2 - d) * 15.0; // Stronger when closer usually, but strict impulse is fine
-                        f.velocity.add(pushDir.multiplyScalar(pushStrength * dt * 10.0));
-
-                        // Wolf barely feels it
-                        moveForce.add(pushDir.clone().negate().multiplyScalar(1.0));
-                    }
-
-                    if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
-                        // Followers are INVINCIBLE during their own attack dash
-                        if ((w.hitCount === undefined || w.hitCount < 5) && d < 1.5 && !f.isDead && !f.isAttacking) {
-                            // Check if already hit THIS follower this swing
-                            if (!w.hitTargets.includes(f)) {
-                                if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
-                                    w.hitTargets.push(f); // Mark hit
-                                    if (f.hasHat) {
-                                        f.hasHat = false;
-                                        if (f.hatMesh) { f.mesh.remove(f.hatMesh); f.hatMesh = null; }
-                                        w.hitCount = (w.hitCount || 0) + 1;
-                                        // Visual feedback? Hat pop sound?
-                                    } else {
-                                        // New HP Logic for Followers
-                                        let dmg = 34.0; // Base wolf damage to followers (approx 3 hits to kill 100hp)
-                                        // Apply Defense
-                                        dmg *= (1.0 / gameState.stats.defenseMult);
-
-                                        f.hp -= dmg;
-
-                                        // Visual Feedback
-                                        if (f.mesh.children[0] && f.mesh.children[0].material) {
-                                            f.mesh.children[0].material.color.setHex(0xff0000);
-                                            setTimeout(() => { if (f.mesh.children[0]) f.mesh.children[0].material.color.setHex(0xffffff); }, 200);
-                                        }
-
-                                        w.hitCount = (w.hitCount || 0) + 1;
-
-                                        if (f.hp <= 0) {
-                                            f.isDead = true;
-                                            spawnExplosion(f.mesh.position);
-                                            dropItemFromDeadFollower(f);
-
-                                            // Damage Log
-                                            const nowMS = new Date().toISOString();
-                                            console.log(`[${nowMS}] Wolf Eat Follower: FATAL`);
+                                    if (fDist <= slamRadius) {
+                                        if (fIsDodging) {
+                                            // Follower dodged!
                                         } else {
-                                            spawnJumpDust(f.mesh.position); // mild hit effect
+                                            followersHit++;
+                                            f.hp -= slamDamage;
+                                            if (f.hp <= 0) {
+                                                f.isDead = true;
+                                                f.hp = 0;
+                                            }
                                         }
                                     }
                                 }
+                            });
+                            if (followersHit > 0) {
+                                console.log(`Bear slam hit ${followersHit} follower(s)!`);
+                            }
+
+                            // Create expanding circle effect
+                            createGroundSlamEffect(w.mesh.position);
+                        }
+                    }
+                }
+
+                // --- 2. BEHAVIOR STATE MACHINE ---
+                // Skip normal movement when bear is jumping
+                if (!(w.isBear && w.isJumping)) {
+                    if (w.combatState === 'wander') {
+                        currentSpeed = 2.8; // Reduced 20% from 3.5
+                        w.wanderTimer -= dt;
+
+                        if (w.wanderTimer <= 0) {
+                            w.wanderTimer = 2.0 + Math.random() * 3.0;
+                            const r = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                            r.projectOnPlane(up).normalize();
+                            w.wanderDir = r;
+                        }
+
+                        // Simple Avoidance: Predict if walking into water
+                        const futurePos = w.mesh.position.clone().add(w.wanderDir.clone().multiplyScalar(2.0));
+
+                        if (isPositionInWater(futurePos, 0.0)) {
+                            // Turn around / Randomize
+                            w.wanderDir.negate().add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.5)).normalize();
+                            w.wanderDir.projectOnPlane(up).normalize();
+                        }
+
+                        moveForce.add(w.wanderDir);
+                    }
+
+                    else {
+                        // COMBAT
+                        let targetPos = w.target ? w.target.pos : w.mesh.position;
+                        let distToTarget = w.target ? w.mesh.position.distanceTo(targetPos) : 0;
+                        let dirToTarget = w.target ? new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize() : new THREE.Vector3(1, 0, 0);
+
+                        w.stateTimer += dt;
+
+                        const tangent = new THREE.Vector3().crossVectors(dirToTarget, up).normalize().multiplyScalar(w.orbitDir);
+
+                        if (w.combatState === 'circle_fast') {
+                            currentSpeed = 5.6; // Reduced 20% from 7.0
+
+                            if (w.stateTimer > 1.8) { // Increased wait (slower updates)
+                                // FAST AGGRESSION (was 3.5)
+                                w.combatState = 'circle_slow';
+                                w.stateTimer = 0;
+                            }
+
+                            const radiusError = distToTarget - 8.0;
+                            moveForce.copy(tangent).multiplyScalar(1.0);
+                            moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.2));
+
+                        }
+
+                        else if (w.combatState === 'circle_slow') {
+                            currentSpeed = 2.0; // Reduced 20% from 2.5
+
+                            if (w.stateTimer > 1.0) { // Increased wait before attacking (0.7 -> 1.0)
+                                // Telegraph before dash
+                                w.combatState = 'telegraph';
+                                w.stateTimer = 0;
+                            }
+
+                            const radiusError = distToTarget - 7.0;
+                            moveForce.copy(tangent).multiplyScalar(1.0);
+                            moveForce.add(dirToTarget.multiplyScalar(radiusError * 0.5));
+
+                        }
+
+                        else if (w.combatState === 'telegraph') {
+                            currentSpeed = 0; // Stop
+                            moveForce.set(0, 0, 0);
+                            w.velocity.set(0, 0, 0); // Immediate stop
+
+                            // Force body to face target during telegraph
+                            if (w.target) {
+                                const targetPos = w.target.pos.clone();
+                                const toTarget = new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize().projectOnPlane(up).normalize();
+                                const _dummy = new THREE.Object3D();
+                                _dummy.position.copy(w.mesh.position);
+                                _dummy.up.copy(up);
+                                _dummy.lookAt(w.mesh.position.clone().add(toTarget));
+                                w.mesh.quaternion.slerp(_dummy.quaternion, 10.0 * dt);
+                            }
+
+                            // Mouth (Snout) Animation: Open/Close 2 times
+                            // stateTimer is 1.0s total.
+                            // Open at 0.1-0.3, 0.5-0.7
+                            const mouthOpen = (w.stateTimer > 0.1 && w.stateTimer < 0.3) || (w.stateTimer > 0.5 && w.stateTimer < 0.7);
+                            if (mouthOpen) {
+                                w.snout.rotation.x = 0.5; // "Open"
+                                w.head.rotation.x = -0.2; // Tilt head up
+                            } else {
+                                w.snout.rotation.x = 0;
+                                w.head.rotation.x = 0;
+                            }
+
+                            // Eyes: Enlarge and Flash
+                            const eyeScale = 1.0 + Math.sin(w.stateTimer * 20.0) * 0.5;
+                            w.leftEye.scale.set(eyeScale, eyeScale, 1.0);
+                            w.rightEye.scale.set(eyeScale, eyeScale, 1.0);
+
+                            // Color Flash (Red/White)
+                            const flashRed = Math.sin(w.stateTimer * 30.0) > 0;
+                            w.eyesMat.color.setHex(flashRed ? 0xff0000 : 0xffffff);
+
+                            if (w.stateTimer > 1.0) {
+                                w.combatState = 'dash';
+                                w.stateTimer = 0;
+                                // Reset eyes scale and mat
+                                w.leftEye.scale.set(1, 1, 1);
+                                w.rightEye.scale.set(1, 1, 1);
+                                w.eyesMat.color.setHex(0xff0000);
                             }
                         }
-                    }
-                });
 
-                // Player Collision
-                const dPlayer = w.mesh.position.distanceTo(playerPos);
+                        else if (w.combatState === 'dash') {
+                            currentSpeed = 8.0; // Reduced 20% from 10.0
 
-                if (dPlayer < 1.0) {
-                    const pushDir = new THREE.Vector3().subVectors(playerPos, w.mesh.position).normalize();
-                    carPhysics.pos.add(pushDir.multiplyScalar(0.05));
+                            if (w.target && distToTarget < 3.5) {
+                                w.combatState = 'bite_attack';
+                                w.stateTimer = 0;
+                                w.attackDir.copy(dirToTarget); // Lock direction
+                                w.hitCount = 0;
+                            }
 
-                    if (w.combatState !== 'bite_attack') {
-                        moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
-                    }
-                }
+                            else if (w.stateTimer > 1.5) {
+                                w.combatState = 'circle_fast';
+                                w.stateTimer = 0;
+                                w.orbitDir *= -1;
+                            }
 
-                // Player Damage Logic
-                // Player Damage Logic
-                if (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
-                    if ((w.hitCount === undefined || w.hitCount < 5) && dPlayer < 1.25) {
-                        // Check player hit
-                        if (!w.hitTargets.includes(carPhysics)) {
-                            if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
-                                w.hitTargets.push(carPhysics);
+                            moveForce.copy(dirToTarget);
 
-                                // Safe if hidden or in water
-                                if (now - lastHitTime > 1.0) {
-                                    lastHitTime = now;
-                                    w.hitCount = (w.hitCount || 0) + 1;
-                                    if (carPhysics.hasHat) {
-                                        carPhysics.hasHat = false;
-                                        if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
-                                    } else {
-                                        // Player Damage (Non-Fatal)
-                                        let dmg = 20;
-                                        // Apply Defense
-                                        dmg *= (1.0 / gameState.stats.defenseMult);
+                        }
 
-                                        chestInventory.hp -= dmg;
+                        else if (w.combatState === 'bite_attack') {
+                            currentSpeed = 4.8; // Reduced 20% from 6.0
+                            moveForce.copy(w.attackDir);
 
-                                        if (chestInventory.hp <= 0) {
-                                            handleDeath();
-                                        }
+                            // Initialize hit targets for this swing if not exists
+                            // Note: ideally set when entering state, but lazy init works
+                            if (!w.hitTargets) w.hitTargets = [];
 
-                                        // Damage Log
-                                        const nowMS = new Date().toISOString();
-                                        console.log(`[${nowMS}] Wolf Bite Player: Damage=${dmg.toFixed(1)}, HP=${chestInventory.hp.toFixed(1)}`);
-                                    }
-                                }
+                            // Jump Anim
+                            const jumpDuration = 0.5;
+                            let jumpY = 0;
+
+                            if (w.stateTimer < jumpDuration) {
+                                const t = w.stateTimer / jumpDuration;
+                                jumpY = 4.0 * 1.0 * t * (1.0 - t);
+                            }
+
+                            if (w.model) w.model.position.y = jumpY;
+
+                            // Shake Head (Bite)
+                            if (w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                                w.head.rotation.y = Math.sin(w.stateTimer * 40.0) * 0.6;
+                            }
+
+                            else {
+                                w.head.rotation.y = 0;
+                            }
+
+                            // End
+                            if (w.stateTimer > jumpDuration) {
+                                w.combatState = 'circle_fast';
+                                w.stateTimer = 0;
+                                w.orbitDir *= -1;
+                                if (w.model) w.model.position.y = 0;
+                                w.hitTargets = []; // Clear for next time
                             }
                         }
-                    }
-
-                    // Dormitory Damage Logic Removed
-                }
-
-                // --- GLOBAL HEAD LOOK LOGIC ---
-                // Only if NOT biting/shaking
-                const isShaking = (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4);
-
-                if (!isShaking) {
-                    let targetHeadY = 0;
-
-                    if (w.target) {
-                        const targetPos = w.target.pos.clone();
-                        const lookDir = new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize();
-                        const localLook = lookDir.applyQuaternion(w.mesh.quaternion.clone().invert());
-                        const angle = Math.atan2(localLook.x, localLook.z);
-                        // +/- 60 degrees
-                        const limit = 1.05;
-                        let clampedAngle = angle;
-                        if (clampedAngle > limit) clampedAngle = limit;
-                        if (clampedAngle < -limit) clampedAngle = -limit;
-
-                        const seed = w.mesh.id * 0.1;
-                        const time = clock.getElapsedTime();
-                        const interest = (Math.sin(time * 0.8 + seed) + 1.0) / 2.0;
-
-                        // Look if interested AND target is generally in front
-                        if (interest > 0.4 && Math.abs(angle) < 2.5) {
-                            targetHeadY = clampedAngle;
+                        // SPEED MODIFIER FOR BEARS (Slower/Tankier)
+                        if (w.isBear) {
+                            currentSpeed *= 0.6;
                         }
                     }
 
-                    // Smooth Transition
-                    const diff = targetHeadY - w.head.rotation.y;
-                    w.head.rotation.y += diff * dt * 5.0;
-                }
 
-                // General Water Avoidance (Reflex)
-                // --- Water Logic (Escape & Avoidance) ---
-                const surfaceH = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
+                    // --- 3. COLLISIONS & INTERACTION ---
 
-                if (surfaceH < waterLevel) {
-                    // EMERGENCY: IN WATER -> ESCAPE
-                    w.combatState = 'wander'; // Stop fighting, start swimming
-                    w.target = null;
+                    // Wolf Separation
+                    wolves.forEach(neighbor => {
+                        if (w === neighbor) return;
+                        const d = w.mesh.position.distanceTo(neighbor.mesh.position);
 
-                    // Find "Uphill" direction (Gradient Ascent)
-                    let bestDir = new THREE.Vector3();
-                    let maxH = -10000;
-                    const sampleDist = 2.0;
-
-                    const dirs = [new THREE.Vector3(0, 0, 1),
-                    new THREE.Vector3(0, 0, -1),
-                    new THREE.Vector3(1, 0, 0),
-                    new THREE.Vector3(-1, 0, 0)];
-
-                    dirs.forEach(d => {
-                        const worldDir = d.clone().applyQuaternion(w.mesh.quaternion).normalize();
-                        const probe = w.mesh.position.clone().add(worldDir.multiplyScalar(sampleDist));
-                        const h = getSurfaceHeight(probe.x, probe.y, probe.z);
-
-                        if (h > maxH) {
-                            maxH = h;
-                            bestDir = worldDir;
+                        if (d < 1.25) {
+                            const push = new THREE.Vector3().subVectors(w.mesh.position, neighbor.mesh.position).normalize();
+                            moveForce.add(push.multiplyScalar(3.0 / (d + 0.1)));
                         }
                     });
 
-                    // Apply strong force towards highest ground
-                    moveForce.add(bestDir.multiplyScalar(20.0));
 
-                }
 
-                else if (surfaceH < waterLevel + 0.5) {
-                    // ON LAND, NEAR WATER -> AVOIDANCE (Reflex)
-                    const lookAhead = w.mesh.position.clone().add(w.velocity.clone().normalize().multiplyScalar(1.0));
-                    const nextH = getSurfaceHeight(lookAhead.x, lookAhead.y, lookAhead.z);
+                    // Follower Collision
+                    followers.forEach(f => {
+                        const d = w.mesh.position.distanceTo(f.mesh.position);
 
-                    if (nextH < waterLevel) {
-                        // Reverse hard
-                        const back = w.velocity.clone().negate().normalize().multiplyScalar(15.0);
-                        moveForce.add(back);
+                        // Bear Collision Radius is bigger
+                        const colDist = w.isBear ? 1.8 : 1.2;
+
+                        if (d < colDist) {
+                            // Collision Radius
+                            const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
+                            // Smooth Push (Velocity Impulse)
+                            const pushStrength = (1.2 - d) * 15.0; // Stronger when closer usually, but strict impulse is fine
+                            f.velocity.add(pushDir.multiplyScalar(pushStrength * dt * 10.0));
+
+                            // Wolf barely feels it
+                            moveForce.add(pushDir.clone().negate().multiplyScalar(1.0));
+                        }
+
+                        if (!w.isBear && w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                            // Followers are INVINCIBLE during their own attack dash
+                            if ((w.hitCount === undefined || w.hitCount < 5) && d < 1.5 && !f.isDead && !f.isAttacking) {
+                                // Check if already hit THIS follower this swing
+                                if (!w.hitTargets.includes(f)) {
+                                    if (!isPositionHidden(f.mesh.position) && !isPositionInWater(f.mesh.position)) {
+                                        w.hitTargets.push(f); // Mark hit
+                                        if (f.hasHat) {
+                                            f.hasHat = false;
+                                            if (f.hatMesh) { f.mesh.remove(f.hatMesh); f.hatMesh = null; }
+                                            w.hitCount = (w.hitCount || 0) + 1;
+                                            // Visual feedback? Hat pop sound?
+                                        } else {
+                                            // New HP Logic for Followers
+                                            let dmg = 34.0; // Base wolf damage to followers (approx 3 hits to kill 100hp)
+                                            // Apply Defense
+                                            dmg *= (1.0 / gameState.stats.defenseMult);
+
+                                            f.hp -= dmg;
+
+                                            // Visual Feedback
+                                            if (f.mesh.children[0] && f.mesh.children[0].material) {
+                                                f.mesh.children[0].material.color.setHex(0xff0000);
+                                                setTimeout(() => { if (f.mesh.children[0]) f.mesh.children[0].material.color.setHex(0xffffff); }, 200);
+                                            }
+
+                                            w.hitCount = (w.hitCount || 0) + 1;
+
+                                            if (f.hp <= 0) {
+                                                f.isDead = true;
+                                                spawnExplosion(f.mesh.position);
+                                                dropItemFromDeadFollower(f);
+
+                                                // Damage Log
+                                                const nowMS = new Date().toISOString();
+                                                console.log(`[${nowMS}] Wolf Eat Follower: FATAL`);
+                                            } else {
+                                                spawnJumpDust(f.mesh.position); // mild hit effect
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // Player Collision
+                    const dPlayer = w.mesh.position.distanceTo(playerPos);
+
+                    if (dPlayer < 1.0) {
+                        const pushDir = new THREE.Vector3().subVectors(playerPos, w.mesh.position).normalize();
+                        carPhysics.pos.add(pushDir.multiplyScalar(0.05));
+
+                        if (w.combatState !== 'bite_attack') {
+                            moveForce.add(pushDir.clone().negate().multiplyScalar(10.0));
+                        }
                     }
-                }
 
-                // Apply Physics
-                if (moveForce.lengthSq() > 0.01) {
-                    moveForce.projectOnPlane(up).normalize().multiplyScalar(currentSpeed);
-                    const lerpFactor = w.combatState === 'bite_attack' ? 2.0 * dt : 3.0 * dt;
-                    w.velocity.lerp(moveForce, lerpFactor);
-                }
+                    // Player Damage Logic
+                    // Player Damage Logic
+                    if (!w.isBear && w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4) {
+                        if ((w.hitCount === undefined || w.hitCount < 5) && dPlayer < 1.25) {
+                            // Check player hit
+                            if (!w.hitTargets.includes(carPhysics)) {
+                                if (!isPositionHidden(playerPos) && !isPositionInWater(playerPos)) {
+                                    w.hitTargets.push(carPhysics);
 
-                else {
-                    w.velocity.lerp(new THREE.Vector3(0, 0, 0), 3.0 * dt);
-                }
+                                    // Safe if hidden or in water
+                                    if (now - lastHitTime > 1.0) {
+                                        lastHitTime = now;
+                                        w.hitCount = (w.hitCount || 0) + 1;
+                                        if (carPhysics.hasHat) {
+                                            carPhysics.hasHat = false;
+                                            if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
+                                        } else {
+                                            // Player Damage (Non-Fatal)
+                                            let dmg = 20;
+                                            // Apply Defense
+                                            dmg *= (1.0 / gameState.stats.defenseMult);
 
-                w.mesh.position.add(w.velocity.clone().multiplyScalar(dt));
+                                            chestInventory.hp -= dmg;
 
-                // Ground Snap & Orient
-                const h = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
-                w.mesh.position.normalize().multiplyScalar(h);
+                                            if (chestInventory.hp <= 0) {
+                                                handleDeath();
+                                            }
 
-                // Chest Collision Removed
+                                            // Damage Log
+                                            const nowMS = new Date().toISOString();
+                                            console.log(`[${nowMS}] Wolf Bite Player: Damage=${dmg.toFixed(1)}, HP=${chestInventory.hp.toFixed(1)}`);
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                if (w.combatState !== 'bite_attack') {
-                    let forward = w.velocity.clone().normalize();
-                    forward.projectOnPlane(up);
-                    if (forward.lengthSq() < 0.001) forward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion).projectOnPlane(up);
-                    forward.normalize();
-                    const _dummy = new THREE.Object3D();
-                    _dummy.position.copy(w.mesh.position);
-                    _dummy.up.copy(up);
-                    _dummy.lookAt(w.mesh.position.clone().add(forward));
-                    w.mesh.quaternion.slerp(_dummy.quaternion, 8.0 * dt);
+                        // Dormitory Damage Logic Removed
+                    }
 
-                    // Anim Legs
-                    const speed = w.velocity.length();
+                    // --- GLOBAL HEAD LOOK LOGIC ---
+                    // Only if NOT biting/shaking
+                    const isShaking = (w.combatState === 'bite_attack' && w.stateTimer > 0.1 && w.stateTimer < 0.4);
 
-                    if (speed > 0.5) {
-                        w.walkTime += dt * speed * 2.0;
-                        const s = Math.sin(w.walkTime);
-                        w.fl.rotation.x = s; w.br.rotation.x = s;
-                        w.fr.rotation.x = -s; w.bl.rotation.x = -s;
+                    if (!isShaking) {
+                        let targetHeadY = 0;
+
+                        if (w.target) {
+                            const targetPos = w.target.pos.clone();
+                            const lookDir = new THREE.Vector3().subVectors(targetPos, w.mesh.position).normalize();
+                            const localLook = lookDir.applyQuaternion(w.mesh.quaternion.clone().invert());
+                            const angle = Math.atan2(localLook.x, localLook.z);
+                            // +/- 60 degrees
+                            const limit = 1.05;
+                            let clampedAngle = angle;
+                            if (clampedAngle > limit) clampedAngle = limit;
+                            if (clampedAngle < -limit) clampedAngle = -limit;
+
+                            const seed = w.mesh.id * 0.1;
+                            const time = clock.getElapsedTime();
+                            const interest = (Math.sin(time * 0.8 + seed) + 1.0) / 2.0;
+
+                            // Look if interested AND target is generally in front
+                            if (interest > 0.4 && Math.abs(angle) < 2.5) {
+                                targetHeadY = clampedAngle;
+                            }
+                        }
+
+                        // Smooth Transition
+                        const diff = targetHeadY - w.head.rotation.y;
+                        w.head.rotation.y += diff * dt * 5.0;
+                    }
+
+                    // General Water Avoidance (Reflex)
+                    // --- Water Logic (Escape & Avoidance) ---
+                    const surfaceH = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
+
+                    if (surfaceH < waterLevel) {
+                        // EMERGENCY: IN WATER -> ESCAPE
+                        w.combatState = 'wander'; // Stop fighting, start swimming
+                        w.target = null;
+
+                        // Find "Uphill" direction (Gradient Ascent)
+                        let bestDir = new THREE.Vector3();
+                        let maxH = -10000;
+                        const sampleDist = 2.0;
+
+                        const dirs = [new THREE.Vector3(0, 0, 1),
+                        new THREE.Vector3(0, 0, -1),
+                        new THREE.Vector3(1, 0, 0),
+                        new THREE.Vector3(-1, 0, 0)];
+
+                        dirs.forEach(d => {
+                            const worldDir = d.clone().applyQuaternion(w.mesh.quaternion).normalize();
+                            const probe = w.mesh.position.clone().add(worldDir.multiplyScalar(sampleDist));
+                            const h = getSurfaceHeight(probe.x, probe.y, probe.z);
+
+                            if (h > maxH) {
+                                maxH = h;
+                                bestDir = worldDir;
+                            }
+                        });
+
+                        // Apply strong force towards highest ground
+                        moveForce.add(bestDir.multiplyScalar(20.0));
+
+                    }
+
+                    else if (surfaceH < waterLevel + 0.5) {
+                        // ON LAND, NEAR WATER -> AVOIDANCE (Reflex)
+                        const lookAhead = w.mesh.position.clone().add(w.velocity.clone().normalize().multiplyScalar(1.0));
+                        const nextH = getSurfaceHeight(lookAhead.x, lookAhead.y, lookAhead.z);
+
+                        if (nextH < waterLevel) {
+                            // Reverse hard
+                            const back = w.velocity.clone().negate().normalize().multiplyScalar(15.0);
+                            moveForce.add(back);
+                        }
+                    }
+
+                    // Apply Physics
+                    if (moveForce.lengthSq() > 0.01) {
+                        moveForce.projectOnPlane(up).normalize().multiplyScalar(currentSpeed);
+                        const lerpFactor = w.combatState === 'bite_attack' ? 2.0 * dt : 3.0 * dt;
+                        w.velocity.lerp(moveForce, lerpFactor);
+                    }
+
+                    else {
+                        w.velocity.lerp(new THREE.Vector3(0, 0, 0), 3.0 * dt);
+                    }
+
+                    w.mesh.position.add(w.velocity.clone().multiplyScalar(dt));
+
+                    // Ground Snap & Orient
+                    const h = getSurfaceHeight(w.mesh.position.x, w.mesh.position.y, w.mesh.position.z);
+                    w.mesh.position.normalize().multiplyScalar(h);
+
+                    // Chest Collision Removed
+
+                    if (w.combatState !== 'bite_attack') {
+                        let forward = w.velocity.clone().normalize();
+                        forward.projectOnPlane(up);
+                        if (forward.lengthSq() < 0.001) forward = new THREE.Vector3(0, 0, 1).applyQuaternion(w.mesh.quaternion).projectOnPlane(up);
+                        forward.normalize();
+                        const _dummy = new THREE.Object3D();
+                        _dummy.position.copy(w.mesh.position);
+                        _dummy.up.copy(up);
+                        _dummy.lookAt(w.mesh.position.clone().add(forward));
+                        w.mesh.quaternion.slerp(_dummy.quaternion, 8.0 * dt);
+
+                        // Anim Legs
+                        const speed = w.velocity.length();
+
+                        if (speed > 0.5) {
+                            w.walkTime += dt * speed * 2.0;
+                            const s = Math.sin(w.walkTime);
+                            w.fl.rotation.x = s; w.br.rotation.x = s;
+                            w.fr.rotation.x = -s; w.bl.rotation.x = -s;
+                        }
+
+                        else {
+                            w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
+                        }
                     }
 
                     else {
                         w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
                     }
-                }
-
-                else {
-                    w.fl.rotation.x = 0; w.br.rotation.x = 0; w.fr.rotation.x = 0; w.bl.rotation.x = 0;
-                }
+                } // End of !(w.isBear && w.isJumping) check
             });
 
             // Cleanup Dead Wolves
