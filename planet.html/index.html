@@ -2778,22 +2778,39 @@
                         // Handle Attack Animation Frame
                         if (f.isAttacking) {
                             f.attackTimer += dt;
-                            // Spin 360 (2PI) over 0.8s air time
-                            const airTime = 0.8;
-                            if (f.attackTimer < airTime) {
-                                const progress = f.attackTimer / airTime;
-                                f.mesh.rotation.x = -progress * Math.PI * 2; // Front flip
+
+                            const flipDuration = 0.25; // Quick flip
+                            if (f.attackTimer < flipDuration) {
+                                // 1. FAST FLIP PHASE
+                                const progress = f.attackTimer / flipDuration;
+                                f.mesh.rotation.x = -progress * Math.PI * 2;
                             } else {
-                                // Land & Hit
-                                f.mesh.rotation.x = 0;
-                                f.isAttacking = false;
+                                // 2. FAST IMPACT PHASE
+                                f.mesh.rotation.x = 0; // Reset rotation
+                                f.vSpeed = -60.0; // Slam down force
+
+                                // Nudge towards wolf during descent
                                 if (f.attackTargetW && f.attackTargetW.hp > 0) {
-                                    f.attackTargetW.hp -= 1;
-                                    f.attackTargetW.flashTimer = 0.3; // Trigger 0.3s flash
-                                    spawnJumpDust(f.attackTargetW.mesh.position);
-                                    if (f.attackTargetW.hp <= 0) {
-                                        spawnExplosion(f.attackTargetW.mesh.position);
-                                        f.combatTarget = null;
+                                    const toWolf = new THREE.Vector3().subVectors(f.attackTargetW.mesh.position, f.mesh.position);
+                                    toWolf.projectOnPlane(up).normalize();
+                                    f.mesh.position.add(toWolf.multiplyScalar(20.0 * dt));
+                                }
+
+                                // Check for Landing
+                                if (f.yOffset <= 0.1) {
+                                    f.isAttacking = false;
+                                    f.yOffset = 0;
+                                    f.vSpeed = 0;
+
+                                    // Hit Logic on Landing
+                                    if (f.attackTargetW && f.attackTargetW.hp > 0) {
+                                        f.attackTargetW.hp -= 1;
+                                        f.attackTargetW.flashTimer = 0.3;
+                                        spawnJumpDust(f.attackTargetW.mesh.position);
+                                        if (f.attackTargetW.hp <= 0) {
+                                            spawnExplosion(f.attackTargetW.mesh.position);
+                                            f.combatTarget = null;
+                                        }
                                     }
                                 }
                             }
