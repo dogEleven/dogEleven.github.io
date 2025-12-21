@@ -2760,17 +2760,41 @@
                         seekWeight = 10.0;
 
                         // Attack Logic
-                        if (minWolfDist < 2.0) {
+                        if (minWolfDist < 2.5) {
                             const now = clock.getElapsedTime();
-                            if (now - (f.lastAttackTime || 0) > 1.0) {
+                            if (now - (f.lastAttackTime || 0) > 1.2) { // Slightly longer cooldown for animation
                                 f.lastAttackTime = now;
-                                combatTarget.hp -= 1;
-                                f.vSpeed = 5.0;
-                                f.yOffset = 0.1;
-                                spawnJumpDust(combatTarget.mesh.position);
-                                if (combatTarget.hp <= 0) {
-                                    spawnExplosion(combatTarget.mesh.position);
-                                    f.combatTarget = null;
+                                f.isAttacking = true;
+                                f.attackTimer = 0;
+                                f.attackStartPos = f.mesh.position.clone();
+                                f.attackTargetW = combatTarget;
+
+                                // Launch Front Flip
+                                f.vSpeed = 15.0; // High Jump
+                                f.yOffset = 0.5;
+                            }
+                        }
+
+                        // Handle Attack Animation Frame
+                        if (f.isAttacking) {
+                            f.attackTimer += dt;
+                            // Spin 360 (2PI) over 0.8s air time
+                            const airTime = 0.8;
+                            if (f.attackTimer < airTime) {
+                                const progress = f.attackTimer / airTime;
+                                f.mesh.rotation.x = -progress * Math.PI * 2; // Front flip
+                            } else {
+                                // Land & Hit
+                                f.mesh.rotation.x = 0;
+                                f.isAttacking = false;
+                                if (f.attackTargetW && f.attackTargetW.hp > 0) {
+                                    f.attackTargetW.hp -= 1;
+                                    f.attackTargetW.flashTimer = 0.3; // Trigger 0.3s flash
+                                    spawnJumpDust(f.attackTargetW.mesh.position);
+                                    if (f.attackTargetW.hp <= 0) {
+                                        spawnExplosion(f.attackTargetW.mesh.position);
+                                        f.combatTarget = null;
+                                    }
                                 }
                             }
                         }
@@ -2867,7 +2891,9 @@
 
                 // Apply to Velocity
                 // Apply to Velocity
-                const maxSpeed = 13.65; // Increased by another 30% (10.5 * 1.3)
+                // Apply to Velocity
+                let maxSpeed = 13.65;
+                if (f.combatTarget) maxSpeed *= 1.5; // Sprint when chasing
 
                 // If we have any desire to move
                 if (moveForce.lengthSq() > 0.01) {
@@ -3282,7 +3308,9 @@
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
                 speed: speed,
-                hp: 10, // Explicitly set HP on the wrapper object
+                hp: 20, // Increased HP
+                flashTimer: 0, // Visual feedback timer
+                originalColor: mat.color.clone(),
                 wanderTimer: 0,
                 wanderDir: new THREE.Vector3(),
                 walkTime: 0,
@@ -3465,6 +3493,33 @@
 
             wolves.forEach(w => {
                 const up = w.mesh.position.clone().normalize();
+
+                // --- Flash Logic ---
+                if (w.flashTimer > 0) {
+                    w.flashTimer -= dt;
+                    // Flash: 0.3 to 0.2 is white (0.1s), 0.2 to 0 is red (0.2s)
+                    const flashColor = w.flashTimer > 0.2 ? 0xffffff : 0xff0000;
+
+                    // Update all parts that use the main material
+                    w.mesh.traverse(child => {
+                        if (child.isMesh && child.material && child.material.color) {
+                            // Don't flash black eyes
+                            if (child.material !== w.eyesMat) {
+                                child.material.color.setHex(flashColor);
+                            }
+                        }
+                    });
+                } else if (w.flashTimer <= 0) {
+                    // Restore original grey color
+                    w.mesh.traverse(child => {
+                        if (child.isMesh && child.material && child.material.color) {
+                            if (child.material !== w.eyesMat) {
+                                child.material.color.setHex(0x6e7e85);
+                            }
+                        }
+                    });
+                }
+
                 const moveForce = new THREE.Vector3();
                 let currentSpeed = 0;
 
