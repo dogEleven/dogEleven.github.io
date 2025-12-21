@@ -3503,12 +3503,12 @@
             const bl = createLeg(-0.5, -0.9);
             const br = createLeg(0.5, -0.9);
 
-            // Dummy Eyes for animation compatibility
-            const eyeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const leftEye = new THREE.Mesh(eyeGeo, blackMat); // Hidden/Dummy
-            leftEye.visible = false;
-            const rightEye = new THREE.Mesh(eyeGeo, blackMat); // Hidden/Dummy
-            rightEye.visible = false;
+            // Eyes (Visible for Red Eye Effect)
+            const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+            const leftEye = new THREE.Mesh(eyeGeo, blackMat);
+            leftEye.position.set(-0.35, 0.2, 0.55); // Pos on head
+            const rightEye = new THREE.Mesh(eyeGeo, blackMat);
+            rightEye.position.set(0.35, 0.2, 0.55);
             headGroup.add(leftEye);
             headGroup.add(rightEye);
 
@@ -3539,7 +3539,8 @@
                 attackDir: new THREE.Vector3(),
                 hasHitTarget: false,
                 orbitDir: Math.random() < 0.5 ? 1 : -1,
-                eyesMat: blackMat // dummy material
+                eyesMat: blackMat,
+                isBear: true // Flag for logic differentiation
             };
         }
 
@@ -4130,7 +4131,12 @@
                             w.hitTargets = []; // Clear for next time
                         }
                     }
+                    // SPEED MODIFIER FOR BEARS (Slower/Tankier)
+                    if (w.isBear) {
+                        currentSpeed *= 0.6;
+                    }
                 }
+
 
                 // --- 3. COLLISIONS & INTERACTION ---
 
@@ -4145,11 +4151,16 @@
                     }
                 });
 
+
+
                 // Follower Collision
                 followers.forEach(f => {
                     const d = w.mesh.position.distanceTo(f.mesh.position);
 
-                    if (d < 1.2) {
+                    // Bear Collision Radius is bigger
+                    const colDist = w.isBear ? 1.8 : 1.2;
+
+                    if (d < colDist) {
                         // Collision Radius
                         const pushDir = new THREE.Vector3().subVectors(f.mesh.position, w.mesh.position).normalize();
                         // Smooth Push (Velocity Impulse)
