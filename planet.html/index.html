@@ -2759,50 +2759,44 @@
                         stopDist = 0.5;
                         seekWeight = 10.0;
 
-                        // Attack Logic
+                        // Attack Logic (Ground Thrust)
                         if (minWolfDist < 2.5) {
                             const now = clock.getElapsedTime();
-                            if (now - (f.lastAttackTime || 0) > 1.2) { // Slightly longer cooldown for animation
+                            if (now - (f.lastAttackTime || 0) > 0.8) { // Faster cooldown for thrust
                                 f.lastAttackTime = now;
                                 f.isAttacking = true;
                                 f.attackTimer = 0;
-                                f.attackStartPos = f.mesh.position.clone();
                                 f.attackTargetW = combatTarget;
 
-                                // Launch Front Flip
-                                f.vSpeed = 15.0; // High Jump
-                                f.yOffset = 0.5;
+                                // No jump - stays on ground
+                                f.vSpeed = 0;
+                                f.yOffset = 0;
                             }
                         }
 
-                        // Handle Attack Animation Frame
+                        // Handle Attack Animation (Thrust)
                         if (f.isAttacking) {
                             f.attackTimer += dt;
 
-                            const flipDuration = 0.25; // Quick flip
-                            if (f.attackTimer < flipDuration) {
-                                // 1. FAST FLIP PHASE
-                                const progress = f.attackTimer / flipDuration;
-                                f.mesh.rotation.x = -progress * Math.PI * 2;
-                            } else {
-                                // 2. FAST IMPACT PHASE
-                                f.mesh.rotation.x = 0; // Reset rotation
-                                f.vSpeed = -60.0; // Slam down force
+                            const thrustDuration = 0.2; // Quick impact
+                            const recoveryDuration = 0.2;
+                            const totalDuration = thrustDuration + recoveryDuration;
 
-                                // Nudge towards wolf during descent
+                            if (f.attackTimer < thrustDuration) {
+                                // 1. THRUST PHASE
+                                const progress = f.attackTimer / thrustDuration;
+                                f.mesh.rotation.x = -0.5; // Tilt forward
+
+                                // Rapidly dash towards wolf
                                 if (f.attackTargetW && f.attackTargetW.hp > 0) {
                                     const toWolf = new THREE.Vector3().subVectors(f.attackTargetW.mesh.position, f.mesh.position);
                                     toWolf.projectOnPlane(up).normalize();
-                                    f.mesh.position.add(toWolf.multiplyScalar(20.0 * dt));
+                                    f.mesh.position.add(toWolf.multiplyScalar(30.0 * dt)); // Dash speed 30
                                 }
-
-                                // Check for Landing
-                                if (f.yOffset <= 0.1) {
-                                    f.isAttacking = false;
-                                    f.yOffset = 0;
-                                    f.vSpeed = 0;
-
-                                    // Hit Logic on Landing
+                            } else if (f.attackTimer < totalDuration) {
+                                // 2. RECOVERY PHASE
+                                if (f.mesh.rotation.x !== 0) {
+                                    // Trigger Hit exactly at the end of thrust
                                     if (f.attackTargetW && f.attackTargetW.hp > 0) {
                                         f.attackTargetW.hp -= 1;
                                         f.attackTargetW.flashTimer = 0.3;
@@ -2812,7 +2806,11 @@
                                             f.combatTarget = null;
                                         }
                                     }
+                                    f.mesh.rotation.x = 0; // Reset tilt
                                 }
+                                // Slight recoil/pause
+                            } else {
+                                f.isAttacking = false;
                             }
                         }
                     }
