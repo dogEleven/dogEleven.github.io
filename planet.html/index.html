@@ -73,6 +73,54 @@
             font-weight: 800;
             font-size: 18px;
         }
+
+        /* Dorm Health Bar UI */
+        #dormHealthUI {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10000;
+            display: none;
+            /* Shown after first wolf death */
+            flex-direction: column;
+            gap: 4px;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+        }
+
+        #dormHealthUI .label {
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #dormHealthUI .bar-bg {
+            width: 300px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #dormHealthUI .bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 15px rgba(255, 75, 43, 0.6);
+        }
+
+        #dormHealthUI .task-msg {
+            color: #ffd700;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -130,6 +178,15 @@
 
     <!-- Dormitory Label (Floating UI) -->
     <div id="dormLabel"></div>
+
+    <!-- Dormitory Health UI -->
+    <div id="dormHealthUI">
+        <div class="label">Dormitory Condition</div>
+        <div class="bar-bg">
+            <div id="dormHealthFill" class="bar-fill"></div>
+        </div>
+        <div id="dormTaskMsg" class="task-msg">Protect the Dormitory!</div>
+    </div>
     <div style="position: absolute; top: 20px; right: 20px; z-index: 9999; pointer-events: none;"> <a
             href="../index.html/index.html"
             style="color: white; text-decoration: none; font-size: 14px; font-weight: bold; font-family: 'Arial', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;">tofusoup.cc</a>
@@ -1872,7 +1929,15 @@
             mushroom: 0,
             followers: 5, // Stored followers
             level: 1, // Current Dorm Level
-            maxFollowers: 5
+            maxFollowers: 5,
+            hp: 100,
+            maxHp: 100
+        };
+
+        const gameState = {
+            waveActive: false,
+            firstWolfKilled: false,
+            lastSpawnTime: 0
         };
 
         // Task Configuration per Level
@@ -3498,12 +3563,35 @@
             // waterLevel and isPositionInWater are now global
 
 
-            // Clean up dead wolves
             for (let i = wolves.length - 1; i >= 0; i--) {
                 if (wolves[i].hp <= 0) {
                     scene.remove(wolves[i].mesh);
                     wolves.splice(i, 1);
+
+                    // Trigger Wave Mission
+                    if (!gameState.firstWolfKilled) {
+                        gameState.firstWolfKilled = true;
+                        gameState.waveActive = true;
+                        gameState.lastSpawnTime = clock.getElapsedTime();
+                        document.getElementById('dormHealthUI').style.display = 'flex';
+                    }
                 }
+            }
+
+            // Spawn Logic
+            if (gameState.waveActive) {
+                const nowS = clock.getElapsedTime();
+                if (nowS - gameState.lastSpawnTime > 10.0) {
+                    gameState.lastSpawnTime = nowS;
+                    // Spawn random position
+                    const rPos = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(planetRadius + 10);
+                    wolves.push(createWolf(rPos));
+                }
+            }
+
+            // Update UI
+            if (document.getElementById('dormHealthUI').style.display === 'flex') {
+                document.getElementById('dormHealthFill').style.width = chestInventory.hp + '%';
             }
 
             wolves.forEach(w => {
@@ -3578,6 +3666,17 @@
                             }
                         }
                     });
+
+                    // 1c. Check Dormitory (Lowest Priority)
+                    if (gameState.waveActive && chestMesh) {
+                        const d = w.mesh.position.distanceTo(chestMesh.position);
+                        if (d < 50.0 && d < closestDist) {
+                            // Only target dorm if no player/follower is in aggro range
+                            bestTarget = {
+                                type: 'dorm', pos: chestMesh.position, mesh: chestMesh
+                            };
+                        }
+                    }
 
                     w.target = bestTarget;
 
@@ -3806,6 +3905,20 @@
                                         handleDeath();
                                     }
                                 }
+                            }
+                        }
+                    }
+
+                    // Dormitory Damage Logic
+                    if (gameState.waveActive && chestMesh) {
+                        const dToChest = w.mesh.position.distanceTo(chestMesh.position);
+                        if (dToChest < 3.5 && !w.hitTargets.includes(chestMesh)) {
+                            w.hitTargets.push(chestMesh);
+                            chestInventory.hp = Math.max(0, chestInventory.hp - 5);
+                            spawnJumpDust(w.mesh.position);
+                            if (chestInventory.hp <= 0) {
+                                console.log("Dormitory Destroyed!");
+                                // Future: Implement Game Over screen
                             }
                         }
                     }
