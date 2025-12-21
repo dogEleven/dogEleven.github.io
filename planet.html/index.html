@@ -2061,6 +2061,42 @@
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
+        // Debug: Spawn Bear with K key
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'k') {
+                // Get player position
+                const playerPos = carGroup.position.clone();
+
+                // Spawn bear 5 units away from player in a random direction
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 5;
+                const offset = new THREE.Vector3(
+                    Math.cos(angle) * distance,
+                    0,
+                    Math.sin(angle) * distance
+                );
+
+                // Apply offset in world space
+                const spawnPos = playerPos.clone().add(offset);
+
+                // Adjust to surface height
+                const surfaceHeight = getSurfaceHeight(spawnPos.x, spawnPos.y, spawnPos.z);
+                const up = spawnPos.clone().normalize();
+                spawnPos.copy(up.multiplyScalar(surfaceHeight));
+
+                // Create bear
+                const bear = createBear(spawnPos);
+                wolves.push(bear);
+                gameState.enemiesRemaining++;
+
+                console.log('Bear spawned near player!');
+
+                // Update UI
+                const countText = document.getElementById('enemyCountText');
+                if (countText) countText.textContent = gameState.enemiesRemaining;
+            }
+        });
+
         // --- Chest Implementation ---
 
         // 1. UI Bubble (REMOVED for Rogue Mode)
@@ -2097,6 +2133,9 @@
             wolfKills: 0,
             playerHP: 100,
             playerMaxHP: 100,
+            killCount: 0,
+            killsForNextUpgrade: 1,
+            upgradeLevel: 0,
             stats: {
                 followerPopMult: 1.0,
                 moveSpeedMult: 1.0,
@@ -3678,8 +3717,8 @@
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
                 speed: speed, // Slower than wolf
-                hp: 15,
-                maxHp: 15,
+                hp: 30,
+                maxHp: 30,
                 flashTimer: 0,
                 originalColor: mat.color.clone(),
                 wanderTimer: 0,
@@ -3992,6 +4031,23 @@
                     scene.remove(enemy.mesh);
                     wolves.splice(i, 1);
                     gameState.enemiesRemaining--;
+
+                    // Track kills for upgrade system
+                    gameState.killCount++;
+
+                    // Check if upgrade should be triggered
+                    if (gameState.killCount >= gameState.killsForNextUpgrade) {
+                        // Trigger upgrade
+                        showRogueUpgrade();
+
+                        // Increase upgrade level
+                        gameState.upgradeLevel++;
+
+                        // Calculate next upgrade requirement (1, 2, 3, 4, ...)
+                        gameState.killsForNextUpgrade += (gameState.upgradeLevel + 1);
+
+                        console.log(`Level Up! Upgrade ${gameState.upgradeLevel}. Next upgrade at ${gameState.killsForNextUpgrade} kills.`);
+                    }
 
                     // Update UI
                     const countText = document.getElementById('enemyCountText');
