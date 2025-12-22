@@ -177,6 +177,105 @@
             position: relative;
         }
 
+        /* Player XP Bar UI */
+        #playerExpUI {
+            position: fixed;
+            bottom: 52px;
+            /* Above health bar */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            filter: drop-shadow(0 0 15px rgba(0, 170, 255, 0.3));
+        }
+
+        #playerExpUI .bar-bg {
+            width: 300px;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            overflow: visible;
+            position: relative;
+        }
+
+        #playerExpFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00aaff, #00ffff);
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.8);
+            border-radius: 4px;
+            transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #playerExpUI .level-tag {
+            position: absolute;
+            left: 0;
+            top: -18px;
+            color: #00aaff;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 13px;
+            text-shadow: 0 0 8px rgba(0, 170, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Floating XP Text */
+        .xp-text {
+            position: fixed;
+            color: #00ffff;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 20px;
+            pointer-events: none;
+            z-index: 10002;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            animation: float-up 1s ease-out forwards;
+        }
+
+        @keyframes float-up {
+            0% {
+                transform: translate(-50%, 0);
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, -60px);
+                opacity: 0;
+            }
+        }
+
+        /* Level Up Message */
+        #levelUpMsg {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 60px;
+            letter-spacing: 10px;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 1);
+            z-index: 11000;
+            pointer-events: none;
+            display: none;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+
+        #playerExpUI .bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #ffeb3b, #fbc02d);
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 10px rgba(251, 192, 45, 0.6);
+        }
+
         /* Enemy Indicators */
         .enemy-arrow-indicator {
             position: fixed;
@@ -460,6 +559,13 @@
         <span id="enemyCountText" style="color: white; font-size: 20px;">0</span>
     </div>
 
+    <div id="playerExpUI">
+        <div class="level-tag">LEVEL 1</div>
+        <div class="bar-bg">
+            <div id="playerExpFill"></div>
+        </div>
+    </div>
+    <div id="levelUpMsg">LEVEL UP!</div>
     <div id="playerHealthUI">
         <div class="bar-bg">
             <div id="playerHealthFill" class="bar-fill"></div>
@@ -2256,8 +2362,9 @@
             gameOver: false,
             wolfKills: 0,
             killCount: 0,
-            killsForNextUpgrade: 1,
-            upgradeLevel: 0,
+            exp: 0,
+            expToNextLevel: 10,
+            roleLevel: 1,
             stats: {
                 followerPopMult: 1.0,
                 moveSpeedMult: 1.0,
@@ -3486,10 +3593,8 @@
 
                                         if (f.attackTargetW.hp <= 0) {
                                             spawnExplosion(f.attackTargetW.mesh.position);
+                                            spawnExpItem(f.attackTargetW.mesh.position);
                                             f.combatTarget = null;
-                                            // ROGUE TRIGGER
-                                            gameState.wolfKills++;
-                                            showRogueUpgrade();
                                         }
                                     }
 
@@ -4169,6 +4274,144 @@
             }
         }
 
+        // --- XP Item System ---
+        const expItems = [];
+        const expItemGeo = new THREE.SphereGeometry(0.3, 8, 8);
+        const expItemMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.9
+        });
+
+        function spawnExpItem(pos) {
+            const group = new THREE.Group();
+
+            // Outer glass-like orb
+            const orbGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const orbMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.3
+            });
+            const orb = new THREE.Mesh(orbGeo, orbMat);
+            group.add(orb);
+
+            // Heart shape construction (2 spheres + 1 cone)
+            const heartGroup = new THREE.Group();
+
+            const heartMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+
+            const leftLobe = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), heartMat);
+            leftLobe.position.set(-0.08, 0.08, 0);
+            heartGroup.add(leftLobe);
+
+            const rightLobe = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), heartMat);
+            rightLobe.position.set(0.08, 0.08, 0);
+            heartGroup.add(rightLobe);
+
+            const bottom = new THREE.Mesh(new THREE.ConeGeometry(0.165, 0.3, 8), heartMat);
+            bottom.rotation.x = Math.PI;
+            bottom.position.y = -0.05;
+            heartGroup.add(bottom);
+
+            group.add(heartGroup);
+
+            // Add a core glow point
+            const glowGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            group.add(glow);
+
+            group.position.copy(pos);
+            const groundH = getSurfaceHeight(pos.x, pos.y, pos.z);
+            group.position.normalize().multiplyScalar(groundH + 0.5);
+
+            scene.add(group);
+            expItems.push({
+                mesh: group,
+                birthTime: clock.getElapsedTime(),
+                basePos: group.position.clone()
+            });
+        }
+
+        function updateExpItems(dt) {
+            const now = clock.getElapsedTime();
+            const playerPos = carGroup.position;
+
+            for (let i = expItems.length - 1; i >= 0; i--) {
+                const item = expItems[i];
+
+                // Floating animation
+                const hover = Math.sin(now * 3 + i) * 0.2;
+                const up = item.basePos.clone().normalize();
+                item.mesh.position.copy(item.basePos).add(up.multiplyScalar(hover));
+                item.mesh.rotation.y += dt * 2;
+
+                // Pickup logic
+                const dist = item.mesh.position.distanceTo(playerPos);
+                if (dist < 2.0) {
+                    addExperience(10);
+                    scene.remove(item.mesh);
+                    expItems.splice(i, 1);
+                    continue;
+                }
+
+                // Autocollect if very old? (Optional)
+                if (now - item.birthTime > 30) {
+                    scene.remove(item.mesh);
+                    expItems.splice(i, 1);
+                }
+            }
+        }
+
+        function showFloatingXP(amount) {
+            const div = document.createElement('div');
+            div.className = 'xp-text';
+            div.textContent = `+${amount} XP`;
+            div.style.left = '50%';
+            div.style.top = '60%';
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 1000);
+        }
+
+        function addExperience(amount) {
+            gameState.exp += amount;
+            showFloatingXP(amount);
+
+            // Level up check
+            while (gameState.exp >= gameState.expToNextLevel) {
+                gameState.exp -= gameState.expToNextLevel;
+                gameState.roleLevel++;
+                gameState.expToNextLevel = Math.ceil(gameState.expToNextLevel * 1.2);
+
+                // Trigger Upgrade
+                showRogueUpgrade();
+                console.log(`Leveled Up to ${gameState.roleLevel}! Next: ${gameState.expToNextLevel} XP`);
+
+                // Add level up effect
+                spawnExplosion(carGroup.position);
+
+                // Big Level Up message
+                const msg = document.getElementById('levelUpMsg');
+                if (msg) {
+                    msg.style.display = 'block';
+                    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+                }
+            }
+
+            // Update XP Bar UI
+            const expFill = document.getElementById('playerExpFill');
+            if (expFill) {
+                const pct = (gameState.exp / gameState.expToNextLevel) * 100;
+                expFill.style.width = `${pct}%`;
+            }
+
+            const levelTag = document.querySelector('#playerExpUI .level-tag');
+            if (levelTag) {
+                levelTag.textContent = `LEVEL ${gameState.roleLevel}`;
+            }
+        }
+
         function updateWolves(dt) {
             if (isDead) return;
             if (gameState.gameOver) return;
@@ -4198,21 +4441,12 @@
                     wolves.splice(i, 1);
                     gameState.enemiesRemaining--;
 
-                    // Track kills for upgrade system
-                    gameState.killCount++;
-
-                    // Check if upgrade should be triggered
-                    if (gameState.killCount >= gameState.killsForNextUpgrade) {
-                        // Trigger upgrade
-                        showRogueUpgrade();
-
-                        // Increase upgrade level
-                        gameState.upgradeLevel++;
-
-                        // Calculate next upgrade requirement (1, 2, 3, 4, ...)
-                        gameState.killsForNextUpgrade += (gameState.upgradeLevel + 1);
-
-                        console.log(`Level Up! Upgrade ${gameState.upgradeLevel}. Next upgrade at ${gameState.killsForNextUpgrade} kills.`);
+                    // Drop XP Items - 2 items for bears, 1 for wolves
+                    spawnExpItem(enemy.mesh.position);
+                    if (enemy.isBear) {
+                        // Delay second item slightly or offset it
+                        const offsetPos = enemy.mesh.position.clone().add(new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5));
+                        spawnExpItem(offsetPos);
                     }
 
                     // Update UI
@@ -5507,15 +5741,7 @@
                         moveY *= ratio;
                     }
 
-                    this.knob.style.transform = `translate(-50%, -50%) translate($ {
-                            moveX
-                        }
-
-                        px, $ {
-                            moveY
-                        }
-
-                        px)`;
+                    this.knob.style.transform = `translate(-50%, -50%) translate(${moveX}px, ${moveY}px)`;
 
                     // Map to Logic Vector
                     // Visual Up (-dy) -> Logic Forward (+z)
@@ -5940,6 +6166,7 @@
                 try {
                     updateFollowers(dt);
                     updateWolves(dt);
+                    updateExpItems(dt);
                 }
 
                 catch (e) {
