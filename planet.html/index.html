@@ -2365,8 +2365,7 @@
             setBattleMode(active) {
                 if (this.isBattleMode !== active) {
                     this.isBattleMode = active;
-                    // Battle: 128 BPM (Faster), Normal: 60 BPM
-                    this.bpm = active ? 128 : 60;
+                    this.bpm = active ? 130 : 60;
                 }
             }
 
@@ -2458,53 +2457,74 @@
             }
 
             playStep(time) {
-                const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
-                const battleBass = [65.41, 73.42, 82.41, 87.31]; // Deep bass C2
+                // Scales
+                const C_Major_Pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+                // D Harmonic Minor (Epic/Dramatic): D, E, F, G, A, Bb, C#, D
+                const Epic_Scale = [146.83, 164.81, 174.61, 196.00, 220.00, 233.08, 277.18, 293.66, 349.23, 440.00];
 
                 const beatIndex = this.beatCount % 16;
+                const relTime = time - (this.ctx ? this.ctx.currentTime : 0);
 
-                // --- BATTLE MODE ---
+                // --- BATTLE MODE (Epic Orchestral Style) ---
                 if (this.isBattleMode) {
-                    // Drums
-                    if ((this.beatCount % 8) === 4) this.playDrum('snare', time); // Snare on 5, 13 (Backbeat)
-                    if ((this.beatCount % 2) === 0) this.playDrum('hihat', time); // Hihats every 8th note
-
-                    // Bass Line (Aggressive)
-                    // Bass Line (Smoother)
-                    if (beatIndex === 0 || beatIndex === 2 || beatIndex === 8) {
-                        const note = battleBass[Math.floor(Math.random() * battleBass.length)];
-                        // Changed to 'triangle' for deeper, less buzzy sound
-                        this.playNote(note, 0.3, time - this.ctx.currentTime, 0.3, 'triangle');
+                    // Percussion: Orchestral Hits (Simulated Taiko/Timpani)
+                    // High impact on 1, accents on syncopated beats
+                    if (beatIndex === 0 || beatIndex === 6 || beatIndex === 10 || beatIndex === 14) {
+                        // "Taiko" - Low Sine sweep
+                        this.playSweep(120, 40, 0.2, 'sine', 0.6, relTime);
+                    }
+                    if (beatIndex % 2 === 0) {
+                        // "Shaker/Hihat" - fast noise
+                        // this.playDrum('hihat', time); // Keeping subtle metal
+                        this.playSweep(800, 1200, 0.05, 'square', 0.05, relTime);
                     }
 
-                    // Arp (Less Harsh)
-                    if (Math.random() > 0.3) {
-                        const note = scale[Math.floor(Math.random() * scale.length)] * 2;
-                        // Changed to 'sine' for bell-like quality
-                        this.playNote(note, 0.1, time - this.ctx.currentTime, 0.1, 'sine');
+                    // Bass: Sustained "Cello/Double Bass" (Sawtooth Low Pass filter sim via lower vol/triangle mix)
+                    if (beatIndex === 0 || beatIndex === 8) {
+                        const root = Epic_Scale[0] / 2; // Low D
+                        this.playNote(root, 0.4, relTime, 0.4, 'sawtooth');
+                        this.playNote(root * 1.5, 0.4, relTime, 0.2, 'triangle'); // Fifth
                     }
+
+                    // Lead: "Brass" Section (Slow, Stately, Heroic)
+                    if (beatIndex === 0 || beatIndex === 4 || beatIndex === 8 || beatIndex === 12) {
+                        if (Math.random() > 0.3) {
+                            const note = Epic_Scale[Math.floor(Math.random() * Epic_Scale.length)];
+                            // Brass envelope: sharp attack, sustain, decay
+                            // Using Sawtooth for trombones/horns
+                            this.playNote(note, 0.3, relTime, 0.25, 'sawtooth');
+                        }
+                    }
+
+                    // Ostinato (Running Strings) - Fast 16th notes
+                    if (true) { // constant motion
+                        const arpNote = Epic_Scale[beatIndex % 4];
+                        this.playNote(arpNote * 2, 0.1, relTime, 0.08, 'triangle');
+                    }
+
                 }
 
                 // --- CALM MODE ---
                 else {
+                    const scale = C_Major_Pentatonic;
                     // Bass layer (Slow)
                     if (beatIndex === 0) {
-                        this.playNote(scale[0] / 2, 4.0, time - this.ctx.currentTime);
-                        this.playNote(scale[2] / 2, 4.0, time - this.ctx.currentTime);
+                        this.playNote(scale[0] / 2, 4.0, relTime);
+                        this.playNote(scale[2] / 2, 4.0, relTime);
                     }
 
                     // Random melody
                     if (Math.random() > 0.5 && (beatIndex % 2 === 0)) {
                         const note = scale[Math.floor(Math.random() * scale.length)];
                         const dur = 1.0 + Math.random() * 2.0;
-                        this.playNote(note, dur, time - this.ctx.currentTime);
+                        this.playNote(note, dur, relTime);
                     }
                 }
             }
         }
         const audioMaster = new AudioMaster();
         const startOverlay = document.createElement('div');
-        startOverlay.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); color:white; font-family:sans-serif; background:rgba(0,0,0,0.85); padding:30px; border-radius:15px; cursor:pointer; z-index:100000; text-align:center; border:2px solid #555; backdrop-filter:blur(5px);';
+        startOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; z-index:100000; cursor:pointer; background:rgba(0,0,0,0);';
         startOverlay.innerHTML = '';
         document.body.appendChild(startOverlay);
         startOverlay.addEventListener('click', () => {
@@ -2610,6 +2630,67 @@
             paused: false
         };
 
+        // --- Save System ---
+        const SAVE_KEY = 'proxima_rogue_save_v1';
+
+        function saveGame() {
+            try {
+                const data = {
+                    gameState: {
+                        wave: gameState.wave,
+                        exp: gameState.exp,
+                        expToNextLevel: gameState.expToNextLevel,
+                        roleLevel: gameState.roleLevel,
+                        stats: gameState.stats,
+                        killCount: gameState.killCount
+                    },
+                    chestInventory: chestInventory
+                };
+                localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+                console.log('Game Saved', data);
+            } catch (e) {
+                console.error('Save Failed', e);
+            }
+        }
+
+        function loadGame() {
+            try {
+                const raw = localStorage.getItem(SAVE_KEY);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    if (data.gameState) {
+                        // Restore Wave (Minus 1 so startNextWave increments to correct level)
+                        gameState.wave = Math.max(0, (data.gameState.wave || 1) - 1);
+                        gameState.exp = data.gameState.exp;
+                        gameState.expToNextLevel = data.gameState.expToNextLevel;
+                        gameState.roleLevel = data.gameState.roleLevel;
+                        gameState.killCount = data.gameState.killCount;
+
+                        // Restore Stats
+                        if (data.gameState.stats) {
+                            Object.assign(gameState.stats, data.gameState.stats);
+                        }
+                    }
+                    if (data.chestInventory) {
+                        Object.assign(chestInventory, data.chestInventory);
+                    }
+                    console.log('Game Loaded from LocalStorage');
+                    return true;
+                }
+            } catch (e) {
+                console.error('Load Failed', e);
+            }
+            return false;
+        }
+
+        function clearSave() {
+            localStorage.removeItem(SAVE_KEY);
+            console.log('Save Cleared');
+        }
+
+        // Auto-Load on Startup
+        loadGame();
+
         // WAVE CONFIG
         function getWaveConfig(wave) {
             // "Day 1: 3 wolves"
@@ -2636,6 +2717,7 @@
             if (gameState.waveState === 'transition') return;
             gameState.waveState = 'transition';
             gameState.wave++;
+            saveGame(); // Save Checkpoint
 
             const overlay = document.getElementById('waveTransitionOverlay');
             const text = document.getElementById('waveText');
@@ -4674,8 +4756,8 @@
 
             const playerPos = carGroup.position;
 
-            // Start First Wave if inactive
-            if (gameState.wave === 0 && gameState.waveState === 'waiting') {
+            // Start First Wave if inactive (or Loaded Game)
+            if (gameState.waveState === 'waiting') {
                 startNextWave();
                 return;
             }
@@ -5792,6 +5874,7 @@
         }
 
         function handleDeath() {
+            clearSave();
             isDead = true;
             // charMat.color.setRGB(1.0, 0, 0); // User Request: No red color
             // charMat.color.setHex(0xff0000); // (Legacy check)
