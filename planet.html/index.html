@@ -2399,8 +2399,8 @@
             followers: 0, // Stored followers
             level: 1, // Current Dorm Level
             maxFollowers: 5,
-            hp: 1000,
-            maxHp: 1000
+            hp: 100,
+            maxHp: 100
         };
 
         const gameState = {
@@ -3397,8 +3397,8 @@
                 isFollowing: true, // Auto Follow Immediately
                 waterTime: 0,
                 mat: mat,
-                hp: 1000, // Follower Health
-                maxHp: 1000,
+                hp: 100, // Follower Health
+                maxHp: 100,
                 isJumping: false,
                 jumpTime: 0,
                 yOffset: 0,
@@ -4702,7 +4702,7 @@
 
                             // Ground slam damage - INCREASED RADIUS
                             const slamRadius = 6.0; // Increased from 4.0 to 6.0
-                            const slamDamage = 100;
+                            const slamDamage = 10;
 
                             // Check player
                             const playerDist = w.mesh.position.distanceTo(carGroup.position);
@@ -4993,7 +4993,7 @@
                                             // Visual feedback? Hat pop sound?
                                         } else {
                                             // New HP Logic for Followers
-                                            let dmg = 340.0; // Base wolf damage to followers (approx 3 hits to kill 1000hp)
+                                            let dmg = 34.0; // Base wolf damage to followers (approx 3 hits to kill 100hp)
                                             // Apply Defense
                                             dmg *= (1.0 / gameState.stats.defenseMult);
 
@@ -5056,7 +5056,7 @@
                                             if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
                                         } else {
                                             // Player Damage (Non-Fatal)
-                                            let dmg = 200;
+                                            let dmg = 20;
                                             // Apply Defense
                                             dmg *= (1.0 / gameState.stats.defenseMult);
 
