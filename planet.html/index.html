@@ -652,6 +652,10 @@
                 critDesc: "5% chance to deal 150% damage",
                 defTitle: "+10% Defense",
                 defDesc: "Reduce damage taken by 10%",
+                expTitle: "+10% XP Gain",
+                expDesc: "Increase experience gained by 10%",
+                hpTitle: "+10% Max HP",
+                hpDesc: "Increase Max HP by 10%",
                 // Console messages
                 bearSpawned: "Bear spawned near player!",
                 bearJump: "Bear initiating jump attack! (Distance: {0}m)",
@@ -686,6 +690,10 @@
                 critDesc: "5% 概率造成 150% 伤害",
                 defTitle: "+10% 防御力",
                 defDesc: "减少 10% 受到的伤害",
+                expTitle: "+10% 经验获取",
+                expDesc: "增加 10% 的经验获取量",
+                hpTitle: "+10% 最大生命",
+                hpDesc: "增加 10% 的最大生命值",
                 // Console messages
                 bearSpawned: "熊在玩家附近出现了！",
                 bearJump: "熊发动了弹跳攻击！（距离：{0}米）",
@@ -2608,8 +2616,8 @@
             followers: 0, // Stored followers
             level: 1, // Current Dorm Level
             maxFollowers: 5,
-            hp: 100,
-            maxHp: 100
+            hp: 50,
+            maxHp: 50
         };
 
         const gameState = {
@@ -2630,7 +2638,8 @@
                 attackDmgMult: 1.0,
                 attackFreqMult: 1.0,
                 critRate: 0.0,
-                defenseMult: 1.0
+                defenseMult: 1.0,
+                expGainMult: 1.0
             },
             paused: false
         };
@@ -2811,7 +2820,9 @@
             { id: 3, title: t('attackTitle'), icon: "⚔️", desc: t('attackDesc'), effect: () => { gameState.stats.attackDmgMult *= 1.1; } },
             { id: 4, title: t('freqTitle'), icon: "⚡", desc: t('freqDesc'), effect: () => { gameState.stats.attackFreqMult *= 1.1; } },
             { id: 5, title: t('critTitle'), icon: "🎯", desc: t('critDesc'), effect: () => { gameState.stats.critRate += 0.05; } },
-            { id: 6, title: t('defTitle'), icon: "🛡️", desc: t('defDesc'), effect: () => { gameState.stats.defenseMult *= 1.1; } }
+            { id: 6, title: t('defTitle'), icon: "🛡️", desc: t('defDesc'), effect: () => { gameState.stats.defenseMult *= 1.1; } },
+            { id: 7, title: t('expTitle'), icon: "📚", desc: t('expDesc'), effect: () => { gameState.stats.expGainMult *= 1.1; } },
+            { id: 8, title: t('hpTitle'), icon: "❤️", desc: t('hpDesc'), effect: () => { const gain = Math.ceil(chestInventory.maxHp * 0.1); chestInventory.maxHp += gain; chestInventory.hp += gain; } }
         ];
 
         function showRogueUpgrade() {
@@ -4661,7 +4672,7 @@
                 // Pickup logic
                 const dist = item.mesh.position.distanceTo(playerPos);
                 if (dist < 2.0) {
-                    addExperience(10);
+                    addExperience(5);
                     scene.remove(item.mesh);
                     expItems.splice(i, 1);
                     continue;
@@ -4716,6 +4727,7 @@
         }
 
         function addExperience(amount) {
+            amount = Math.ceil(amount * (gameState.stats.expGainMult || 1.0));
             gameState.exp += amount;
             showFloatingXP(amount);
             audioMaster.playPickup();
@@ -4785,13 +4797,18 @@
                     gameState.enemiesRemaining--;
                     audioMaster.playDeath();
 
-                    // Drop XP Items - 2 items for bears, 1 for wolves
-                    spawnExpItem(enemy.mesh.position);
-                    if (enemy.isBear) {
-                        // Delay second item slightly or offset it
-                        const offsetPos = enemy.mesh.position.clone().add(new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5));
-                        spawnExpItem(offsetPos);
+                    // Drop XP Items - 2 items for wolves, 4 for bears (Doubled)
+                    // Scatter randomly within 2m
+                    const dropCount = enemy.isBear ? 4 : 2;
+                    for (let d = 0; d < dropCount; d++) {
+                        const rOffset = new THREE.Vector3(
+                            (Math.random() - 0.5) * 4.0,
+                            (Math.random() - 0.5) * 4.0,
+                            (Math.random() - 0.5) * 4.0
+                        );
+                        spawnExpItem(enemy.mesh.position.clone().add(rOffset));
                     }
+
 
                     // Update UI
                     const countText = document.getElementById('enemyCountText');
