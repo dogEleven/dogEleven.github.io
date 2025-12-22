@@ -2362,13 +2362,39 @@
                 osc.type = 'triangle';
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime + wait);
                 g.gain.setValueAtTime(0, this.ctx.currentTime + wait);
-                g.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + wait + 0.1);
+                g.gain.linearRampToValueAtTime(0.15, this.ctx.currentTime + wait + 0.05);
                 g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + wait + duration);
                 osc.connect(g);
                 g.connect(this.mainGain);
                 osc.start(this.ctx.currentTime + wait);
                 osc.stop(this.ctx.currentTime + wait + duration);
             }
+            playSweep(startFreq, endFreq, duration, type = 'sine', vol = 0.1, wait = 0) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime + wait);
+                osc.frequency.exponentialRampToValueAtTime(endFreq, this.ctx.currentTime + wait + duration);
+                g.gain.setValueAtTime(vol, this.ctx.currentTime + wait);
+                g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + wait + duration);
+                osc.connect(g);
+                g.connect(this.mainGain);
+                osc.start(this.ctx.currentTime + wait);
+                osc.stop(this.ctx.currentTime + wait + duration);
+            }
+            playJump() { this.playSweep(150, 400, 0.12, 'sine', 0.2); }
+            playAttackMelee() { this.playSweep(200, 100, 0.15, 'sawtooth', 0.15); }
+            playAttackBow() { this.playSweep(800, 1200, 0.05, 'sine', 0.1); }
+            playHit() { this.playSweep(120, 40, 0.12, 'square', 0.15); }
+            playPickup() {
+                this.playNote(659.25, 0.1);
+                this.playNote(880.00, 0.2, 0.05);
+            }
+            playLevelUp() {
+                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => this.playNote(f, 0.4, i * 0.12));
+            }
+            playDeath() { this.playSweep(100, 20, 0.8, 'sawtooth', 0.3); }
             startBGM() {
                 const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
                 let beat = 0;
@@ -3655,6 +3681,7 @@
                             if (now - (f.lastAttackTime || 0) > (baseCooldown / gameState.stats.attackFreqMult)) { // Cooldown adjusted by freq mult
                                 f.lastAttackTime = now;
                                 f.isAttacking = true;
+                                audioMaster.playAttackMelee();
                                 f.attackTimer = 0;
                                 f.attackTargetW = combatTarget;
                                 f.hasHit = false; // Initialize hit flag
@@ -4474,6 +4501,7 @@
         }
 
         function showDamageNumber(pos, amount, type, isCrit) {
+            audioMaster.playHit();
             const vector = pos.clone();
             // Offset upward slightly from character position
             const up = pos.clone().normalize();
@@ -4515,6 +4543,7 @@
         function addExperience(amount) {
             gameState.exp += amount;
             showFloatingXP(amount);
+            audioMaster.playPickup();
 
             // Level up check
             while (gameState.exp >= gameState.expToNextLevel) {
@@ -4524,6 +4553,7 @@
 
                 // Trigger Upgrade
                 showRogueUpgrade();
+                audioMaster.playLevelUp();
                 console.log(`Leveled Up to ${gameState.roleLevel}! Next: ${gameState.expToNextLevel} XP`);
 
                 // Add level up effect
@@ -4577,7 +4607,9 @@
                 if (enemy.hp <= 0) {
                     scene.remove(enemy.mesh);
                     wolves.splice(i, 1);
+                    wolves.splice(i, 1);
                     gameState.enemiesRemaining--;
+                    audioMaster.playDeath();
 
                     // Drop XP Items - 2 items for bears, 1 for wolves
                     spawnExpItem(enemy.mesh.position);
@@ -4724,6 +4756,7 @@
                         // Start jump
                         console.log(t('bearJump', distToTarget.toFixed(2)));
                         w.isJumping = true;
+                        audioMaster.playJump();
                         w.jumpVelocity = 15; // Initial upward velocity
                         w.jumpStartY = w.mesh.position.length();
                         w.jumpAttackCooldown = 5.0; // 5 second cooldown
@@ -4750,6 +4783,7 @@
                         if (newRadius <= surfaceHeight) {
                             // Landed!
                             console.log(t('bearLand'));
+                            audioMaster.playAttackMelee(); // Slam sound
                             w.isJumping = false;
                             w.jumpVelocity = 0;
                             w.mesh.position.normalize().multiplyScalar(surfaceHeight);
@@ -5070,6 +5104,7 @@
 
                                             if (f.hp <= 0) {
                                                 f.isDead = true;
+                                                audioMaster.playDeath();
                                                 spawnExplosion(f.mesh.position);
                                                 dropItemFromDeadFollower(f);
 
@@ -5124,6 +5159,7 @@
                                             showDamageNumber(carGroup.position, dmg, 'player', false);
 
                                             if (chestInventory.hp <= 0) {
+                                                audioMaster.playDeath();
                                                 handleDeath();
                                             }
 
@@ -5299,6 +5335,7 @@
 
                         if (nearWolf) {
                             entity.bowTimer = 0;
+                            audioMaster.playAttackBow();
                             const start = (entity === carPhysics ? carGroup.position : entity.mesh.position).clone().add(new THREE.Vector3(0, 1, 0));
                             const target = nearWolf.mesh.position.clone().add(new THREE.Vector3(0, 0.5, 0));
                             arrows.push({
@@ -6231,6 +6268,7 @@
                             carPhysics.vSpeed = 20.0;
                             // Set Global Jump Signal (PLANETSOC)
                             window.playerDidJumpGlobal = true;
+                            audioMaster.playJump();
                             // DROP ITEM ON JUMP - DISABLED
                             // dropItem(carPhysics.pos);
                             // DUST FX
