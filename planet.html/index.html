@@ -2365,8 +2365,8 @@
             setBattleMode(active) {
                 if (this.isBattleMode !== active) {
                     this.isBattleMode = active;
-                    // Battle: 110 BPM, Normal: 60 BPM
-                    this.bpm = active ? 110 : 60;
+                    // Battle: 128 BPM (Faster), Normal: 60 BPM
+                    this.bpm = active ? 128 : 60;
                 }
             }
 
@@ -2401,15 +2401,15 @@
                 } else if (type === 'snare') {
                     osc.type = 'triangle'; // Simpler snare
                     osc.frequency.setValueAtTime(100, time);
-                    g.gain.setValueAtTime(0.5, time);
-                    g.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
-                    // Add noise burst for snare not easily doable with basic osc, using short high freq sweep
-                    this.playSweep(800, 100, 0.1, 'sawtooth', 0.2, time - this.ctx.currentTime);
+                    g.gain.setValueAtTime(0.4, time); // Reduced gain
+                    g.gain.exponentialRampToValueAtTime(0.001, time + 0.15); // Shorter decay
+                    // Softer noise burst (Sine sweep instead of Sawtooth)
+                    this.playSweep(400, 50, 0.08, 'sine', 0.15, time - this.ctx.currentTime);
                 } else if (type === 'hihat') {
                     osc.type = 'square';
                     osc.frequency.setValueAtTime(800, time);
                     osc.frequency.exponentialRampToValueAtTime(1200, time + 0.05); // Metallic
-                    g.gain.setValueAtTime(0.3, time);
+                    g.gain.setValueAtTime(0.15, time); // Reduced volume (was 0.3)
                     g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
                 }
 
@@ -2466,20 +2466,22 @@
                 // --- BATTLE MODE ---
                 if (this.isBattleMode) {
                     // Drums
-                    if ((this.beatCount % 4) === 0) this.playDrum('kick', time); // Kick on 1, 5, 9, 13
                     if ((this.beatCount % 8) === 4) this.playDrum('snare', time); // Snare on 5, 13 (Backbeat)
                     if ((this.beatCount % 2) === 0) this.playDrum('hihat', time); // Hihats every 8th note
 
                     // Bass Line (Aggressive)
+                    // Bass Line (Smoother)
                     if (beatIndex === 0 || beatIndex === 2 || beatIndex === 8) {
                         const note = battleBass[Math.floor(Math.random() * battleBass.length)];
-                        this.playNote(note, 0.3, time - this.ctx.currentTime, 0.4, 'sawtooth');
+                        // Changed to 'triangle' for deeper, less buzzy sound
+                        this.playNote(note, 0.3, time - this.ctx.currentTime, 0.3, 'triangle');
                     }
 
-                    // Arp (Fast)
+                    // Arp (Less Harsh)
                     if (Math.random() > 0.3) {
                         const note = scale[Math.floor(Math.random() * scale.length)] * 2;
-                        this.playNote(note, 0.1, time - this.ctx.currentTime, 0.1, 'square');
+                        // Changed to 'sine' for bell-like quality
+                        this.playNote(note, 0.1, time - this.ctx.currentTime, 0.1, 'sine');
                     }
                 }
 
