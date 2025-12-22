@@ -1042,6 +1042,7 @@
             antialias: true, alpha: true
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
         // --- 3. Planet Generation ---
@@ -2292,7 +2293,6 @@
         hudArrow.style.transformOrigin = 'center center';
         hudArrow.style.display = 'none';
         hudArrow.style.pointerEvents = 'none'; // Click through
-        hudArrow.style.filter = 'drop-shadow(0px 2px 4px rgba(0,0,0,0.5))';
 
         // Chest Icon at Tail
         const chestIcon = document.createElement('div');
@@ -6815,6 +6815,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             // composer.setSize(window.innerWidth, window.innerHeight);
         });
     </script>
