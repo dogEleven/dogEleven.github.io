@@ -249,6 +249,35 @@
             }
         }
 
+        /* Damage Numbers */
+        .damage-text {
+            position: fixed;
+            pointer-events: none;
+            z-index: 10003;
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+            animation: damage-float 0.8s ease-out forwards;
+        }
+
+        .damage-player {
+            color: #cc88ff;
+        }
+
+        /* Purple for player/follower attacked */
+        .damage-enemy {
+            color: #ffffff;
+        }
+
+        /* White for enemies attacked */
+        .damage-crit {
+            color: #ff3333;
+            text-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
+        }
+
+        /* Red for crits */
+
         /* Level Up Message */
         #levelUpMsg {
             position: fixed;
@@ -266,6 +295,27 @@
             display: none;
             white-space: nowrap;
             text-transform: uppercase;
+        }
+
+        @keyframes damage-float {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+
+            20% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+
+            40% {
+                transform: scale(1.0);
+            }
+
+            100% {
+                transform: translateY(-40px);
+                opacity: 0;
+            }
         }
 
         #playerExpUI .bar-fill {
@@ -2349,8 +2399,8 @@
             followers: 0, // Stored followers
             level: 1, // Current Dorm Level
             maxFollowers: 5,
-            hp: 100,
-            maxHp: 100
+            hp: 1000,
+            maxHp: 1000
         };
 
         const gameState = {
@@ -3347,15 +3397,13 @@
                 isFollowing: true, // Auto Follow Immediately
                 waterTime: 0,
                 mat: mat,
-                hp: 100, // Follower Health
-                maxHp: 100,
+                hp: 1000, // Follower Health
+                maxHp: 1000,
                 isJumping: false,
                 jumpTime: 0,
                 yOffset: 0,
                 vSpeed: 0,
-                lastPickupTime: 0,
-                hp: 10,
-                maxHp: 10
+                lastPickupTime: 0
             };
 
             // Equip default gear
@@ -3576,7 +3624,7 @@
                                     // Trigger Hit exactly at the end of thrust
                                     if (f.attackTargetW && f.attackTargetW.hp > 0) {
                                         // Damage Calculation
-                                        let damage = 1.0 * gameState.stats.attackDmgMult;
+                                        let damage = 10.0 * gameState.stats.attackDmgMult;
                                         const isCrit = Math.random() < gameState.stats.critRate;
                                         if (isCrit) {
                                             damage *= 1.5;
@@ -3584,6 +3632,7 @@
                                         }
 
                                         f.attackTargetW.hp -= damage;
+                                        showDamageNumber(f.attackTargetW.mesh.position, damage, 'enemy', isCrit);
                                         f.attackTargetW.flashTimer = 0.3;
                                         spawnJumpDust(f.attackTargetW.mesh.position);
 
@@ -3861,7 +3910,7 @@
         function createBear(pos) {
             const group = new THREE.Group();
             group.position.copy(pos);
-            group.hp = 15; // Bear HP 15 (Half of 30)
+            group.hp = 150; // Bear HP 150 (Half of 300)
             group.isBear = true;
 
             // Bear Style (Brown)
@@ -3943,8 +3992,8 @@
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
                 speed: speed, // Slower than wolf
-                hp: 30,
-                maxHp: 30,
+                hp: 300,
+                maxHp: 300,
                 flashTimer: 0,
                 originalColor: mat.color.clone(),
                 wanderTimer: 0,
@@ -3967,7 +4016,7 @@
         function createWolf(pos) {
             const group = new THREE.Group();
             group.position.copy(pos);
-            group.hp = 5; // Wolf HP 5 (Half of 10)
+            group.hp = 50; // Wolf HP 50 (Half of 100)
 
             // Voxel Style Wolf (Grey-ish)
             const mat = new THREE.MeshBasicMaterial({
@@ -4066,7 +4115,7 @@
                 fl, fr, bl, br,
                 velocity: new THREE.Vector3(),
                 speed: speed,
-                hp: 20, // Increased HP
+                hp: 200, // Increased HP
                 flashTimer: 0, // Visual feedback timer
                 originalColor: mat.color.clone(),
                 wanderTimer: 0,
@@ -4364,6 +4413,35 @@
             }
         }
 
+        function showDamageNumber(pos, amount, type, isCrit) {
+            const vector = pos.clone();
+            // Offset upward slightly from character position
+            const up = pos.clone().normalize();
+            vector.add(up.multiplyScalar(2.0));
+
+            vector.project(camera);
+            const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+
+            const div = document.createElement('div');
+            div.className = `damage-text ${isCrit ? 'damage-crit' : (type === 'player' ? 'damage-player' : 'damage-enemy')}`;
+
+            // Scaled size based on damage
+            const baseSize = isCrit ? 26 : 18;
+            const fontSize = Math.min(baseSize + amount * 0.05, 48);
+            div.style.fontSize = `${fontSize}px`;
+
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+            div.textContent = Math.ceil(amount);
+
+            // Random slight X offset for multiple hits
+            div.style.marginLeft = `${(Math.random() - 0.5) * 40}px`;
+
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 800);
+        }
+
         function showFloatingXP(amount) {
             const div = document.createElement('div');
             div.className = 'xp-text';
@@ -4624,7 +4702,7 @@
 
                             // Ground slam damage - INCREASED RADIUS
                             const slamRadius = 6.0; // Increased from 4.0 to 6.0
-                            const slamDamage = 10;
+                            const slamDamage = 100;
 
                             // Check player
                             const playerDist = w.mesh.position.distanceTo(carGroup.position);
@@ -4642,6 +4720,7 @@
                                     console.log(t('playerDodge', playerHeightAboveGround.toFixed(2)));
                                 } else {
                                     chestInventory.hp -= slamDamage;
+                                    showDamageNumber(carGroup.position, slamDamage, 'player', false);
                                     console.log(t('bearHitPlayer', chestInventory.hp.toFixed(1), chestInventory.maxHp));
 
                                     // Update player health UI
@@ -4914,11 +4993,12 @@
                                             // Visual feedback? Hat pop sound?
                                         } else {
                                             // New HP Logic for Followers
-                                            let dmg = 34.0; // Base wolf damage to followers (approx 3 hits to kill 100hp)
+                                            let dmg = 340.0; // Base wolf damage to followers (approx 3 hits to kill 1000hp)
                                             // Apply Defense
                                             dmg *= (1.0 / gameState.stats.defenseMult);
 
                                             f.hp -= dmg;
+                                            showDamageNumber(f.mesh.position, dmg, 'player', false);
 
                                             // Visual Feedback
                                             if (f.mesh.children[0] && f.mesh.children[0].material) {
@@ -4976,11 +5056,12 @@
                                             if (carPhysics.hatMesh) { carGroup.remove(carPhysics.hatMesh); carPhysics.hatMesh = null; }
                                         } else {
                                             // Player Damage (Non-Fatal)
-                                            let dmg = 20;
+                                            let dmg = 200;
                                             // Apply Defense
                                             dmg *= (1.0 / gameState.stats.defenseMult);
 
                                             chestInventory.hp -= dmg;
+                                            showDamageNumber(carGroup.position, dmg, 'player', false);
 
                                             if (chestInventory.hp <= 0) {
                                                 handleDeath();
@@ -5198,11 +5279,13 @@
                     // Damage Area Check
                     wolves.forEach(w => {
                         if (w.hp > 0 && w.mesh.position.distanceTo(a.target) < 2.0) {
-                            w.hp -= 50;
+                            const dmg = 500;
+                            w.hp -= dmg;
+                            showDamageNumber(w.mesh.position, dmg, 'enemy', false);
 
                             // Damage Log
                             const nowMS = new Date().toISOString();
-                            console.log(`[${nowMS}] Archer Arrow Hit Wolf: Damage=50, TargetHP=${w.hp}`);
+                            console.log(`[${nowMS}] Archer Arrow Hit Wolf: Damage=${dmg}, TargetHP=${w.hp}`);
                             if (w.mesh.children[0] && w.mesh.children[0].children) {
                                 w.mesh.children[0].children.forEach(m => {
                                     if (m.material) {
