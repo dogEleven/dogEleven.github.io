@@ -2527,10 +2527,15 @@
         startOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; z-index:100000; cursor:pointer; background:rgba(0,0,0,0);';
         startOverlay.innerHTML = '';
         document.body.appendChild(startOverlay);
-        startOverlay.addEventListener('click', () => {
+        const startAudio = () => {
             audioMaster.init();
+            if (audioMaster.ctx && audioMaster.ctx.state === 'suspended') {
+                audioMaster.ctx.resume();
+            }
             startOverlay.remove();
-        });
+        };
+        startOverlay.addEventListener('click', startAudio);
+        startOverlay.addEventListener('touchstart', startAudio);
         window.addEventListener('keydown', (e) => {
             handleKeyDown(e);
             if (!audioMaster.isStarted && e.key) { audioMaster.init(); startOverlay.remove(); }
