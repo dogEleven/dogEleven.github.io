@@ -202,7 +202,7 @@
 
         #rogueUpgradeUI h2 {
             font-size: 32px;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
             text-transform: uppercase;
             letter-spacing: 4px;
             background: linear-gradient(90deg, #ffd700, #fff);
@@ -216,6 +216,7 @@
             gap: 20px;
             flex-wrap: wrap;
             justify-content: center;
+            align-items: center;
             max-width: 90vw;
         }
 
@@ -264,19 +265,23 @@
                 line-height: 1.2;
                 margin: 0;
             }
+
+            .rogue-card .title {
+                margin-bottom: 0px;
+            }
         }
 
         .rogue-card {
-            width: 220px;
-            height: 180px;
+            width: 200px;
+            height: auto;
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
             border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 15px;
+            padding: 8px;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             text-align: center;
@@ -290,14 +295,14 @@
         }
 
         .rogue-card .icon {
-            font-size: 32px;
-            margin-bottom: 8px;
+            font-size: 24px;
+            margin-bottom: 2px;
         }
 
         .rogue-card .title {
             font-weight: 800;
-            font-size: 18px;
-            margin-bottom: 10px;
+            font-size: 15px;
+            margin-bottom: 2px;
             color: #ffd700;
         }
 
