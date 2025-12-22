@@ -205,10 +205,7 @@
             margin-bottom: 20px;
             text-transform: uppercase;
             letter-spacing: 4px;
-            background: linear-gradient(90deg, #ffd700, #fff);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .rogue-card-container {
@@ -250,8 +247,7 @@
             }
 
             .rogue-card .icon {
-                font-size: 24px;
-                margin-bottom: 2px;
+                display: none;
             }
 
             .rogue-card .title {
@@ -2384,7 +2380,6 @@
                 const card = document.createElement('div');
                 card.className = 'rogue-card';
                 card.innerHTML = `
-                    <div class="icon">${upg.icon}</div>
                     <div class="title">${upg.title}</div>
                     <div class="desc">${upg.desc}</div>
                 `;
