@@ -149,21 +149,22 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
-            align-items: center;
         }
 
         #playerHealthUI .label {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 2;
             color: white;
             font-family: 'Inter', sans-serif;
             font-weight: 900;
-            font-size: 16px;
+            font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            text-align: center;
+            pointer-events: none;
         }
 
         #playerHealthUI .bar-bg {
@@ -460,9 +461,9 @@
     </div>
 
     <div id="playerHealthUI">
-        <div class="label" style="font-size: 14px; margin-bottom: 2px;" id="playerHealthLabel">PLAYER HEALTH</div>
         <div class="bar-bg">
             <div id="playerHealthFill" class="bar-fill"></div>
+            <div class="label" id="playerHealthLabel">HP</div>
         </div>
     </div>
     <div style="position: absolute; top: 20px; right: 20px; z-index: 9999; pointer-events: none;"> <a
@@ -568,8 +569,7 @@
             const elEnemiesLabel = document.querySelector('#waveInfoUI span:nth-child(2)');
             if (elEnemiesLabel) elEnemiesLabel.textContent = t('enemies');
 
-            const elHealthLabel = document.getElementById('playerHealthLabel');
-            if (elHealthLabel) elHealthLabel.textContent = t('playerHealth');
+
         });
 
         // --- 1. Noise Implementation ---
