@@ -331,8 +331,10 @@
         #pop-hud .icon {
             width: 20px;
             height: 20px;
-            background: #fff;
-            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
@@ -428,7 +430,12 @@
 
     <!-- Dormitory Health UI -->
     <div id="pop-hud">
-        <div class="icon"></div>
+        <div class="icon">
+            <div class="follower-icon">
+                <div class="head" style="width: 10px; height: 10px;"></div>
+                <div class="body" style="width: 14px; height: 8px;"></div>
+            </div>
+        </div>
         <span id="pop-text">0 / 5</span>
     </div>
 
