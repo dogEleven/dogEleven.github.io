@@ -2345,7 +2345,12 @@
                 this.ctx = null;
                 this.isStarted = false;
                 this.mainGain = null;
+                this.isBattleMode = false;
+                this.bpm = 60;
+                this.nextNoteTime = 0;
+                this.beatCount = 0;
             }
+
             init() {
                 if (this.isStarted) return;
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -2353,22 +2358,67 @@
                 this.mainGain.gain.value = 0.4;
                 this.mainGain.connect(this.ctx.destination);
                 this.isStarted = true;
-                this.startBGM();
+                this.nextNoteTime = this.ctx.currentTime;
+                this.scheduleLoop();
             }
-            playNote(freq, duration, wait = 0) {
+
+            setBattleMode(active) {
+                if (this.isBattleMode !== active) {
+                    this.isBattleMode = active;
+                    // Battle: 110 BPM, Normal: 60 BPM
+                    this.bpm = active ? 110 : 60;
+                }
+            }
+
+            playNote(freq, duration, wait = 0, vol = 0.15, type = 'triangle') {
                 if (!this.ctx) return;
                 const osc = this.ctx.createOscillator();
                 const g = this.ctx.createGain();
-                osc.type = 'triangle';
+                osc.type = type;
                 osc.frequency.setValueAtTime(freq, this.ctx.currentTime + wait);
+
                 g.gain.setValueAtTime(0, this.ctx.currentTime + wait);
-                g.gain.linearRampToValueAtTime(0.15, this.ctx.currentTime + wait + 0.05);
+                g.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + wait + 0.05);
                 g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + wait + duration);
+
                 osc.connect(g);
                 g.connect(this.mainGain);
+
                 osc.start(this.ctx.currentTime + wait);
                 osc.stop(this.ctx.currentTime + wait + duration);
             }
+
+            playDrum(type, time) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+
+                if (type === 'kick') {
+                    osc.frequency.setValueAtTime(150, time);
+                    osc.frequency.exponentialRampToValueAtTime(0.001, time + 0.5);
+                    g.gain.setValueAtTime(1.0, time);
+                    g.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+                } else if (type === 'snare') {
+                    osc.type = 'triangle'; // Simpler snare
+                    osc.frequency.setValueAtTime(100, time);
+                    g.gain.setValueAtTime(0.5, time);
+                    g.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+                    // Add noise burst for snare not easily doable with basic osc, using short high freq sweep
+                    this.playSweep(800, 100, 0.1, 'sawtooth', 0.2, time - this.ctx.currentTime);
+                } else if (type === 'hihat') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(800, time);
+                    osc.frequency.exponentialRampToValueAtTime(1200, time + 0.05); // Metallic
+                    g.gain.setValueAtTime(0.3, time);
+                    g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                }
+
+                osc.connect(g);
+                g.connect(this.mainGain);
+                osc.start(time);
+                osc.stop(time + 0.5);
+            }
+
             playSweep(startFreq, endFreq, duration, type = 'sine', vol = 0.1, wait = 0) {
                 if (!this.ctx) return;
                 const osc = this.ctx.createOscillator();
@@ -2383,41 +2433,77 @@
                 osc.start(this.ctx.currentTime + wait);
                 osc.stop(this.ctx.currentTime + wait + duration);
             }
+
+            // SFX Methods
             playJump() { this.playSweep(150, 400, 0.12, 'sine', 0.2); }
             playAttackMelee() { this.playSweep(200, 100, 0.15, 'sawtooth', 0.15); }
             playAttackBow() { this.playSweep(800, 1200, 0.05, 'sine', 0.1); }
             playHit() { this.playSweep(120, 40, 0.12, 'square', 0.15); }
-            playPickup() {
-                this.playNote(659.25, 0.1);
-                this.playNote(880.00, 0.2, 0.05);
-            }
-            playLevelUp() {
-                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => this.playNote(f, 0.4, i * 0.12));
-            }
+            playPickup() { this.playNote(659.25, 0.1); this.playNote(880.00, 0.2, 0.05); }
+            playLevelUp() { [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => this.playNote(f, 0.4, i * 0.12)); }
             playDeath() { this.playSweep(100, 20, 0.8, 'sawtooth', 0.3); }
-            startBGM() {
+
+            scheduleLoop() {
+                const secondsPerBeat = 60.0 / this.bpm;
+                const lookahead = 0.1; // Scheduling lookahead
+
+                while (this.nextNoteTime < this.ctx.currentTime + lookahead) {
+                    this.playStep(this.nextNoteTime);
+                    this.nextNoteTime += secondsPerBeat;
+                    this.beatCount++;
+                }
+
+                // Keep loop running
+                requestAnimationFrame(() => this.scheduleLoop());
+            }
+
+            playStep(time) {
                 const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
-                let beat = 0;
-                const loop = () => {
-                    if (!this.isStarted) return;
-                    if (beat % 16 === 0) {
-                        this.playNote(scale[0] / 2, 4.0);
-                        this.playNote(scale[2] / 2, 4.0);
+                const battleBass = [65.41, 73.42, 82.41, 87.31]; // Deep bass C2
+
+                const beatIndex = this.beatCount % 16;
+
+                // --- BATTLE MODE ---
+                if (this.isBattleMode) {
+                    // Drums
+                    if ((this.beatCount % 4) === 0) this.playDrum('kick', time); // Kick on 1, 5, 9, 13
+                    if ((this.beatCount % 8) === 4) this.playDrum('snare', time); // Snare on 5, 13 (Backbeat)
+                    if ((this.beatCount % 2) === 0) this.playDrum('hihat', time); // Hihats every 8th note
+
+                    // Bass Line (Aggressive)
+                    if (beatIndex === 0 || beatIndex === 2 || beatIndex === 8) {
+                        const note = battleBass[Math.floor(Math.random() * battleBass.length)];
+                        this.playNote(note, 0.3, time - this.ctx.currentTime, 0.4, 'sawtooth');
                     }
-                    if (Math.random() > 0.4) {
+
+                    // Arp (Fast)
+                    if (Math.random() > 0.3) {
+                        const note = scale[Math.floor(Math.random() * scale.length)] * 2;
+                        this.playNote(note, 0.1, time - this.ctx.currentTime, 0.1, 'square');
+                    }
+                }
+
+                // --- CALM MODE ---
+                else {
+                    // Bass layer (Slow)
+                    if (beatIndex === 0) {
+                        this.playNote(scale[0] / 2, 4.0, time - this.ctx.currentTime);
+                        this.playNote(scale[2] / 2, 4.0, time - this.ctx.currentTime);
+                    }
+
+                    // Random melody
+                    if (Math.random() > 0.5 && (beatIndex % 2 === 0)) {
                         const note = scale[Math.floor(Math.random() * scale.length)];
-                        this.playNote(note, 2.0);
+                        const dur = 1.0 + Math.random() * 2.0;
+                        this.playNote(note, dur, time - this.ctx.currentTime);
                     }
-                    beat++;
-                    setTimeout(loop, 800);
-                };
-                loop();
+                }
             }
         }
         const audioMaster = new AudioMaster();
         const startOverlay = document.createElement('div');
         startOverlay.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); color:white; font-family:sans-serif; background:rgba(0,0,0,0.85); padding:30px; border-radius:15px; cursor:pointer; z-index:100000; text-align:center; border:2px solid #555; backdrop-filter:blur(5px);';
-        startOverlay.innerHTML = '<div style="font-size:24px; margin-bottom:10px; font-weight:bold;">PROXIMA EXPLORER</div><div style="font-size:14px; opacity:0.8;">CLICK SCREEN TO INITIALIZE NEURAL LINK & AUDIO</div>';
+        startOverlay.innerHTML = '';
         document.body.appendChild(startOverlay);
         startOverlay.addEventListener('click', () => {
             audioMaster.init();
@@ -4607,7 +4693,6 @@
                 if (enemy.hp <= 0) {
                     scene.remove(enemy.mesh);
                     wolves.splice(i, 1);
-                    wolves.splice(i, 1);
                     gameState.enemiesRemaining--;
                     audioMaster.playDeath();
 
@@ -4629,6 +4714,15 @@
 
             // Update UI
             // Update UI (Old Dorm UI Removed)
+
+            // Check Combat State for Audio
+            let anyAggro = false;
+            wolves.forEach(w => {
+                if (w.combatState !== 'wander' && w.combatState !== 'waiting') {
+                    anyAggro = true;
+                }
+            });
+            audioMaster.setBattleMode(anyAggro);
 
             wolves.forEach(w => {
                 const up = w.mesh.position.clone().normalize();
