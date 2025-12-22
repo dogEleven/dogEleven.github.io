@@ -312,29 +312,48 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(10px);
-            padding: 10px 20px;
-            border-radius: 30px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            font-family: 'Inter', sans-serif;
-            font-weight: 900;
-            font-size: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             z-index: 10001;
             display: flex;
             align-items: center;
-            gap: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            gap: 6px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
 
-        #pop-hud .icon {
-            width: 20px;
+        .pop-item {
+            width: 14px;
             height: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            opacity: 0.3;
+            /* Empty state */
+            transition: opacity 0.3s ease;
+        }
+
+        .pop-item.filled {
+            opacity: 1;
+        }
+
+        .pop-item .follower-icon .head {
+            background: white;
+            border: 1.5px solid white;
+            /* Outline feel if empty? No, use classes */
+        }
+
+        .pop-item .follower-icon .body {
+            background: white;
+            border: 1.5px solid white;
+        }
+
+        .pop-item:not(.filled) .follower-icon .head,
+        .pop-item:not(.filled) .follower-icon .body {
+            background: transparent;
         }
     </style>
     <!-- Load Three.js from CDN (UMD version for file:// compatibility) -->
@@ -428,15 +447,9 @@
     <!-- Dormitory Label (Floating UI) -->
     <div id="dormLabel"></div>
 
-    <!-- Dormitory Health UI -->
+    <!-- Population HUD -->
     <div id="pop-hud">
-        <div class="icon">
-            <div class="follower-icon">
-                <div class="head" style="width: 10px; height: 10px;"></div>
-                <div class="body" style="width: 14px; height: 8px;"></div>
-            </div>
-        </div>
-        <span id="pop-text">0 / 5</span>
+        <!-- Icons populated by JS -->
     </div>
 
     <div id="waveInfoUI"
@@ -6112,8 +6125,35 @@
                 }
 
                 // UI Update for Population
-                const popText = document.getElementById('pop-text');
-                if (popText) popText.textContent = `${followers.length} / ${chestInventory.maxFollowers}`;
+                const popHud = document.getElementById('pop-hud');
+                if (popHud) {
+                    const current = followers.length;
+                    const max = chestInventory.maxFollowers || 5;
+
+                    // Only rebuild if max changes, else just update filled class
+                    if (popHud.children.length !== max) {
+                        popHud.innerHTML = '';
+                        for (let i = 0; i < max; i++) {
+                            const item = document.createElement('div');
+                            item.className = 'pop-item';
+                            item.innerHTML = `
+                                <div class="follower-icon">
+                                    <div class="head" style="width: 8px; height: 8px;"></div>
+                                    <div class="body" style="width: 12px; height: 6px;"></div>
+                                </div>
+                            `;
+                            popHud.appendChild(item);
+                        }
+                    }
+
+                    for (let i = 0; i < popHud.children.length; i++) {
+                        if (i < current) {
+                            popHud.children[i].classList.add('filled');
+                        } else {
+                            popHud.children[i].classList.remove('filled');
+                        }
+                    }
+                }
 
                 // UI Update for Player Health
                 const pHealthFill = document.getElementById('playerHealthFill');
