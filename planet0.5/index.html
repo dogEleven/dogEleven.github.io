@@ -3483,7 +3483,7 @@
         function createWolf(pos) {
             const group = new THREE.Group();
             group.position.copy(pos);
-            group.hp = 10; // Wolf HP 10
+            group.hp = 5; // Wolf HP 5 (halved from 10)
 
             // Voxel Style Wolf (Grey-ish)
             const mat = new THREE.MeshBasicMaterial({
@@ -3620,7 +3620,7 @@
             }
         }
 
-        spawnWolves(3);
+        spawnWolves(6); // Doubled from 3
 
         let damageCount = 0;
         let isDead = false;
@@ -3821,14 +3821,23 @@
                     const spawnDir = spawnBase.add(spreadVec).normalize();
 
                     const rPos = spawnDir.multiplyScalar(planetRadius + 10);
+                    // Spawn 2 wolves per wave (doubled from 1)
                     wolves.push(createWolf(rPos));
+                    // Spawn second wolf with slight offset
+                    const offset = new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2
+                    );
+                    const rPos2 = rPos.clone().add(offset).normalize().multiplyScalar(planetRadius + 10);
+                    wolves.push(createWolf(rPos2));
 
                     // Reduce spawn interval by 25% for next one
                     gameState.spawnInterval *= 0.75;
                     // Cap it at a reasonable minimum (e.g. 1s) to prevent infinite wolves
                     if (gameState.spawnInterval < 1.0) gameState.spawnInterval = 1.0;
 
-                    console.log(`Wolf Spawned! Next in: ${gameState.spawnInterval.toFixed(2)}s`);
+                    console.log(`2 Wolves Spawned! Next wave in: ${gameState.spawnInterval.toFixed(2)}s`);
                 }
             }
 
