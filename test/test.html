@@ -26,21 +26,21 @@
         .add-btn { width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px; }
 
         .todo-list { display: flex; flex-direction: column; gap: 12px; }
-        .todo-item { background: var(--card-bg); padding: 16px; border-radius: 14px; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s; }
+        .todo-item { background: var(--card-bg); padding: 10px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); margin-bottom: 8px; }
         .todo-item:active { transform: scale(0.99); background: #f9f9f9; }
         .todo-item.done { opacity: 0.5; }
         .todo-item.done .title { text-decoration: line-through; }
         
         /* Custom Checkbox */
-        .checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #c7c7cc; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+        .checkbox { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #c7c7cc; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; margin-top: 0; }
         .todo-item.done .checkbox { background: var(--primary); border-color: var(--primary); }
-        .checkbox::after { content: '✓'; color: white; font-size: 14px; display: none; }
+        .checkbox::after { content: '✓'; color: white; font-size: 12px; display: none; }
         .todo-item.done .checkbox::after { display: block; }
 
-        .content { flex-grow: 1; display: flex; flex-direction: column; gap: 6px; }
-        .title { font-size: 16px; line-height: 1.4; word-break: break-word; }
+        .content { flex-grow: 1; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+        .title { font-size: 14px; line-height: 1.2; word-break: break-word; }
         .labels { display: flex; flex-wrap: wrap; gap: 6px; }
-        .label { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .label { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         
         /* Label Colors */
         .label-Work { background: #e0f2fe; color: #0284c7; }
