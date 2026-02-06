@@ -116,7 +116,7 @@
                 });
 
                 const saveToken = () => {
-                    if (!inputToken.value.startsWith('ghp_')) {
+                    if (!inputToken.value.startsWith('ghp_') && !inputToken.value.startsWith('github_pat_')) {
                         alert('Invalid Token format');
                         return;
                     }
