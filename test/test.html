@@ -7,54 +7,91 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f6f8fa; padding: 20px; max-width: 800px; margin: 0 auto; }
-        .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
-        input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
-        button { padding: 10px 20px; background: #2da44e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #2c974b; }
-        .todo-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 6px; display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .todo-item.done { opacity: 0.6; text-decoration: line-through; }
-        .labels span { font-size: 12px; padding: 2px 8px; border-radius: 12px; margin-left: 8px; color: white; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .new-task { display: flex; gap: 10px; margin-bottom: 20px; }
-        .new-task select { padding: 10px; border-radius: 4px; border: 1px solid #ddd; }
+        :root { --primary: #007aff; --bg: #f2f2f7; --card-bg: #ffffff; --text: #1c1c1e; --subtext: #8e8e93; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); padding: 20px; max-width: 600px; margin: 0 auto; color: var(--text); -webkit-font-smoothing: antialiased; }
+        .login-box { background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; margin-top: 50px; }
+        input { width: 100%; box-sizing: border-box; padding: 12px 16px; margin: 15px 0; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 16px; background: #f9f9f9; transition: all 0.2s; }
+        input:focus { border-color: var(--primary); outline: none; background: white; }
+        button { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; transition: opacity 0.2s; width: 100%; }
+        button:active { opacity: 0.8; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        h1 { font-size: 28px; font-weight: 700; margin: 0; }
+        .logout-btn { background: none; color: var(--primary); font-weight: 400; padding: 8px 0; width: auto; font-size: 15px; }
+
+        .new-task { background: var(--card-bg); padding: 16px; border-radius: 14px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; }
+        .new-task-row { display: flex; gap: 10px; }
+        .new-task input { margin: 0; border: none; background: transparent; padding: 0; font-size: 16px; }
+        .new-task select { padding: 8px; border-radius: 8px; border: 1px solid #e5e5ea; background: #f2f2f7; font-size: 14px; color: var(--text); }
+        .add-btn { width: auto; padding: 8px 16px; font-size: 14px; border-radius: 8px; }
+
+        .todo-list { display: flex; flex-direction: column; gap: 12px; }
+        .todo-item { background: var(--card-bg); padding: 16px; border-radius: 14px; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s; }
+        .todo-item:active { transform: scale(0.99); background: #f9f9f9; }
+        .todo-item.done { opacity: 0.5; }
+        .todo-item.done .title { text-decoration: line-through; }
+        
+        /* Custom Checkbox */
+        .checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #c7c7cc; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+        .todo-item.done .checkbox { background: var(--primary); border-color: var(--primary); }
+        .checkbox::after { content: '✓'; color: white; font-size: 14px; display: none; }
+        .todo-item.done .checkbox::after { display: block; }
+
+        .content { flex-grow: 1; display: flex; flex-direction: column; gap: 6px; }
+        .title { font-size: 16px; line-height: 1.4; word-break: break-word; }
+        .labels { display: flex; flex-wrap: wrap; gap: 6px; }
+        .label { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Label Colors */
+        .label-Work { background: #e0f2fe; color: #0284c7; }
+        .label-Life { background: #dcfce7; color: #16a34a; }
+        .label-HellDrop { background: #fee2e2; color: #dc2626; }
+        .label-Zhutousan { background: #ffedd5; color: #ea580c; }
     </style>
 </head>
 <body>
     <div id="app">
         <!-- Login View -->
         <div v-if="!token" class="login-box">
-            <h1>🔐 TofuTodo Login</h1>
-            <p>Please enter your GitHub Personal Access Token (PAT).</p>
-            <input v-model="inputToken" type="password" placeholder="ghp_xxxxxxxxxxxx">
-            <button @click="saveToken">Access</button>
+            <h1>🔐 TofuTodo</h1>
+            <p style="color:var(--subtext); margin-bottom: 20px;">Please enter your GitHub Personal Access Token (PAT).</p>
+            <input v-model="inputToken" type="password" placeholder="ghp_..." style="text-align: center;">
+            <button @click="saveToken" style="margin-top: 10px;">Access Dashboard</button>
         </div>
 
         <!-- Main View -->
         <div v-else>
             <div class="header">
                 <h1>📋 待办清单</h1>
-                <button @click="logout" style="background:#d73a49">Logout</button>
+                <button @click="logout" class="logout-btn">Logout</button>
             </div>
 
             <div class="new-task">
-                <input v-model="newTask" placeholder="Add a new task..." @keyup.enter="addTask">
-                <select v-model="newLabel">
-                    <option value="Work">Work</option>
-                    <option value="Life">Life</option>
-                    <option value="HellDrop">HellDrop</option>
-                    <option value="Zhutousan">Zhutousan</option>
-                </select>
-                <button @click="addTask">Add</button>
+                <div class="new-task-row">
+                    <input v-model="newTask" placeholder="Add a new task..." @keyup.enter="addTask" style="flex-grow: 1;">
+                </div>
+                <div class="new-task-row" style="justify-content: space-between; align-items: center;">
+                    <select v-model="newLabel">
+                        <option value="Work">💻 Work</option>
+                        <option value="Life">🧘‍♂️ Life</option>
+                        <option value="HellDrop">🎮 HellDrop</option>
+                        <option value="Zhutousan">🐷 Zhutousan</option>
+                    </select>
+                    <button @click="addTask" class="add-btn">Add Task</button>
+                </div>
             </div>
 
-            <div v-if="loading">Loading...</div>
+            <div v-if="loading" style="text-align: center; color: var(--subtext); padding: 20px;">Loading...</div>
 
-            <div v-for="issue in issues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
-                <input type="checkbox" :checked="issue.state === 'closed'" @change="toggleIssue(issue)">
-                <span style="flex-grow: 1; margin-left: 10px;">{{ issue.title }}</span>
-                <div class="labels">
-                    <span v-for="label in issue.labels" :key="label.id" :style="{background: '#' + label.color}">{{ label.name }}</span>
+            <div class="todo-list">
+                <div v-for="issue in issues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
+                    <div class="checkbox" @click="toggleIssue(issue)"></div>
+                    <div class="content">
+                        <div class="title">{{ issue.title }}</div>
+                        <div class="labels">
+                            <span v-for="label in issue.labels" :key="label.id" class="label" :class="'label-' + label.name">{{ label.name }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
