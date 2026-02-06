@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TofuTodo</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f6f8fa; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+        input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #2da44e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #2c974b; }
+        .todo-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 6px; display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .todo-item.done { opacity: 0.6; text-decoration: line-through; }
+        .labels span { font-size: 12px; padding: 2px 8px; border-radius: 12px; margin-left: 8px; color: white; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .new-task { display: flex; gap: 10px; margin-bottom: 20px; }
+        .new-task select { padding: 10px; border-radius: 4px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Login View -->
+        <div v-if="!token" class="login-box">
+            <h1>🔐 TofuTodo Login</h1>
+            <p>Please enter your GitHub Personal Access Token (PAT).</p>
+            <input v-model="inputToken" type="password" placeholder="ghp_xxxxxxxxxxxx">
+            <button @click="saveToken">Access</button>
+        </div>
+
+        <!-- Main View -->
+        <div v-else>
+            <div class="header">
+                <h1>📋 待办清单</h1>
+                <button @click="logout" style="background:#d73a49">Logout</button>
+            </div>
+
+            <div class="new-task">
+                <input v-model="newTask" placeholder="Add a new task..." @keyup.enter="addTask">
+                <select v-model="newLabel">
+                    <option value="Work">Work</option>
+                    <option value="Life">Life</option>
+                    <option value="HellDrop">HellDrop</option>
+                    <option value="Zhutousan">Zhutousan</option>
+                </select>
+                <button @click="addTask">Add</button>
+            </div>
+
+            <div v-if="loading">Loading...</div>
+
+            <div v-for="issue in issues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
+                <input type="checkbox" :checked="issue.state === 'closed'" @change="toggleIssue(issue)">
+                <span style="flex-grow: 1; margin-left: 10px;">{{ issue.title }}</span>
+                <div class="labels">
+                    <span v-for="label in issue.labels" :key="label.id" :style="{background: '#' + label.color}">{{ label.name }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+        const REPO = "dogEleven/tofutodo";
+
+        createApp({
+            setup() {
+                const token = ref(localStorage.getItem('gh_token') || '');
+                const inputToken = ref('');
+                const issues = ref([]);
+                const loading = ref(false);
+                const newTask = ref('');
+                const newLabel = ref('Work');
+
+                const api = axios.create({
+                    baseURL: `https://api.github.com/repos/${REPO}`,
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+
+                const saveToken = () => {
+                    if (!inputToken.value.startsWith('ghp_')) {
+                        alert('Invalid Token format');
+                        return;
+                    }
+                    localStorage.setItem('gh_token', inputToken.value);
+                    token.value = inputToken.value;
+                    fetchIssues();
+                };
+
+                const logout = () => {
+                    localStorage.removeItem('gh_token');
+                    token.value = '';
+                    issues.value = [];
+                };
+
+                const fetchIssues = async () => {
+                    if (!token.value) return;
+                    loading.value = true;
+                    try {
+                        // Fetch OPEN issues
+                        const res = await api.get('/issues?state=open&sort=created&direction=desc', {
+                            headers: { 'Authorization': `token ${token.value}` }
+                        });
+                        issues.value = res.data;
+                    } catch (e) {
+                        alert('Failed to load issues: ' + e.message);
+                        if (e.response && e.response.status === 401) logout();
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const toggleIssue = async (issue) => {
+                    const newState = issue.state === 'open' ? 'closed' : 'open';
+                    // Optimistic update
+                    issue.state = newState;
+                    try {
+                        await api.patch(`/issues/${issue.number}`, { state: newState }, {
+                            headers: { 'Authorization': `token ${token.value}` }
+                        });
+                        // Refresh to remove closed item (or keep it shown)
+                        if (newState === 'closed') {
+                            issues.value = issues.value.filter(i => i.id !== issue.id);
+                        }
+                    } catch (e) {
+                        alert('Update failed');
+                        issue.state = issue.state === 'open' ? 'closed' : 'open'; // Revert
+                    }
+                };
+
+                const addTask = async () => {
+                    if (!newTask.value) return;
+                    try {
+                        const res = await api.post('/issues', {
+                            title: newTask.value,
+                            labels: [newLabel.value]
+                        }, {
+                            headers: { 'Authorization': `token ${token.value}` }
+                        });
+                        issues.value.unshift(res.data);
+                        newTask.value = '';
+                    } catch (e) {
+                        alert('Failed to create task');
+                    }
+                };
+
+                onMounted(() => {
+                    if (token.value) fetchIssues();
+                });
+
+                return { token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
