@@ -47,6 +47,15 @@
         .label-Life { background: #dcfce7; color: #16a34a; }
         .label-HellDrop { background: #fee2e2; color: #dc2626; }
         .label-Zhutousan { background: #ffedd5; color: #ea580c; }
+        
+        .groups-container { display: flex; flex-direction: column; gap: 24px; }
+        .group-section { }
+        .group-title { font-size: 18px; font-weight: 700; margin: 0 0 12px 4px; display: flex; align-items: center; }
+        .text-Work { color: #0284c7; }
+        .text-Life { color: #16a34a; }
+        .text-HellDrop { color: #dc2626; }
+        .text-Zhutousan { color: #ea580c; }
+        .text-Other { color: #64748b; }
     </style>
 </head>
 <body>
@@ -83,13 +92,15 @@
 
             <div v-if="loading" style="text-align: center; color: var(--subtext); padding: 20px;">Loading...</div>
 
-            <div class="todo-list">
-                <div v-for="issue in issues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
-                    <div class="checkbox" @click="toggleIssue(issue)"></div>
-                    <div class="content">
-                        <div class="title">{{ issue.title }}</div>
-                        <div class="labels">
-                            <span v-for="label in issue.labels" :key="label.id" class="label" :class="'label-' + label.name">{{ label.name }}</span>
+            <div class="groups-container">
+                <div v-for="(groupIssues, groupName) in groupedIssues" :key="groupName" class="group-section">
+                    <h3 class="group-title" :class="'text-' + groupName">{{ groupName }} <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ groupIssues.length }}</span></h3>
+                    <div class="todo-list">
+                        <div v-for="issue in groupIssues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
+                            <div class="checkbox" @click="toggleIssue(issue)"></div>
+                            <div class="content">
+                                <div class="title">{{ issue.title }}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -98,23 +109,47 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted } = Vue;
+        const { createApp, ref, onMounted, computed } = Vue;
         const REPO = "dogEleven/tofutodo";
 
         createApp({
             setup() {
                 const token = ref(localStorage.getItem('gh_token') || '');
+                // ... (previous refs)
                 const inputToken = ref('');
                 const issues = ref([]);
                 const loading = ref(false);
                 const newTask = ref('');
                 const newLabel = ref('Work');
 
+                // ... (api setup)
                 const api = axios.create({
                     baseURL: `https://api.github.com/repos/${REPO}`,
                     headers: { 'Accept': 'application/vnd.github.v3+json' }
                 });
 
+                const groupedIssues = computed(() => {
+                    const groups = { 'Work': [], 'Life': [], 'HellDrop': [], 'Zhutousan': [], 'Other': [] };
+                    
+                    issues.value.forEach(issue => {
+                        let placed = false;
+                        if (issue.labels && issue.labels.length > 0) {
+                            for (const label of issue.labels) {
+                                if (groups[label.name]) {
+                                    groups[label.name].push(issue);
+                                    placed = true;
+                                    break; // Only put in first matching group
+                                }
+                            }
+                        }
+                        if (!placed) groups['Other'].push(issue);
+                    });
+                    
+                    // Remove empty groups if desired, or keep fixed order
+                    return groups;
+                });
+
+                // ... (saveToken, logout, fetchIssues, toggleIssue, addTask methods remain same)
                 const saveToken = () => {
                     if (!inputToken.value.startsWith('ghp_') && !inputToken.value.startsWith('github_pat_')) {
                         alert('Invalid Token format');
@@ -135,8 +170,7 @@
                     if (!token.value) return;
                     loading.value = true;
                     try {
-                        // Fetch OPEN issues
-                        const res = await api.get('/issues?state=open&sort=created&direction=desc', {
+                        const res = await api.get('/issues?state=open&sort=created&direction=desc&per_page=100', {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
                         issues.value = res.data;
@@ -150,19 +184,17 @@
 
                 const toggleIssue = async (issue) => {
                     const newState = issue.state === 'open' ? 'closed' : 'open';
-                    // Optimistic update
                     issue.state = newState;
                     try {
                         await api.patch(`/issues/${issue.number}`, { state: newState }, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
-                        // Refresh to remove closed item (or keep it shown)
                         if (newState === 'closed') {
                             issues.value = issues.value.filter(i => i.id !== issue.id);
                         }
                     } catch (e) {
                         alert('Update failed');
-                        issue.state = issue.state === 'open' ? 'closed' : 'open'; // Revert
+                        issue.state = issue.state === 'open' ? 'closed' : 'open';
                     }
                 };
 
@@ -186,7 +218,7 @@
                     if (token.value) fetchIssues();
                 });
 
-                return { token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask };
+                return { token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask, groupedIssues };
             }
         }).mount('#app');
     </script>
