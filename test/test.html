@@ -2,6 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TofuTodo</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -213,6 +216,13 @@
 
                 onMounted(() => {
                     if (token.value) fetchIssues();
+                    
+                    // 每次回到页面（可见性改变为可见时）自动重新拉取数据
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'visible' && token.value) {
+                            fetchIssues();
+                        }
+                    });
                 });
 
                 return { token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask, groupedIssues };
