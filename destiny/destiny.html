@@ -16,8 +16,10 @@
         body {
             background-color: var(--bg);
             background-image: 
-                radial-gradient(circle at 2px 2px, rgba(0, 242, 255, 0.05) 1px, transparent 0);
-            background-size: 40px 40px;
+                radial-gradient(circle at 2px 2px, rgba(0, 242, 255, 0.05) 1px, transparent 0),
+                linear-gradient(rgba(0, 242, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px, 100px 100px, 100px 100px;
             color: var(--text);
             font-family: 'Inter', -apple-system, system-ui, sans-serif;
             margin: 0;
@@ -35,14 +37,19 @@
             z-index: 10;
         }
         .container {
-            background: rgba(17, 17, 17, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(17, 17, 17, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
             padding: 40px;
             border-radius: 24px;
-            box-shadow: 0 0 40px rgba(0, 242, 255, 0.05);
-            border: 1px solid rgba(0, 242, 255, 0.1);
+            box-shadow: 0 0 60px rgba(0, 242, 255, 0.1);
+            border: 1px solid rgba(0, 242, 255, 0.15);
             position: relative;
             overflow: hidden;
+            transition: transform 0.1s ease-out, box-shadow 0.3s ease;
+        }
+        .container:hover {
+            box-shadow: 0 0 80px rgba(0, 242, 255, 0.2);
+            border-color: rgba(0, 242, 255, 0.3);
         }
         h1 {
             font-size: 28px;
@@ -287,7 +294,17 @@
             letter-spacing: 2px;
             pointer-events: none;
         }
-        /* CRT Scanline Effect */
+        .container::after {
+            content: "";
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 20px;
+            height: 20px;
+            border-top: 2px solid var(--accent);
+            border-left: 2px solid var(--accent);
+            opacity: 0.5;
+        }
         .container::before {
             content: " ";
             display: block;
@@ -664,6 +681,70 @@
             0%, 100% { opacity: 0.2; transform: scaleX(0.8); }
             50% { opacity: 0.8; transform: scaleX(1.1); }
         }
+        /* Quantum Zeno Effect Visuals */
+        .zeno-container {
+            margin-top: 15px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .zeno-particle {
+            width: 15px;
+            height: 15px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent);
+            position: absolute;
+            transition: all 0.1s ease-out;
+        }
+        .zeno-observer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0, 242, 255, 0.05) 10px, rgba(0, 242, 255, 0.05) 20px);
+            opacity: 0;
+            animation: observer-flash 1s infinite;
+        }
+        @keyframes observer-flash {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Spontaneous Symmetry Breaking Visuals */
+        .symmetry-container {
+            margin-top: 15px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
+        }
+        .mexican-hat {
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            position: relative;
+            transform: rotateX(60deg);
+            box-shadow: 0 0 15px var(--accent);
+        }
+        .symmetry-ball {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            margin: -5px;
+            transition: all 1s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -727,8 +808,16 @@
     <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E | ALT: 4.2m</div>
     <div class="telemetry-right">STATUS: OPERATIONAL | v2.8.5-STABLE | {{ scanCount }} SCANS COMPLETED</div>
     <div id="app">
-        <div class="container" :class="{ 'warp-active': isObserving }">
+        <div class="container" :class="{ 'warp-active': isObserving }" id="mainContainer">
             <div v-if="isObserving" class="scanning-bar"></div>
+            
+            <!-- Scientific Telemetry Overlay -->
+            <div style="position: absolute; top: 10px; right: 20px; font-family: monospace; font-size: 8px; color: rgba(0, 242, 255, 0.4); text-align: right; pointer-events: none;">
+                DECOHERENCE_RATE: {{ (Math.random() * 0.001).toFixed(6) }}<br>
+                VACUUM_ENERGY: {{ (Math.random() * 10 - 5).toFixed(2) }} GeV<br>
+                DIMENSIONAL_ANCHOR: ACTIVE
+            </div>
+
             <h1>DESTINY COLLAPSE</h1>
             <p class="subtitle">基于科学理论的跨维度观测站</p>
             
@@ -907,6 +996,19 @@
                     {{ bitData }}
                 </div>
 
+                <div v-if="theoryName.includes('Zeno')" class="zeno-container">
+                    <div class="zeno-observer"></div>
+                    <div class="zeno-particle" :style="{ left: zenoPos + '%', top: '50%', transform: 'translateY(-50%)' }"></div>
+                    <div style="position: absolute; bottom: 5px; font-size: 8px; color: var(--accent); font-family: monospace;">OBSERVATION FREEZE: ACTIVE</div>
+                </div>
+
+                <div v-if="theoryName.includes('Symmetry Breaking')" class="symmetry-container">
+                    <div class="mexican-hat">
+                        <div class="symmetry-ball" :style="{ transform: symmetryBroken ? 'translate(25px, 0)' : 'translate(0, 0)' }"></div>
+                    </div>
+                    <div style="position: absolute; bottom: 5px; font-size: 8px; color: var(--accent); font-family: monospace;">V(φ) = -μ²φ² + λφ⁴</div>
+                </div>
+
                 <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
                     观测时间: {{ scanTime }} | 误差项: ±0.0002%
                 </div>
@@ -927,13 +1029,34 @@
         }
         window.addEventListener('resize', initCanvas);
         initCanvas();
+        window.startVisuals(); // Start idle mode
+
+        // Mouse Parallax
+        const container = document.getElementById('mainContainer');
+        document.addEventListener('mousemove', (e) => {
+            if (!container) return;
+            const x = (e.clientX / window.innerWidth - 0.5) * 20;
+            const y = (e.clientY / window.innerHeight - 0.5) * 20;
+            container.style.transform = `perspective(1000px) rotateX(${-y}deg) rotateY(${x}deg)`;
+        });
 
         window.startVisuals = (mode) => {
             points = [];
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
-            if (mode === 'blackhole') {
+            if (!mode) {
+                // Background idle mode: Quantum Foam
+                for(let i=0; i<100; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 2,
+                        opacity: Math.random(),
+                        speed: Math.random() * 0.01
+                    });
+                }
+            } else if (mode === 'blackhole') {
                 for(let i=0; i<300; i++) {
                     const angle = Math.random() * Math.PI * 2;
                     points.push({
@@ -1099,6 +1222,24 @@
                         hasTunneled: false
                     });
                 }
+            } else if (mode === 'zeno') {
+                for(let i=0; i<50; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.2, // Frozen movement
+                        vy: (Math.random() - 0.5) * 0.2
+                    });
+                }
+            } else if (mode === 'symmetry') {
+                for(let i=0; i<200; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    points.push({
+                        x: centerX + Math.cos(angle) * 50,
+                        y: centerY + Math.sin(angle) * 50,
+                        targetRadius: Math.random() > 0.5 ? 150 : 50
+                    });
+                }
             } else {
                 let x = 0.1, y = 0, z = 0;
                 const a = 10, b = 28, c = 8/3;
@@ -1117,7 +1258,20 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             function animate() {
-                if (mode === 'blackhole') {
+                if (!mode) {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        p.opacity += (Math.random() - 0.5) * 0.1;
+                        if(p.opacity < 0) p.opacity = 0;
+                        if(p.opacity > 1) p.opacity = 1;
+                        ctx.fillStyle = `rgba(0, 242, 255, ${p.opacity * 0.2})`;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'blackhole') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     points.forEach(p => {
@@ -1357,6 +1511,37 @@
                         if (p.x > canvas.width) p.x = -10;
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'zeno') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'rgba(0, 242, 255, 0.8)';
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        // Periodic snap-back to simulate observation freeze
+                        if (Date.now() % 500 < 50) {
+                            p.x -= p.vx * 10;
+                            p.y -= p.vy * 10;
+                        }
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'symmetry') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        const dist = Math.sqrt((p.x - centerX)**2 + (p.y - centerY)**2);
+                        const angle = Math.atan2(p.y - centerY, p.x - centerX);
+                        const speed = 0.05;
+                        const dr = (p.targetRadius - dist) * speed;
+                        p.x += Math.cos(angle) * dr;
+                        p.y += Math.sin(angle) * dr;
+                        ctx.fillStyle = `hsl(180, 100%, ${50 + (dist/4)}%)`;
+                        ctx.fillRect(p.x, p.y, 2, 2);
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'stellar') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1402,9 +1587,36 @@
                 const mcHighlight = ref(-1);
                 const terminalLogs = ref([]);
                 const entropyValue = ref(0);
+                const zenoPos = ref(50);
+                const symmetryBroken = ref(false);
                 const scanCount = ref(parseInt(localStorage.getItem('destiny_scans') || '0'));
 
                 const theories = [
+                    {
+                        name: "量子芝诺效应：测量引发的状态冻结 (Quantum Zeno Effect)",
+                        mode: 'zeno',
+                        generate: (n) => {
+                            const outcomes = [
+                                "由于你近期极高的关注度（频繁观测），你的某个重要项目已进入『芝诺冻结』状态。这意味着只要你保持当前的专注，干扰因素将无法使其发生负面演化，你的成功已被观测所锁定。",
+                                "检测到量子态演化的停滞。这并非坏事，而是系统在等待一个更完美的坍缩契机。通过高频度的自我审视，你成功规避了由于时间流逝带来的不确定性衰减。",
+                                "观测者效应占主导地位。你的坚定意志正在强行将现实『钉』在当前的理想相位上。保持这种观测强度，直到目标彻底物质化。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "自发对称性破缺：命运的确定性选择 (Spontaneous Symmetry Breaking)",
+                        mode: 'symmetry',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你的命运场正处于『墨西哥帽势能』的顶点。一个极其微小的波动即将打破当前的对称性，使你坠入一个能量更低但极其稳定的成功状态。这就是你一直在等待的『那一推』。",
+                                "由于对称性的自发破缺，你人生中那些平行的可能性正在合并。这不再是一个犹豫不决的叠加态，而是一个具备确定物理属性的真实未来。质量正在产生，价值正在显现。",
+                                "希格斯机制已在你的事业场中生效。原本飘忽不定的机遇正在通过破缺获得实体感。你现在正从『无质量』的空想阶段跨入『有质量』的实干阶段。"
+                            ];
+                            symmetryBroken.value = Math.random() > 0.5;
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "量子纠缠：非定域性关联 (Quantum Entanglement: Spooky Action)",
                         mode: 'entanglement',
@@ -1709,6 +1921,7 @@
                     dopplerShift.value = Math.random() * 80 + 10;
                     mcBars.value = Array.from({length: 30}, () => Math.random() * 80 + 10);
                     mcHighlight.value = Math.floor(Math.random() * 30);
+                    zenoPos.value = 50;
                     const theoryIndex = Math.floor(Math.random() * theories.length);
                     const theory = theories[theoryIndex];
                     
@@ -1716,8 +1929,16 @@
                     localStorage.setItem('destiny_scans', scanCount.value);
                     
                     if (window.startVisuals) window.startVisuals(theory.mode);
+
+                    // Animation interval for Zeno
+                    const zenoInterval = setInterval(() => {
+                        if (theory.mode === 'zeno') {
+                            zenoPos.value = 50 + (Math.random() - 0.5) * 5; // Frozen jitter
+                        }
+                    }, 100);
                     
                     setTimeout(() => {
+                        clearInterval(zenoInterval);
                         theoryName.value = theory.name;
                         fortune.value = theory.generate(name.value);
                         scanTime.value = new Date().toLocaleTimeString();
@@ -1725,7 +1946,7 @@
                     }, 2000);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift, mcBars, mcHighlight, terminalLogs };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift, mcBars, mcHighlight, terminalLogs, entropyValue, zenoPos, symmetryBroken, scanCount };
             }
         }).mount('#app');
     </script>
