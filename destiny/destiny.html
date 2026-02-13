@@ -195,6 +195,38 @@
             transition: background 0.5s;
         }
 
+        /* Relativity Visual */
+        .event-horizon {
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .black-hole {
+            width: 40px;
+            height: 40px;
+            background: #000;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #fff, 0 0 40px var(--accent), 0 0 60px var(--accent-glow);
+            position: relative;
+            z-index: 2;
+        }
+        .accretion-disk {
+            position: absolute;
+            width: 120%;
+            height: 20px;
+            background: linear-gradient(90deg, transparent, var(--accent), #fff, var(--accent), transparent);
+            opacity: 0.6;
+            filter: blur(4px);
+            animation: rotateDisk 2s infinite linear;
+        }
+        @keyframes rotateDisk {
+            from { transform: rotateX(70deg) rotateZ(0deg); }
+            to { transform: rotateX(70deg) rotateZ(360deg); }
+        }
+
         .scanning-line {
             position: absolute;
             left: 0; right: 0; height: 2px;
@@ -305,6 +337,17 @@
                     <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px;">ZETA_ZERO_CROSSING: DETECTION_LOCKED</div>
                 </div>
 
+                <div v-if="theoryName.includes('Relativity')" class="viz-box">
+                    <div class="event-horizon">
+                        <div class="black-hole"></div>
+                        <div class="accretion-disk"></div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>GRAVITY_GRADIENT: 9.81g</span>
+                        <span>Δt_DILATION: 0.00042s/yr</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -352,6 +395,20 @@
                     x += dx; y += dy; z += dz;
                     points.push({x: x * 20 + centerX, y: y * 20 + centerY});
                 }
+            } else if (mode === 'relativity') {
+                for(let i=0; i<200; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * 300 + 50;
+                    points.push({
+                        x: centerX + Math.cos(angle) * dist,
+                        y: centerY + Math.sin(angle) * dist,
+                        originX: centerX,
+                        originY: centerY,
+                        angle: angle,
+                        dist: dist,
+                        v: (1 / dist) * 10
+                    });
+                }
             } else {
                 for(let i=0; i<150; i++) {
                     points.push({
@@ -387,6 +444,16 @@
                         ctx.lineTo(points[i].x, points[i].y);
                     }
                     ctx.stroke();
+                } else if (mode === 'relativity') {
+                    points.forEach(p => {
+                        p.angle += p.v;
+                        p.x = p.originX + Math.cos(p.angle) * p.dist;
+                        p.y = p.originY + Math.sin(p.angle) * p.dist;
+                        ctx.fillStyle = `rgba(0, 242, 255, ${Math.min(1, 20/p.dist)})`;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
                 } else {
                     points.forEach(p => {
                         p.x += p.vx; p.y += p.vy;
@@ -437,6 +504,11 @@
                         name: "混沌理论：蝴蝶效应 (Chaos Theory: Butterfly Effect)",
                         mode: 'chaos',
                         generate: (n) => "对初始条件的敏感依赖表明，改变你处理琐事的方式将彻底重写你下个月的财务曲线。一次微小的蝴蝶振翅，正引导你走向宏大的奇异吸引子。"
+                    },
+                    {
+                        name: "广义相对论：时间膨胀 (General Relativity & Time Dilation)",
+                        mode: 'relativity',
+                        generate: (n) => "时空曲率检测到你正处于一个高能质点附近，这导致了明显的时间膨胀效应。你感知到的『停滞』实际上是外界正在加速演化的错觉。在你的视界边缘，巨大的机遇正被引力锁定。"
                     },
                     {
                         name: "量子隧穿：势垒跃迁 (Quantum Tunneling)",
