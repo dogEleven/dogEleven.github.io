@@ -173,6 +173,34 @@
             color: var(--accent);
             background: rgba(0, 242, 255, 0.05);
         }
+        /* DNA Helix Visual */
+        .dna-segment {
+            height: 4px;
+            background: var(--accent);
+            margin: 2px 0;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .evolution-stats {
+            margin-top: 15px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px dashed rgba(0, 242, 255, 0.2);
+        }
+        .stat-bar-bg {
+            height: 6px;
+            background: #222;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .stat-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00f2ff, #007aff);
+            width: 0%;
+            transition: width 1s cubic-bezier(0.1, 0.5, 0.5, 1);
+        }
         canvas#chaosCanvas {
             position: fixed;
             top: 0;
@@ -220,6 +248,21 @@
                     <div class="matrix-cell highlight">Nash: (1, 1)</div>
                 </div>
 
+                <div v-if="theoryName.includes('Genetic')" class="evolution-stats">
+                    <div style="font-size: 10px; color: var(--accent); margin-bottom: 8px; font-family: monospace;">[ GENERATION: {{ Math.floor(Math.random()*1000) }} ]</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 10px;">
+                        <span>适应度 (Fitness)</span>
+                        <span>{{ (Math.random() * 20 + 80).toFixed(2) }}%</span>
+                    </div>
+                    <div class="stat-bar-bg"><div class="stat-bar-fill" :style="{ width: (Math.random() * 20 + 80) + '%' }"></div></div>
+                    
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; margin-top: 8px;">
+                        <span>变异率 (Mutation)</span>
+                        <span>{{ (Math.random() * 2).toFixed(4) }}%</span>
+                    </div>
+                    <div class="stat-bar-bg"><div class="stat-bar-fill" :style="{ width: (Math.random() * 30 + 10) + '%' }"></div></div>
+                </div>
+
                 <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
                     观测时间: {{ scanTime }} | 误差项: ±0.0002%
                 </div>
@@ -261,6 +304,20 @@
                         targetY: (Math.floor(Math.random() * 10) * (canvas.height / 10))
                     });
                 }
+            } else if (mode === 'genetic') {
+                for(let i=0; i<100; i++) {
+                    const t = i / 10;
+                    points.push({
+                        x: centerX + Math.sin(t) * 100,
+                        y: centerY + (i - 50) * 8,
+                        dna: 'A'
+                    });
+                    points.push({
+                        x: centerX + Math.sin(t + Math.PI) * 100,
+                        y: centerY + (i - 50) * 8,
+                        dna: 'B'
+                    });
+                }
             } else {
                 let x = 0.1, y = 0, z = 0;
                 const a = 10, b = 28, c = 8/3;
@@ -289,6 +346,32 @@
                         ctx.fillRect(p.x, p.y, 2, 2);
                     });
                     if (currentIdx++ < 100) animationId = requestAnimationFrame(animate);
+                } else if (mode === 'genetic') {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < points.length; i += 2) {
+                        const p1 = points[i];
+                        const p2 = points[i+1];
+                        // Oscillate for rotation effect
+                        const time = Date.now() * 0.002;
+                        const x1 = centerX + Math.sin(i * 0.2 + time) * 80;
+                        const x2 = centerX + Math.sin(i * 0.2 + Math.PI + time) * 80;
+                        
+                        ctx.strokeStyle = 'rgba(0, 242, 255, 0.2)';
+                        ctx.beginPath();
+                        ctx.moveTo(x1, p1.y);
+                        ctx.lineTo(x2, p2.y);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#00f2ff';
+                        ctx.beginPath();
+                        ctx.arc(x1, p1.y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(x2, p2.y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    animationId = requestAnimationFrame(animate);
                 } else {
                     if (currentIdx < points.length - 1) {
                         ctx.beginPath();
@@ -315,6 +398,18 @@
                 const isObserving = ref(false);
 
                 const theories = [
+                    {
+                        name: "遗传算法：进化命运 (Genetic Algorithm)",
+                        mode: 'genetic',
+                        generate: (n) => {
+                            const outcomes = [
+                                "你的核心基因序列中检测到『高能适应性』突变。在环境压力增大时，你反而能通过适者生存法则脱颖而出。",
+                                "观测到一次成功的『基因交叉』。通过与他人的思想碰撞，你的命运函数实现了全局最优解，而非局部极值。",
+                                "当前的适应度函数显示你处于进化的顶峰。保持这种选择压力，你将筛选掉所有不利干扰，进化出更高阶的社会形态。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "广义相对论：引力时间膨胀 (General Relativity)",
                         mode: 'relativity',
