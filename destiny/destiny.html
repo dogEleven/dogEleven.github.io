@@ -320,6 +320,20 @@
             box-shadow: 0 0 5px var(--accent-glow);
         }
 
+        /* Statistical Mechanics Visual */
+        .boltzmann-box {
+            height: 100px;
+            position: relative;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .particle-cloud {
+            width: 100%;
+            height: 100%;
+        }
+
         .scanning-line {
             position: absolute;
             left: 0; right: 0; height: 2px;
@@ -802,6 +816,17 @@
                     <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
                         <span>ENTROPY_BOUND: BEKENSTEIN-HAWKING</span>
                         <span>PROJECTION_FIDELITY: 0.999997</span>
+                    </div>
+                </div>
+
+                <div v-if="theoryName.includes('Statistical Mechanics')" class="viz-box">
+                    <div class="boltzmann-box">
+                        <canvas id="boltzmannCanvas" width="200" height="100" style="width: 100%; height: 100%;"></canvas>
+                        <div style="position: absolute; top: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); background: rgba(0,0,0,0.5); padding: 2px 5px;">Ω = W! / Π ni!</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>MICROSTATE_COUNT: 10^23</span>
+                        <span>DISTRIBUTION: MAXWELL-BOLTZMANN</span>
                     </div>
                 </div>
 
@@ -1368,6 +1393,39 @@
                 const scanHistory = ref(JSON.parse(localStorage.getItem('destiny_history') || '[]'));
                 const stabilityValue = ref(100);
 
+                const initBoltzmannCanvas = () => {
+                    setTimeout(() => {
+                        const bCanvas = document.getElementById('boltzmannCanvas');
+                        if (!bCanvas) return;
+                        const bCtx = bCanvas.getContext('2d');
+                        let bParticles = [];
+                        for(let i=0; i<40; i++) bParticles.push({
+                            x: Math.random() * bCanvas.width,
+                            y: Math.random() * bCanvas.height,
+                            vx: (Math.random()-0.5)*4,
+                            vy: (Math.random()-0.5)*4,
+                            r: Math.random() * 2 + 1
+                        });
+
+                        const bAnimate = () => {
+                            if (!document.getElementById('boltzmannCanvas')) return;
+                            bCtx.fillStyle = 'rgba(10, 10, 10, 0.2)';
+                            bCtx.fillRect(0, 0, bCanvas.width, bCanvas.height);
+                            bParticles.forEach(p => {
+                                p.x += p.vx; p.y += p.vy;
+                                if(p.x < 0 || p.x > bCanvas.width) p.vx *= -1;
+                                if(p.y < 0 || p.y > bCanvas.height) p.vy *= -1;
+                                bCtx.fillStyle = 'var(--accent)';
+                                bCtx.beginPath();
+                                bCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                                bCtx.fill();
+                            });
+                            requestAnimationFrame(bAnimate);
+                        };
+                        bAnimate();
+                    }, 100);
+                };
+
                 const initUncertaintyCanvas = () => {
                     setTimeout(() => {
                         const uCanvas = document.getElementById('uncertaintyCanvas');
@@ -1399,6 +1457,11 @@
                 };
 
                 const theories = [
+                    {
+                        name: "统计力学：玻尔兹曼分布 (Statistical Mechanics: Boltzmann Distribution)",
+                        mode: 'boltzmann',
+                        generate: (n) => "对你当前社会微观状态的统计分析显示，你正处于能量分布的长尾末端。根据麦克斯韦-玻尔兹曼法则，这种『偏离平衡』的态势意味着你拥有极高的潜在动能，一次随机的粒子碰撞（意外相遇）将引发显著的能量跃迁。"
+                    },
                     {
                         name: "图论与网络科学：无标度网络 (Graph Theory & Scale-Free Networks)",
                         mode: 'graph',
@@ -1557,6 +1620,7 @@
 
                         window.startVisuals(theory.mode);
                         if (theory.mode === 'uncertainty') initUncertaintyCanvas();
+                        if (theory.mode === 'boltzmann') initBoltzmannCanvas();
                         isObserving.value = false;
                         stabilityValue.value = 100;
                     }, 2800);
