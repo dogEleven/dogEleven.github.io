@@ -745,6 +745,25 @@
             transition: all 1s cubic-bezier(0.68, -0.55, 0.27, 1.55);
         }
 
+        /* Cosmic Microwave Background Visuals */
+        .cmb-container {
+            margin-top: 15px;
+            height: 100px;
+            background: #000;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+        }
+        .cmb-pixel {
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+            transition: background-color 0.5s ease;
+        }
+
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -1007,6 +1026,13 @@
                         <div class="symmetry-ball" :style="{ transform: symmetryBroken ? 'translate(25px, 0)' : 'translate(0, 0)' }"></div>
                     </div>
                     <div style="position: absolute; bottom: 5px; font-size: 8px; color: var(--accent); font-family: monospace;">V(φ) = -μ²φ² + λφ⁴</div>
+                </div>
+
+                <div v-if="theoryName.includes('Cosmic Microwave')" class="cmb-container">
+                    <div v-for="(color, i) in cmbPixels" :key="i" class="cmb-pixel" :style="{ backgroundColor: color }"></div>
+                    <div style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+                        <span style="font-family: monospace; font-size: 8px; color: #fff; text-shadow: 0 0 5px #000; background: rgba(0,0,0,0.4); padding: 2px 5px; border-radius: 4px;">T = 2.725 K | FLUCTUATION: 10⁻⁵</span>
+                    </div>
                 </div>
 
                 <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
@@ -1511,6 +1537,17 @@
                         if (p.x > canvas.width) p.x = -10;
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'cmb') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.5)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        p.temp += (Math.random() - 0.5) * 0.1;
+                        if(p.temp < 0) p.temp = 0;
+                        if(p.temp > 1) p.temp = 1;
+                        ctx.fillStyle = `hsl(${240 - p.temp * 240}, 100%, 50%)`;
+                        ctx.fillRect(p.x, p.y, canvas.width/20, canvas.height/10);
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'zeno') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1591,7 +1628,25 @@
                 const symmetryBroken = ref(false);
                 const scanCount = ref(parseInt(localStorage.getItem('destiny_scans') || '0'));
 
+                const cmbPixels = ref([]);
+
                 const theories = [
+                    {
+                        name: "宇宙微波背景：大爆炸的余温与命运基调 (Cosmic Microwave Background)",
+                        mode: 'cmb',
+                        generate: (n) => {
+                            const outcomes = [
+                                "检测到由于宇宙初始扰动引发的本地各向异性。你目前的命运主旋律是在138亿年前就已经谱写好的宏大交响乐，当前的波动只是其中的一个华丽乐章。这种背景噪声预示着一种跨越时空的稳定性。",
+                                "观测到由于暴胀时期产生的量子涟漪。你的微小努力正在被宇宙膨胀放大，形成跨越星系的宏观成果。现在的背景温度非常均匀，象征着你近期人际关系的和谐与平衡。",
+                                "在CMB频谱中发现了非高斯分布。这意味着你的未来路径并非随机，而是被某种『原初意志』刻画在了时空的底色中。每一次微小的起伏，都是在与宇宙诞生的初音共振。"
+                            ];
+                            cmbPixels.value = Array.from({length: 200}, () => {
+                                const temp = Math.random();
+                                return `hsl(${240 - temp * 240}, 100%, 50%)`;
+                            });
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "量子芝诺效应：测量引发的状态冻结 (Quantum Zeno Effect)",
                         mode: 'zeno',
@@ -1946,7 +2001,7 @@
                     }, 2000);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift, mcBars, mcHighlight, terminalLogs, entropyValue, zenoPos, symmetryBroken, scanCount };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift, mcBars, mcHighlight, terminalLogs, entropyValue, zenoPos, symmetryBroken, scanCount, cmbPixels };
             }
         }).mount('#app');
     </script>
