@@ -22,20 +22,24 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            overflow-x: hidden;
+            overflow: hidden;
         }
         #app {
             width: 100%;
             max-width: 500px;
             padding: 20px;
             text-align: center;
+            z-index: 10;
         }
         .container {
-            background: var(--card-bg);
+            background: rgba(17, 17, 17, 0.8);
+            backdrop-filter: blur(10px);
             padding: 40px;
             border-radius: 24px;
             box-shadow: 0 0 40px rgba(0, 242, 255, 0.05);
             border: 1px solid rgba(0, 242, 255, 0.1);
+            position: relative;
+            overflow: hidden;
         }
         h1 {
             font-size: 28px;
@@ -105,6 +109,24 @@
             animation: fadeIn 0.5s ease-out;
             position: relative;
         }
+        .fortune-text {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .theory-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
         /* Scanning Animation */
         .scanning-bar {
             position: absolute;
@@ -122,16 +144,6 @@
             50% { opacity: 1; }
             100% { top: 100%; opacity: 0; }
         }
-        .container {
-            background: var(--card-bg);
-            padding: 40px;
-            border-radius: 24px;
-            box-shadow: 0 0 40px rgba(0, 242, 255, 0.05);
-            border: 1px solid rgba(0, 242, 255, 0.1);
-            animation: pulse-glow 4s infinite ease-in-out;
-            position: relative;
-            overflow: hidden;
-        }
         /* Spacetime Warp Effect */
         .warp-active {
             animation: warp-shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
@@ -142,10 +154,42 @@
             30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
+        /* Game Theory Matrix */
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+        .matrix-cell {
+            border: 1px solid #333;
+            padding: 5px;
+            color: var(--subtext);
+        }
+        .matrix-cell.highlight {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(0, 242, 255, 0.05);
+        }
+        canvas#chaosCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.4;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
-    <canvas id="chaosCanvas" class="chaos-container"></canvas>
+    <canvas id="chaosCanvas"></canvas>
     <div id="app">
         <div class="container" :class="{ 'warp-active': isObserving }">
             <div v-if="isObserving" class="scanning-bar"></div>
@@ -162,12 +206,20 @@
             </button>
 
             <div v-if="isObserving" class="loading" style="margin-top: 20px; font-family: monospace; color: var(--accent);">
-                [ ANALYZING SPACETIME CURVATURE ]
+                [ ANALYZING DATASTREAM ]
             </div>
 
             <div v-if="fortune && !isObserving" class="result">
                 <div class="theory-tag">{{ theoryName }}</div>
                 <div class="fortune-text">{{ fortune }}</div>
+                
+                <div v-if="theoryName.includes('Game Theory')" class="matrix-grid">
+                    <div class="matrix-cell">C: (3, 3)</div>
+                    <div class="matrix-cell">D: (0, 5)</div>
+                    <div class="matrix-cell">D: (5, 0)</div>
+                    <div class="matrix-cell highlight">Nash: (1, 1)</div>
+                </div>
+
                 <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
                     观测时间: {{ scanTime }} | 误差项: ±0.0002%
                 </div>
@@ -176,7 +228,7 @@
     </div>
 
     <script>
-        // Chaos Theory Visualizer (Lorenz Attractor-inspired)
+        // Chaos & Game Theory Visualizer
         const canvas = document.getElementById('chaosCanvas');
         const ctx = canvas.getContext('2d');
         let points = [];
@@ -189,27 +241,30 @@
         window.addEventListener('resize', initCanvas);
         initCanvas();
 
-        window.startChaos = (isRelativity) => {
+        window.startVisuals = (mode) => {
             points = [];
-            let x = 0.1, y = 0, z = 0;
-            const a = 10, b = 28, c = 8/3;
-            const dt = 0.01;
-            
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
-            if (isRelativity) {
-                // Circular warp visualization for General Relativity
+            if (mode === 'relativity') {
                 for(let i=0; i<200; i++) {
                     const angle = (i / 200) * Math.PI * 2 * 5;
                     const radius = i * 2;
+                    points.push({x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius});
+                }
+            } else if (mode === 'game') {
+                for(let i=0; i<150; i++) {
                     points.push({
-                        x: centerX + Math.cos(angle) * radius,
-                        y: centerY + Math.sin(angle) * radius
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        targetX: (Math.floor(Math.random() * 10) * (canvas.width / 10)),
+                        targetY: (Math.floor(Math.random() * 10) * (canvas.height / 10))
                     });
                 }
             } else {
-                // Lorenz Attractor
+                let x = 0.1, y = 0, z = 0;
+                const a = 10, b = 28, c = 8/3;
+                const dt = 0.01;
                 for(let i=0; i<600; i++) {
                     let dx = a * (y - x) * dt;
                     let dy = (x * (b - z) - y) * dt;
@@ -224,15 +279,27 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             function animate() {
-                if (currentIdx < points.length - 1) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = isRelativity ? '#ff3e3e' : '#00f2ff';
-                    ctx.lineWidth = isRelativity ? 1 : 0.5;
-                    ctx.moveTo(points[currentIdx].x, points[currentIdx].y);
-                    ctx.lineTo(points[currentIdx+1].x, points[currentIdx+1].y);
-                    ctx.stroke();
-                    currentIdx += isRelativity ? 2 : 1;
-                    animationId = requestAnimationFrame(animate);
+                if (mode === 'game') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#00f2ff';
+                    points.forEach(p => {
+                        p.x += (p.targetX - p.x) * 0.05;
+                        p.y += (p.targetY - p.y) * 0.05;
+                        ctx.fillRect(p.x, p.y, 2, 2);
+                    });
+                    if (currentIdx++ < 100) animationId = requestAnimationFrame(animate);
+                } else {
+                    if (currentIdx < points.length - 1) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = mode === 'relativity' ? '#ff3e3e' : '#00f2ff';
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(points[currentIdx].x, points[currentIdx].y);
+                        ctx.lineTo(points[currentIdx+1].x, points[currentIdx+1].y);
+                        ctx.stroke();
+                        currentIdx += mode === 'relativity' ? 2 : 1;
+                        animationId = requestAnimationFrame(animate);
+                    }
                 }
             }
             animate();
@@ -250,6 +317,7 @@
                 const theories = [
                     {
                         name: "广义相对论：引力时间膨胀 (General Relativity)",
+                        mode: 'relativity',
                         generate: (n) => {
                             const outcomes = [
                                 "观测到你周围的引力场发生局部扭曲，你的主观时间正在加速，这意味着你将在更短的时间内完成他人需要数月的工作。",
@@ -260,7 +328,20 @@
                         }
                     },
                     {
+                        name: "博弈论：纳什均衡 (Game Theory: Nash Equilibrium)",
+                        mode: 'game',
+                        generate: (n) => {
+                            const outcomes = [
+                                "在社交互动的博弈矩阵中，你当前的最佳策略是『以牙还牙』(Tit-for-Tat)。这种均衡状态将为你带来长期的合作溢价。",
+                                "观测到你正处于一个非合作博弈的零和困境中。通过引入量子纠缠（新的外部因素），你可以打破纳什均衡，实现帕累托改进。",
+                                "战略分析显示，你的最优策略是『混合战略』。在接下来的48小时内保持不可预测性，将使你的竞争对手（或坏运）无法找到切入点。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
                         name: "混沌理论与蝴蝶效应 (Chaos Theory)",
+                        mode: 'chaos',
                         generate: (n) => {
                             const outcomes = [
                                 "亚马逊雨林的蝴蝶扇动了翅膀，你本周的一个微小决定将引发职业生涯的风暴级巨变。",
@@ -272,6 +353,7 @@
                     },
                     {
                         name: "量子相干性理论 (Quantum Coherence)",
+                        mode: 'chaos',
                         generate: (n) => {
                             const outcomes = [
                                 "观测结果显示你的波函数正在宏观化，现实中的阻力将由于相干抵消而减小。",
@@ -283,6 +365,7 @@
                     },
                     {
                         name: "热力学第二定律 (Entropy)",
+                        mode: 'chaos',
                         generate: (n) => {
                             const outcomes = [
                                 "系统熵值正在逆向波动，混乱的事务将由于你的意志注入而重新有序。",
@@ -294,6 +377,7 @@
                     },
                     {
                         name: "薛定谔的猫 (Probability Collapse)",
+                        mode: 'chaos',
                         generate: (n) => {
                             const outcomes = [
                                 "观测箱已开启：你的某项犹豫不决的计划已确认为『存活』状态，请立即执行。",
@@ -310,8 +394,7 @@
                     const theoryIndex = Math.floor(Math.random() * theories.length);
                     const theory = theories[theoryIndex];
                     
-                    // Specific visual for Relativity
-                    if (window.startChaos) window.startChaos(theory.name.includes("Relativity"));
+                    if (window.startVisuals) window.startVisuals(theory.mode);
                     
                     setTimeout(() => {
                         theoryName.value = theory.name;
@@ -325,7 +408,5 @@
             }
         }).mount('#app');
     </script>
-</body>
-</html>
 </body>
 </html>
