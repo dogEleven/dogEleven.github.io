@@ -988,6 +988,17 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Ergodic Theory')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border-radius: 12px;">
+                        <canvas id="ergodicCanvas" width="200" height="100" style="width: 100%; height: 100%;"></canvas>
+                        <div style="position: absolute; top: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); opacity: 0.6;">Tⁿ(x) : SPACE_FILLING</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>TIME_AVG == SPACE_AVG</span>
+                        <span>MEASURE_PRESERVING: YES</span>
+                    </div>
+                </div>
+
                 <div v-if="theoryName.includes('Quantum Electrodynamics')" class="viz-box">
                     <div style="height: 100px; position: relative; overflow: hidden; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <svg width="100%" height="100%" viewBox="0 0 200 100">
@@ -2021,6 +2032,36 @@
                     }, 100);
                 };
 
+                const initErgodicCanvas = () => {
+                    setTimeout(() => {
+                        const eCanvas = document.getElementById('ergodicCanvas');
+                        if (!eCanvas) return;
+                        const eCtx = eCanvas.getContext('2d');
+                        const w = eCanvas.width;
+                        const h = eCanvas.height;
+                        let x = Math.random() * w;
+                        let y = Math.random() * h;
+                        const alpha = 0.5 * (Math.sqrt(5) - 1); // Golden ratio for irrational rotation
+                        const beta = Math.sqrt(2);
+
+                        const eAnimate = () => {
+                            if (!document.getElementById('ergodicCanvas')) return;
+                            // Draw multiple steps per frame to fill faster
+                            for(let i=0; i<50; i++) {
+                                x = (x + alpha * w) % w;
+                                y = (y + beta * h) % h;
+                                eCtx.fillStyle = 'rgba(0, 242, 255, 0.5)';
+                                eCtx.fillRect(x, y, 1, 1);
+                            }
+                            // Fade slightly to show trajectory
+                            eCtx.fillStyle = 'rgba(0, 0, 0, 0.005)';
+                            eCtx.fillRect(0, 0, w, h);
+                            requestAnimationFrame(eAnimate);
+                        };
+                        eAnimate();
+                    }, 100);
+                };
+
                 const initNeuroCanvas = () => {
                     setTimeout(() => {
                         const nCanvas = document.getElementById('neuroCanvas');
@@ -2074,6 +2115,11 @@
                 };
 
                 const theories = [
+                    {
+                        name: "遍历理论：长程均衡 (Ergodic Theory & Long-term Equilibrium)",
+                        mode: 'ergodic',
+                        generate: (n) => "遍历性分析显示，你的生命轨迹正在平铺整个可能性的空间。这意味着只要时间足够长，你必然会经过每一个你渴望的『高质量点』。你的个人历史正处于一个测度守恒的稳态，成功的出现只是时间平均值向空间平均值的必然收敛。"
+                    },
                     {
                         name: "分形几何：自相似性 (Fractal Geometry: Self-Similarity)",
                         mode: 'fractal',
@@ -2276,6 +2322,7 @@
                         if (theory.mode === 'fractal') initFractalCanvas();
                         if (theory.mode === 'neuro') initNeuroCanvas();
                         if (theory.mode === 'reaction') initReactionCanvas();
+                        if (theory.mode === 'ergodic') initErgodicCanvas();
                         isObserving.value = false;
                         stabilityValue.value = 100;
                     }, 2800);
