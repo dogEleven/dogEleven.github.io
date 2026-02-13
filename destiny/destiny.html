@@ -490,6 +490,46 @@
             text-shadow: 0 0 5px var(--bg);
             z-index: 2;
         }
+        /* Quantum Tunneling Visuals */
+        .tunnel-container {
+            margin-top: 15px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tunnel-barrier {
+            position: absolute;
+            width: 10px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(0, 242, 255, 0.3);
+            border-right: 1px solid rgba(0, 242, 255, 0.3);
+            left: 50%;
+            margin-left: -5px;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+        }
+        .wave-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            filter: blur(2px);
+            box-shadow: 0 0 10px var(--accent);
+            animation: tunneling-move 2s infinite linear;
+        }
+        @keyframes tunneling-move {
+            0% { transform: translateX(-100px); opacity: 1; }
+            45% { transform: translateX(-10px); opacity: 0.8; }
+            50% { transform: translateX(0); opacity: 0.2; } /* Crossing the barrier */
+            55% { transform: translateX(10px); opacity: 0.8; }
+            100% { transform: translateX(100px); opacity: 0; }
+        }
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -551,7 +591,7 @@
 <body>
     <canvas id="chaosCanvas"></canvas>
     <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E</div>
-    <div class="telemetry-right">STATUS: OPERATIONAL | v2.5.0-ITER</div>
+    <div class="telemetry-right">STATUS: OPERATIONAL | v2.6.0-ITER</div>
     <div id="app">
         <div class="container" :class="{ 'warp-active': isObserving }">
             <div v-if="isObserving" class="scanning-bar"></div>
@@ -567,10 +607,17 @@
                 {{ isObserving ? '正在计算概率幅...' : '启动观测程序' }}
             </button>
 
-            <div v-if=\"isObserving\" class=\"loading\" style=\"margin-top: 20px; font-family: monospace; color: var(--accent);\">
+            <div v-if="isObserving" class="loading" style="margin-top: 20px; font-family: monospace; color: var(--accent);">
                 [ ANALYZING DATASTREAM ]
-                <div class=\"terminal-log\">
-                    <div v-for=\"log in terminalLogs\" :key=\"log\">> {{ log }}</div>
+                <div style="height: 30px; margin: 10px 0; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <svg width="200" height="20">
+                        <path d="M 0 10 Q 25 0 50 10 T 100 10 T 150 10 T 200 10" fill="none" stroke="var(--accent)" stroke-width="2">
+                            <animate attributeName="d" dur="0.5s" repeatCount="indefinite" values="M 0 10 Q 25 0 50 10 T 100 10 T 150 10 T 200 10; M 0 10 Q 25 20 50 10 T 100 10 T 150 10 T 200 10; M 0 10 Q 25 0 50 10 T 100 10 T 150 10 T 200 10" />
+                        </path>
+                    </svg>
+                </div>
+                <div class="terminal-log">
+                    <div v-for="log in terminalLogs" :key="log">> {{ log }}</div>
                 </div>
             </div>
 
@@ -659,6 +706,15 @@
                 <div v-if="theoryName.includes('Fluid Dynamics')" class="fluid-container">
                     <div class="fluid-vortex"></div>
                     <div style="position: absolute; width: 100%; bottom: 5px; text-align: center; font-size: 8px; color: var(--accent); font-family: monospace;">Re = {{ (Math.random()*1000 + 2000).toFixed(0) }} | LAMINAR FLOW</div>
+                </div>
+
+                <div v-if="theoryName.includes('Tunneling')" class="tunnel-container">
+                    <div class="tunnel-barrier"></div>
+                    <div v-for="i in 5" :key="i" class="wave-particle" :style="{ 
+                        animationDelay: (i * 0.4) + 's',
+                        top: (20 + Math.random() * 60) + '%'
+                    }"></div>
+                    <div style="position: absolute; bottom: 5px; left: 10px; font-size: 8px; color: var(--accent); font-family: monospace;">E < V_barrier | PROBABILITY > 0</div>
                 </div>
 
                 <div v-if="theoryName.includes('Thermodynamics')" class="thermo-container">
@@ -821,6 +877,15 @@
                         temp: Math.random()
                     });
                 }
+            } else if (mode === 'tunneling') {
+                for(let i=0; i<100; i++) {
+                    points.push({
+                        x: Math.random() * (canvas.width / 2 - 50),
+                        y: Math.random() * canvas.height,
+                        vx: Math.random() * 2 + 2,
+                        hasTunneled: false
+                    });
+                }
             } else {
                 let x = 0.1, y = 0, z = 0;
                 const a = 10, b = 28, c = 8/3;
@@ -957,6 +1022,40 @@
                         ctx.fillRect(p.x, p.y, 1.5, 1.5);
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'tunneling') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw Barrier
+                    ctx.fillStyle = 'rgba(0, 242, 255, 0.1)';
+                    ctx.fillRect(canvas.width / 2 - 10, 0, 20, canvas.height);
+                    ctx.strokeStyle = 'rgba(0, 242, 255, 0.3)';
+                    ctx.strokeRect(canvas.width / 2 - 10, 0, 20, canvas.height);
+
+                    points.forEach(p => {
+                        ctx.fillStyle = p.hasTunneled ? 'rgba(0, 242, 255, 1)' : 'rgba(0, 242, 255, 0.4)';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        p.x += p.vx;
+
+                        // Tunneling logic
+                        if (p.x > canvas.width / 2 - 10 && p.x < canvas.width / 2 + 10) {
+                            if (Math.random() > 0.95) { // 5% chance to tunnel
+                                p.x += 25;
+                                p.hasTunneled = true;
+                            } else if (!p.hasTunneled) {
+                                p.x = Math.random() * (canvas.width / 2 - 50); // Reflect/Reset
+                            }
+                        }
+
+                        if (p.x > canvas.width) {
+                            p.x = 0;
+                            p.hasTunneled = false;
+                        }
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'thermo') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1027,6 +1126,18 @@
                 const entropyValue = ref(0);
 
                 const theories = [
+                    {
+                        name: "量子隧穿效应：跨越不可能的障碍 (Quantum Tunneling)",
+                        mode: 'tunneling',
+                        generate: (n) => {
+                            const outcomes = [
+                                "波函数分析显示，你正面临一个经典力学上『无法逾越』的障碍。但由于量子隧穿效应，你已经获得了直接穿透壁垒的概率，无需消耗额外的能量去攀爬。这是一个奇迹发生的窗口期。",
+                                "检测到能级跃迁。原本禁戒的路径现在由于不确定性原理而变得可行。不要被表面的困难吓倒，你的势能虽然不足以打破墙壁，但你的本质决定了你可以直接出现在墙的另一侧。",
+                                "观测到由于相位对齐产生的相干隧穿。你与目标的距离正在以一种非经典的方式缩短，那些你认为需要长期积累才能达成的目标，可能在瞬间通过一次非线性的飞跃而实现。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "热力学第二定律：熵增与命运归宿 (Thermodynamics: Entropy & Fate Culmination)",
                         mode: 'thermo',
