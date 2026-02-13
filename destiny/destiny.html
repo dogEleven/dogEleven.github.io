@@ -427,7 +427,7 @@
     <div class="telemetry tl">PROB_MATRIX: {{ (Math.random()).toFixed(6) }}</div>
     <div class="telemetry tr">ENTROPY: {{ (Math.random() * 10).toFixed(2) }} J/K</div>
     <div class="telemetry bl">COORD: 31.23°N 121.47°E</div>
-    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.7.2</div>
+    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.8.0</div>
 
     <div id="app">
         <div class="container" :class="{ observing: isObserving }">
@@ -951,6 +951,17 @@
                     </style>
                 </div>
 
+                <div v-if="theoryName.includes('Reaction-Diffusion')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: #000; border-radius: 12px;">
+                        <canvas id="reactionCanvas" width="200" height="100" style="width: 100%; height: 100%;"></canvas>
+                        <div style="position: absolute; top: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); opacity: 0.8;">∂u/∂t = Du∇²u + f(u,v)</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>MORPHOGENESIS: ACTIVE</span>
+                        <span>PATTERN_STABILITY: 0.942</span>
+                    </div>
+                </div>
+
                 <div v-if="theoryName.includes('Neuroplasticity')" class="viz-box">
                     <div style="height: 100px; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border-radius: 12px;">
                         <canvas id="neuroCanvas" width="200" height="100" style="width: 100%; height: 100%;"></canvas>
@@ -1263,6 +1274,17 @@
                         });
                     }
                 });
+            } else if (mode === 'reaction') {
+                for(let i=0; i<80; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        r: Math.random() * 30 + 10,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                }
             } else {
                 for(let i=0; i<150; i++) {
                     points.push({
@@ -1633,6 +1655,30 @@
                             }
                         });
                     });
+                } else if (mode === 'reaction') {
+                    points.forEach(p => {
+                        p.x += p.vx; p.y += p.vy;
+                        if(p.x < -p.r) p.x = canvas.width + p.r;
+                        if(p.x > canvas.width + p.r) p.x = -p.r;
+                        if(p.y < -p.r) p.y = canvas.height + p.r;
+                        if(p.y > canvas.height + p.r) p.y = -p.r;
+                        
+                        p.phase += 0.01;
+                        const currentR = p.r * (1 + Math.sin(p.phase) * 0.2);
+                        
+                        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, currentR);
+                        grad.addColorStop(0, 'rgba(0, 242, 255, 0.1)');
+                        grad.addColorStop(1, 'transparent');
+                        
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, currentR, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.strokeStyle = `rgba(0, 242, 255, ${0.1 * (Math.sin(p.phase) + 1)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1788,6 +1834,76 @@
                             requestAnimationFrame(fAnimate);
                         };
                         fAnimate();
+                    }, 100);
+                };
+
+                const initReactionCanvas = () => {
+                    setTimeout(() => {
+                        const rCanvas = document.getElementById('reactionCanvas');
+                        if (!rCanvas) return;
+                        const rCtx = rCanvas.getContext('2d');
+                        const w = rCanvas.width;
+                        const h = rCanvas.height;
+                        
+                        let grid = [];
+                        let nextGrid = [];
+                        
+                        for (let x = 0; x < w; x++) {
+                            grid[x] = [];
+                            nextGrid[x] = [];
+                            for (let y = 0; y < h; y++) {
+                                grid[x][y] = { a: 1, b: 0 };
+                                nextGrid[x][y] = { a: 1, b: 0 };
+                            }
+                        }
+                        
+                        // Seed
+                        for (let i = 0; i < 10; i++) {
+                            const sx = Math.floor(Math.random() * w);
+                            const sy = Math.floor(Math.random() * h);
+                            for (let x = sx - 2; x < sx + 2; x++) {
+                                for (let y = sy - 2; y < sy + 2; y++) {
+                                    if (x >= 0 && x < w && y >= 0 && y < h) grid[x][y].b = 1;
+                                }
+                            }
+                        }
+
+                        const dA = 1.0, dB = 0.5, feed = 0.055, kill = 0.062;
+
+                        const rAnimate = () => {
+                            if (!document.getElementById('reactionCanvas')) return;
+                            
+                            for (let x = 1; x < w - 1; x++) {
+                                for (let y = 1; y < h - 1; y++) {
+                                    const a = grid[x][y].a;
+                                    const b = grid[x][y].b;
+                                    
+                                    const lapA = grid[x+1][y].a + grid[x-1][y].a + grid[x][y+1].a + grid[x][y-1].a - 4 * a;
+                                    const lapB = grid[x+1][y].b + grid[x-1][y].b + grid[x][y+1].b + grid[x][y-1].b - 4 * b;
+                                    
+                                    nextGrid[x][y].a = a + (dA * lapA - a * b * b + feed * (1 - a));
+                                    nextGrid[x][y].b = b + (dB * lapB + a * b * b - (kill + feed) * b);
+                                }
+                            }
+
+                            const imgData = rCtx.createImageData(w, h);
+                            for (let x = 0; x < w; x++) {
+                                for (let y = 0; y < h; y++) {
+                                    const pix = (x + y * w) * 4;
+                                    const val = Math.floor((nextGrid[x][y].a - nextGrid[x][y].b) * 255);
+                                    imgData.data[pix + 0] = 0;
+                                    imgData.data[pix + 1] = 242;
+                                    imgData.data[pix + 2] = 255;
+                                    imgData.data[pix + 3] = 255 - val;
+                                    
+                                    grid[x][y].a = nextGrid[x][y].a;
+                                    grid[x][y].b = nextGrid[x][y].b;
+                                }
+                            }
+                            rCtx.putImageData(imgData, 0, 0);
+                            requestAnimationFrame(rAnimate);
+                        };
+                        rAnimate();
                     }, 100);
                 };
 
@@ -1982,6 +2098,11 @@
                         name: "全息原理：视界信息投影 (The Holographic Principle: Event Horizon Projection)",
                         mode: 'holographic',
                         generate: (n) => "根据全息原理，你的三维人生实际上是存储在二维视界上的信息投影。当前的挑战只是『像素点』的局部重排，并不改变你底层信息的守恒。即使在看似绝望的『黑洞』中心，你的核心价值依然通过霍金辐射向全宇宙广播。"
+                    },
+                    {
+                        name: "反应扩散系统：形态发生 (Reaction-Diffusion System: Morphogenesis)",
+                        mode: 'reaction',
+                        generate: (n) => "图灵的反应扩散模型显示，你的生活正处于『形态发生』的关键阶段。通过两种对立力量（激活与抑制）的微妙博弈，原本均匀混沌的现状正在自发形成高度有序的纹理。一个独特的、属于你的命运图景正破茧而出。"
                     }
                 ];
 
@@ -2030,6 +2151,7 @@
                         if (theory.mode === 'boltzmann') initBoltzmannCanvas();
                         if (theory.mode === 'fractal') initFractalCanvas();
                         if (theory.mode === 'neuro') initNeuroCanvas();
+                        if (theory.mode === 'reaction') initReactionCanvas();
                         isObserving.value = false;
                         stabilityValue.value = 100;
                     }, 2800);
