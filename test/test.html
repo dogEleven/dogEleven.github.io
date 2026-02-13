@@ -79,8 +79,8 @@
         .edit-input { flex-grow: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; font-size: 13px; background: var(--input-bg); color: var(--text); margin: -4px 0; }
         .edit-actions { display: flex; gap: 8px; margin-left: 8px; font-size: 14px; cursor: pointer; }
 
-        .title-container { flex-grow: 1; display: flex; flex-direction: column; gap: 2px; }
-        .issue-meta { font-size: 10px; color: var(--subtext); transition: opacity 0.3s; }
+        .title-container { flex-grow: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .issue-meta { font-size: 9px; color: var(--subtext); white-space: nowrap; margin-top: 2px; flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -138,7 +138,7 @@
                                     <div class="title-container" @click="startEdit(issue)">
                                         <div class="title">{{ issue.title }}</div>
                                         <div class="issue-meta" :style="{ opacity: getMetaOpacity(issue) }">
-                                            Created: {{ formatDate(issue.created_at) }} | Updated: {{ formatDate(issue.updated_at) }}
+                                            {{ formatDate(issue.created_at) }} · {{ formatDate(issue.updated_at) }}
                                         </div>
                                     </div>
                                 </template>
@@ -174,12 +174,13 @@
 
                 const formatDate = (isoString) => {
                     const date = new Date(isoString);
-                    return date.toLocaleString('zh-CN', { 
-                        month: 'short', 
-                        day: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    });
+                    const now = new Date();
+                    const isThisYear = date.getFullYear() === now.getFullYear();
+                    
+                    if (isThisYear) {
+                        return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                    }
+                    return date.toLocaleDateString('zh-CN', { year: '2-digit', month: 'numeric', day: 'numeric' });
                 };
 
                 const getMetaOpacity = (issue) => {
