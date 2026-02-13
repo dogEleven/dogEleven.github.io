@@ -173,6 +173,18 @@
             color: var(--accent);
             background: rgba(0, 242, 255, 0.05);
         }
+        /* Information Theory Visuals */
+        .bit-stream {
+            font-family: monospace;
+            font-size: 10px;
+            color: var(--accent);
+            opacity: 0.6;
+            margin-top: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            border-left: 2px solid var(--accent);
+            padding-left: 8px;
+        }
         /* DNA Helix Visual */
         .dna-segment {
             height: 4px;
@@ -233,6 +245,28 @@
             z-index: -1;
             opacity: 0.4;
         }
+        .telemetry {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-family: monospace;
+            font-size: 9px;
+            color: var(--subtext);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+        .telemetry-right {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-family: monospace;
+            font-size: 9px;
+            color: var(--subtext);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -241,6 +275,8 @@
 </head>
 <body>
     <canvas id="chaosCanvas"></canvas>
+    <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E</div>
+    <div class="telemetry-right">STATUS: OPERATIONAL | v2.4.0-ITER</div>
     <div id="app">
         <div class="container" :class="{ 'warp-active': isObserving }">
             <div v-if="isObserving" class="scanning-bar"></div>
@@ -292,6 +328,10 @@
                         animationDelay: (i * 0.05) + 's',
                         opacity: 0.1 + (i * 0.05)
                     }"></div>
+                </div>
+
+                <div v-if="theoryName.includes('Information Theory')" class="bit-stream">
+                    {{ bitData }}
                 </div>
 
                 <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
@@ -356,6 +396,15 @@
                         x: centerX + Math.sin(t + Math.PI) * 100,
                         y: centerY + (i - 50) * 8,
                         dna: 'B'
+                    });
+                }
+            } else if (mode === 'info') {
+                for(let i=0; i<50; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        val: Math.random() > 0.5 ? '1' : '0',
+                        speed: Math.random() * 2 + 1
                     });
                 }
             } else {
@@ -427,6 +476,16 @@
                         ctx.fill();
                     }
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'info') {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.font = '10px monospace';
+                    ctx.fillStyle = 'rgba(0, 242, 255, 0.5)';
+                    points.forEach(p => {
+                        ctx.fillText(p.val, p.x, p.y);
+                        p.y += p.speed;
+                        if (p.y > canvas.height) p.y = 0;
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else {
                     if (currentIdx < points.length - 1) {
                         ctx.beginPath();
@@ -451,8 +510,21 @@
                 const theoryName = ref('');
                 const scanTime = ref('');
                 const isObserving = ref(false);
+                const bitData = ref('');
 
                 const theories = [
+                    {
+                        name: "信息论：香农熵与信道容量 (Information Theory)",
+                        mode: 'info',
+                        generate: (n) => {
+                            const outcomes = [
+                                "你当前的信息熵（Entropy）正在急剧下降。这意味着原本混乱的局势正在走向高度确定性，一个清晰的信号即将从噪声中脱颖而出。",
+                                "观测到你与『机遇』信道的信噪比（SNR）大幅提升。丢包率降至零，此时发出的任何努力都将获得100%的有效载荷回报。",
+                                "系统提示：由于你近期的决策冗余度（Redundancy）降低，你的生命算法已实现哈夫曼编码级的最优压缩，效率将迎来指数级增长。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "弦理论：高维维度纠缠 (String Theory)",
                         mode: 'strings',
@@ -553,6 +625,7 @@
 
                 const observe = () => {
                     isObserving.value = true;
+                    bitData.value = Array.from({length: 40}, () => Math.random() > 0.5 ? '1' : '0').join('');
                     const theoryIndex = Math.floor(Math.random() * theories.length);
                     const theory = theories[theoryIndex];
                     
@@ -566,7 +639,7 @@
                     }, 2000);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData };
             }
         }).mount('#app');
     </script>
