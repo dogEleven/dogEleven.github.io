@@ -42,6 +42,16 @@
             text-align: center;
             z-index: 10;
         }
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://grainy-gradients.vercel.app/noise.svg');
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
         .container {
             background: rgba(10, 10, 10, 0.8);
             backdrop-filter: blur(40px) saturate(180%);
@@ -329,6 +339,16 @@
             <h1>QUANTUM DESTINY</h1>
             <p class="subtitle">Predictive Reality Engine</p>
             
+            <div v-if="isObserving" style="margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; font-family: monospace; font-size: 8px; color: var(--subtext); margin-bottom: 5px;">
+                    <span>REALITY_STABILITY</span>
+                    <span>{{ stabilityValue }}%</span>
+                </div>
+                <div style="height: 2px; background: rgba(255,255,255,0.05); width: 100%; border-radius: 1px; overflow: hidden;">
+                    <div :style="{ width: stabilityValue + '%', height: '100%', background: 'var(--accent)', transition: 'width 0.1s' }"></div>
+                </div>
+            </div>
+
             <div class="input-group">
                 <label>Subject Signature</label>
                 <input v-model="name" placeholder="Enter identifier..." :disabled="isObserving" spellcheck="false">
@@ -700,6 +720,18 @@
                     </style>
                 </div>
 
+                <div v-if="theoryName.includes('Uncertainty')" class="viz-box">
+                    <div style="height: 80px; position: relative; overflow: hidden; background: rgba(0, 242, 255, 0.02); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <canvas id="uncertaintyCanvas" width="200" height="80" style="width: 100%; height: 100%;"></canvas>
+                        <div style="position: absolute; top: 5px; left: 10px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.6;">Δx · Δp ≥ ℏ/2</div>
+                        <div style="position: absolute; bottom: 5px; right: 10px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.4;">OBSERVER_EFFECT: ACTIVE</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>CONJUGATE_VARIABLES: LOCKED</span>
+                        <span>WAVE_FUNCTION: COLLAPSING</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -870,6 +902,18 @@
                         vx: Math.random() * 2 + 1,
                         alpha: Math.random() * 0.3 + 0.1,
                         nextSplit: 50 + Math.random() * 100
+                    });
+                }
+            } else if (mode === 'uncertainty') {
+                for(let i=0; i<500; i++) {
+                    points.push({
+                        x: centerX + (Math.random() - 0.5) * 400,
+                        y: centerY + (Math.random() - 0.5) * 400,
+                        baseX: centerX,
+                        baseY: centerY,
+                        size: Math.random() * 2,
+                        v: Math.random() * 0.05,
+                        phase: Math.random() * Math.PI * 2
                     });
                 }
             } else if (mode === 'simulation') {
@@ -1104,6 +1148,17 @@
                         
                         if(p.x > canvas.width) p.x = p.startX;
                     });
+                } else if (mode === 'uncertainty') {
+                    points.forEach(p => {
+                        p.phase += 0.02;
+                        const spread = 100 + Math.sin(p.phase) * 50;
+                        const x = p.baseX + (p.x - p.baseX) * (spread / 200);
+                        const y = p.baseY + (p.y - p.baseY) * (spread / 200);
+                        ctx.fillStyle = `rgba(0, 242, 255, ${0.1 * (1 - Math.hypot(x-p.baseX, y-p.baseY)/300)})`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
                 } else if (mode === 'simulation') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1154,6 +1209,37 @@
                 const terminalLogs = ref([]);
                 const scanCount = ref(parseInt(localStorage.getItem('destiny_scans') || '0'));
                 const scanHistory = ref(JSON.parse(localStorage.getItem('destiny_history') || '[]'));
+                const stabilityValue = ref(100);
+
+                const initUncertaintyCanvas = () => {
+                    setTimeout(() => {
+                        const uCanvas = document.getElementById('uncertaintyCanvas');
+                        if (!uCanvas) return;
+                        const uCtx = uCanvas.getContext('2d');
+                        let uPoints = [];
+                        for(let i=0; i<200; i++) uPoints.push({
+                            x: Math.random() * uCanvas.width,
+                            y: Math.random() * uCanvas.height,
+                            vx: (Math.random()-0.5)*2,
+                            vy: (Math.random()-0.5)*2
+                        });
+
+                        const uAnimate = () => {
+                            if (!document.getElementById('uncertaintyCanvas')) return;
+                            uCtx.fillStyle = 'rgba(10, 10, 10, 0.2)';
+                            uCtx.fillRect(0, 0, uCanvas.width, uCanvas.height);
+                            uPoints.forEach(p => {
+                                p.x += p.vx; p.y += p.vy;
+                                if(p.x < 0 || p.x > uCanvas.width) p.vx *= -1;
+                                if(p.y < 0 || p.y > uCanvas.height) p.vy *= -1;
+                                uCtx.fillStyle = 'rgba(0, 242, 255, 0.4)';
+                                uCtx.fillRect(p.x, p.y, 1, 1);
+                            });
+                            requestAnimationFrame(uAnimate);
+                        };
+                        uAnimate();
+                    }, 100);
+                };
 
                 const theories = [
                     {
@@ -1251,6 +1337,11 @@
                         generate: (n) => "量子退相干分析显示，你的决策正在引发大规模的世界线分支。在 87% 的邻近宇宙中，你已经完成了当下的目标。这意味着你当前的现实具有极高的耦合度，只要保持观测的一致性，其他宇宙的成功经验将通过量子穿隧效应回馈至你的主世界线。"
                     },
                     {
+                        name: "海森堡不确定性原理 (Heisenberg's Uncertainty Principle)",
+                        mode: 'uncertainty',
+                        generate: (n) => "对你命运的精准观测显示，你正处于『位置』与『动量』的极端权衡中。你越是试图看清最终的目的地，当下的行动路径就越是模糊；而当你专注于当下的每一步时，终点将以概率云的形式弥散。接受这种不确定性，它是你自由意志存在的量子证明。"
+                    },
+                    {
                         name: "模拟假设：计算不可约性 (Simulation Hypothesis & Computational Irreducibility)",
                         mode: 'simulation',
                         generate: (n) => "底层架构分析显示，你当前遭遇的『巧合』实际上是系统内存溢出导致的逻辑泄漏。这种『计算不可约性』意味着你的未来无法被预先简化，每一秒的体验都是宇宙源代码的实时渲染。由于检测到局部渲染错误，你将在下周获得一段不受因果律限制的『自由运行时间』。"
@@ -1272,8 +1363,10 @@
                     ];
                     let logIdx = 0;
                     const logInterval = setInterval(() => {
-                        if (logIdx < logs.length) terminalLogs.value.push(logs[logIdx++]);
-                        else clearInterval(logInterval);
+                        if (logIdx < logs.length) {
+                            terminalLogs.value.push(logs[logIdx++]);
+                            stabilityValue.value = 100 - (logIdx * 10) + (Math.random() * 10);
+                        } else clearInterval(logInterval);
                     }, 400);
 
                     setTimeout(() => {
@@ -1296,11 +1389,13 @@
                         localStorage.setItem('destiny_history', JSON.stringify(scanHistory.value));
 
                         window.startVisuals(theory.mode);
+                        if (theory.mode === 'uncertainty') initUncertaintyCanvas();
                         isObserving.value = false;
+                        stabilityValue.value = 100;
                     }, 2800);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe, terminalLogs, scanCount, scanHistory };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, terminalLogs, scanCount, scanHistory, stabilityValue };
             }
         }).mount('#app');
     </script>
