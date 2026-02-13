@@ -764,6 +764,62 @@
             transition: background-color 0.5s ease;
         }
 
+        /* Godel Incompleteness Visuals */
+        .godel-container {
+            margin-top: 15px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Times New Roman', serif;
+            color: var(--accent);
+        }
+        .godel-symbol {
+            position: absolute;
+            font-size: 20px;
+            opacity: 0.2;
+            animation: godel-float 5s infinite ease-in-out;
+        }
+        @keyframes godel-float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.1; }
+            50% { transform: translate(var(--gx), var(--gy)) rotate(180deg); opacity: 0.4; }
+        }
+        .logical-paradox {
+            position: relative;
+            z-index: 2;
+            border: 1px solid var(--accent);
+            padding: 10px;
+            background: rgba(0, 242, 255, 0.05);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        /* Neural Progress Bar */
+        .neural-progress-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin: 15px 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .neural-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            background-size: 200% 100%;
+            animation: neural-flow 2s infinite linear;
+            width: 100%;
+        }
+        @keyframes neural-flow {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -850,6 +906,9 @@
             </button>
 
             <div v-if="isObserving" class="loading" style="margin-top: 20px; font-family: monospace; color: var(--accent);">
+                <div class="neural-progress-container">
+                    <div class="neural-progress-fill"></div>
+                </div>
                 [ ANALYZING DATASTREAM ]
                 <div style="height: 30px; margin: 10px 0; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                     <svg width="200" height="20">
@@ -1026,6 +1085,20 @@
                         <div class="symmetry-ball" :style="{ transform: symmetryBroken ? 'translate(25px, 0)' : 'translate(0, 0)' }"></div>
                     </div>
                     <div style="position: absolute; bottom: 5px; font-size: 8px; color: var(--accent); font-family: monospace;">V(φ) = -μ²φ² + λφ⁴</div>
+                </div>
+
+                <div v-if="theoryName.includes('Gödel')" class="godel-container">
+                    <div v-for="i in 10" :key="i" class="godel-symbol" :style="{
+                        left: Math.random() * 90 + '%',
+                        top: Math.random() * 90 + '%',
+                        '--gx': (Math.random() * 40 - 20) + 'px',
+                        '--gy': (Math.random() * 40 - 20) + 'px',
+                        animationDelay: Math.random() * 5 + 's'
+                    }">{{ ['∀', '∃', '¬', '⇒', '≡', 'G', '⊦', '⊬'][i % 8] }}</div>
+                    <div class="logical-paradox">
+                        "THIS STATEMENT IS UNPROVABLE"<br>
+                        <span style="font-size: 8px; opacity: 0.6;">Systemic Inconsistency Detected</span>
+                    </div>
                 </div>
 
                 <div v-if="theoryName.includes('Cosmic Microwave')" class="cmb-container">
@@ -1246,6 +1319,16 @@
                         y: Math.random() * canvas.height,
                         vx: Math.random() * 2 + 2,
                         hasTunneled: false
+                    });
+                }
+            } else if (mode === 'godel') {
+                for(let i=0; i<50; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 1,
+                        vy: (Math.random() - 0.5) * 1,
+                        text: ['P(x)', 'Q(y)', 'G', '0=0', '¬'][Math.floor(Math.random() * 5)]
                     });
                 }
             } else if (mode === 'zeno') {
@@ -1548,6 +1631,20 @@
                         ctx.fillRect(p.x, p.y, canvas.width/20, canvas.height/10);
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'godel') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.font = '12px serif';
+                    points.forEach(p => {
+                        ctx.fillStyle = `rgba(0, 242, 255, ${Math.random()})`;
+                        ctx.fillText(p.text, p.x, p.y);
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                        if(Math.random() > 0.99) p.text = ['P', 'Q', 'G', '0=1', '¬'][Math.floor(Math.random() * 5)];
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'zeno') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1631,6 +1728,18 @@
                 const cmbPixels = ref([]);
 
                 const theories = [
+                    {
+                        name: "哥德尔不完备定理：逻辑尽头的不可知未来 (Gödel's Incompleteness)",
+                        mode: 'godel',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你的命运系统包含一个『不可判定』命题。这意味着你的某项重大突破无法通过现有的逻辑推导出来，它必须通过一次非线性的、超越逻辑的『直觉跳跃』来实现。真理就在系统之外。",
+                                "由于自指逻辑的介入，你当前的职业瓶颈已被识别为『不可证明的正命题』。你无法在当前的规则框架内证明其可行性，唯有通过重构底层的公理体系（转行或彻底转型）才能获得逻辑闭环。",
+                                "系统检测到逻辑一致性与完备性的冲突。为了维持人生的连贯性，宇宙为你保留了一部分不可知的留白。这并非算力不足，而是对你自由意志的数学保障——有些成功，注定无法被预演。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "宇宙微波背景：大爆炸的余温与命运基调 (Cosmic Microwave Background)",
                         mode: 'cmb',
