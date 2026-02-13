@@ -157,8 +157,10 @@
                                 <template v-else>
                                     <div class="title-container" @click="startEdit(issue)">
                                         <div class="title">{{ issue.title }}</div>
-                                        <div class="issue-meta" :style="{ opacity: getMetaOpacity(issue) }">
-                                            {{ formatDate(issue.created_at) }} · {{ formatDate(issue.updated_at) }}
+                                        <div class="issue-meta">
+                                            <span :style="{ opacity: getMetaOpacity(issue.created_at) }">{{ formatDate(issue.created_at) }}</span>
+                                            <span style="margin: 0 4px; opacity: 0.3;">·</span>
+                                            <span :style="{ opacity: getMetaOpacity(issue.updated_at) }">{{ formatDate(issue.updated_at) }}</span>
                                         </div>
                                     </div>
                                 </template>
@@ -209,10 +211,10 @@
                     return date.toLocaleDateString('zh-CN', { year: '2-digit', month: 'numeric', day: 'numeric' });
                 };
 
-                const getMetaOpacity = (issue) => {
-                    const updated = new Date(issue.updated_at).getTime();
+                const getMetaOpacity = (isoString) => {
+                    const time = new Date(isoString).getTime();
                     const now = new Date().getTime();
-                    const diffMs = now - updated;
+                    const diffMs = now - time;
                     const diffDays = diffMs / (1000 * 60 * 60 * 24);
                     
                     if (diffDays <= 1) return 0.8;
