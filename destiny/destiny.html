@@ -296,7 +296,7 @@
     <div class="telemetry tl">PROB_MATRIX: {{ (Math.random()).toFixed(6) }}</div>
     <div class="telemetry tr">ENTROPY: {{ (Math.random() * 10).toFixed(2) }} J/K</div>
     <div class="telemetry bl">COORD: 31.23°N 121.47°E</div>
-    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.3.0</div>
+    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.4.0</div>
 
     <div id="app">
         <div class="container">
@@ -545,6 +545,35 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Graph Theory')" class="viz-box">
+                    <div style="height: 70px; position: relative; overflow: hidden; background: rgba(0, 242, 255, 0.02); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 70">
+                            <!-- Nodes -->
+                            <circle v-for="i in 12" :key="'node'+i" 
+                                    :cx="20 + Math.random()*160" :cy="10 + Math.random()*50" 
+                                    r="1.5" fill="var(--accent)" opacity="0.6">
+                                <animate attributeName="opacity" values="0.2;0.8;0.2" :dur="2+Math.random()*2+'s'" repeatCount="indefinite" />
+                            </circle>
+                            <!-- Center Hub -->
+                            <circle cx="100" cy="35" r="4" fill="var(--accent)">
+                                <animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite" />
+                            </circle>
+                            <!-- Connections to Hub -->
+                            <line v-for="i in 8" :key="'line'+i"
+                                  x1="100" y1="35" 
+                                  :x2="20 + Math.random()*160" :y2="10 + Math.random()*50"
+                                  stroke="var(--accent)" stroke-width="0.3" opacity="0.3">
+                                <animate attributeName="opacity" values="0.1;0.4;0.1" :dur="1+Math.random()*2+'s'" repeatCount="indefinite" />
+                            </line>
+                        </svg>
+                        <div style="position: absolute; top: 5px; right: 10px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.6;">TOPOLOGY: SCALE-FREE</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>CENTRALITY: 0.92</span>
+                        <span>CLUSTERING_COEFF: 0.74</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -653,6 +682,18 @@
                         targetY: Math.random() * canvas.height,
                         progress: 0,
                         v: Math.random() * 0.02 + 0.005
+                    });
+                }
+            } else if (mode === 'graph') {
+                const nodeCount = 40;
+                for(let i=0; i<nodeCount; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        isHub: i < 3,
+                        size: i < 3 ? 4 : 1.5
                     });
                 }
             } else {
@@ -780,6 +821,33 @@
                         ctx.arc(curX, curY, 1.5, 0, Math.PI * 2);
                         ctx.fill();
                     });
+                } else if (mode === 'graph') {
+                    points.forEach((p, i) => {
+                        p.x += p.vx; p.y += p.vy;
+                        if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                        ctx.fillStyle = p.isHub ? 'rgba(0, 242, 255, 0.8)' : 'rgba(0, 242, 255, 0.3)';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        if (p.isHub) {
+                            points.forEach((other, oi) => {
+                                if (oi !== i) {
+                                    const dist = Math.hypot(p.x - other.x, p.y - other.y);
+                                    if (dist < 150) {
+                                        ctx.strokeStyle = `rgba(0, 242, 255, ${0.1 * (1 - dist/150)})`;
+                                        ctx.lineWidth = 0.5;
+                                        ctx.beginPath();
+                                        ctx.moveTo(p.x, p.y);
+                                        ctx.lineTo(other.x, other.y);
+                                        ctx.stroke();
+                                    }
+                                }
+                            });
+                        }
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -819,6 +887,11 @@
                 const scanCount = ref(parseInt(localStorage.getItem('destiny_scans') || '0'));
 
                 const theories = [
+                    {
+                        name: "图论与网络科学：无标度网络 (Graph Theory & Scale-Free Networks)",
+                        mode: 'graph',
+                        generate: (n) => "拓扑分析显示，你正处于社交引力场的中心节点（Hub）。根据无标度网络法则，『富者愈富』效应即将在你的资源连接中爆发。未来三天内的一次随机握手，可能通过五个中间人连接到你梦想的终点。"
+                    },
                     {
                         name: "遗传算法：演化适性 (Genetic Algorithm & Evolutionary Fate)",
                         mode: 'genetic',
