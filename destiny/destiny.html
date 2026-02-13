@@ -90,6 +90,16 @@
             0% { background-position: 0% center; }
             100% { background-position: 200% center; }
         }
+        @keyframes glitch {
+            0% { transform: translate(0); text-shadow: -2px 0 var(--accent), 2px 0 var(--secondary); }
+            2% { transform: translate(2px, 1px); }
+            4% { transform: translate(-2px, -1px); }
+            6% { transform: translate(0); }
+            100% { transform: translate(0); }
+        }
+        h1:hover {
+            animation: glitch 0.2s infinite linear;
+        }
         p.subtitle {
             color: var(--subtext);
             font-size: 11px;
@@ -357,7 +367,7 @@
     <div class="telemetry tl">PROB_MATRIX: {{ (Math.random()).toFixed(6) }}</div>
     <div class="telemetry tr">ENTROPY: {{ (Math.random() * 10).toFixed(2) }} J/K</div>
     <div class="telemetry bl">COORD: 31.23°N 121.47°E</div>
-    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.6.0</div>
+    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.7.2</div>
 
     <div id="app">
         <div class="container">
@@ -765,6 +775,36 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Holographic')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 100">
+                            <!-- Horizon -->
+                            <circle cx="100" cy="50" r="35" fill="none" stroke="var(--accent)" stroke-width="0.5" stroke-dasharray="4,2" opacity="0.6">
+                                <animate attributeName="r" values="33;37;33" dur="4s" repeatCount="indefinite" />
+                            </circle>
+                            <!-- Projection Center -->
+                            <circle cx="100" cy="50" r="2" fill="var(--accent)">
+                                <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite" />
+                            </circle>
+                            <!-- Information Rays -->
+                            <g v-for="i in 12" :key="i">
+                                <line x1="100" y1="50" :x2="100 + Math.cos(i*Math.PI/6)*45" :y2="50 + Math.sin(i*Math.PI/6)*45" stroke="var(--accent)" stroke-width="0.2" opacity="0.3">
+                                    <animate attributeName="stroke-dasharray" values="0,100;100,0" dur="2s" repeatCount="indefinite" />
+                                </line>
+                                <rect :x="100 + Math.cos(i*Math.PI/6 + 0.3)*35 - 1" :y="50 + Math.sin(i*Math.PI/6 + 0.3)*35 - 1" width="2" height="2" fill="var(--accent)">
+                                    <animate attributeName="opacity" values="0.1;1;0.1" :dur="1+Math.random()+'s'" repeatCount="indefinite" />
+                                </rect>
+                            </g>
+                        </svg>
+                        <div style="position: absolute; font-family: monospace; font-size: 8px; color: var(--accent); top: 10px; right: 15px; opacity: 0.8;">S = Akc³/4Gℏ</div>
+                        <div style="position: absolute; font-family: monospace; font-size: 7px; color: var(--accent); bottom: 10px; left: 15px; opacity: 0.5;">BIT_DENSITY: 10^69/m²</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>ENTROPY_BOUND: BEKENSTEIN-HAWKING</span>
+                        <span>PROJECTION_FIDELITY: 0.999997</span>
+                    </div>
+                </div>
+
                 <div v-if="theoryName.includes('Uncertainty')" class="viz-box">
                     <div style="height: 80px; position: relative; overflow: hidden; background: rgba(0, 242, 255, 0.02); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <canvas id="uncertaintyCanvas" width="200" height="80" style="width: 100%; height: 100%;"></canvas>
@@ -982,6 +1022,17 @@
                         vx: (Math.random() - 0.5) * 0.5,
                         vy: (Math.random() - 0.5) * 0.5,
                         opacity: Math.random() * 0.1
+                    });
+                }
+            } else if (mode === 'holographic') {
+                for(let i=0; i<15; i++) {
+                    points.push({
+                        x: centerX,
+                        y: centerY,
+                        r: 50 + i * 25,
+                        angle: Math.random() * Math.PI * 2,
+                        v: 0.005 + (15-i) * 0.001,
+                        opacity: 0.4 - i * 0.02
                     });
                 }
             } else {
@@ -1250,6 +1301,33 @@
                             ctx.stroke();
                         }
                     });
+                } else if (mode === 'holographic') {
+                    points.forEach((p, i) => {
+                        p.angle += p.v;
+                        ctx.strokeStyle = `rgba(0, 242, 255, ${p.opacity})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.stroke();
+                        
+                        // "Information" bits on the ring
+                        for(let j=0; j<6; j++) {
+                            const bitAngle = p.angle + (j * Math.PI / 3);
+                            const bx = p.x + Math.cos(bitAngle) * p.r;
+                            const by = p.y + Math.sin(bitAngle) * p.r;
+                            ctx.fillStyle = `rgba(0, 242, 255, ${p.opacity * 2})`;
+                            ctx.fillRect(bx - 1, by - 1, 2, 2);
+                            
+                            // Projection lines to center
+                            if (i === 0) {
+                                ctx.strokeStyle = `rgba(0, 242, 255, ${p.opacity * 0.5})`;
+                                ctx.beginPath();
+                                ctx.moveTo(p.x, p.y);
+                                ctx.lineTo(bx, by);
+                                ctx.stroke();
+                            }
+                        }
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1429,6 +1507,11 @@
                         name: "板块构造论：能量蓄积与突变 (Plate Tectonics: Stress & Seismic Shift)",
                         mode: 'tectonic',
                         generate: (n) => "你的生活板块正处于长期的『静力蓄积』阶段。就像地壳板块的俯冲带，虽然表面平静，但底层的势能已经接近临界点（Critical Stress）。探测显示，一场改变人生地貌的『震级突变』将在本月发生，请做好迎接全新地形的准备。"
+                    },
+                    {
+                        name: "全息原理：视界信息投影 (The Holographic Principle: Event Horizon Projection)",
+                        mode: 'holographic',
+                        generate: (n) => "根据全息原理，你的三维人生实际上是存储在二维视界上的信息投影。当前的挑战只是『像素点』的局部重排，并不改变你底层信息的守恒。即使在看似绝望的『黑洞』中心，你的核心价值依然通过霍金辐射向全宇宙广播。"
                     }
                 ];
 
