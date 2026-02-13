@@ -879,6 +879,69 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Superconductivity')" class="viz-box">
+                    <div style="height: 80px; position: relative; overflow: hidden; background: rgba(0, 242, 255, 0.03); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <div class="lattice-container">
+                            <div v-for="i in 24" :key="'ion'+i" class="lattice-ion"></div>
+                            <div v-for="i in 8" :key="'electron'+i" class="cooper-pair"></div>
+                        </div>
+                        <div style="position: absolute; top: 10px; left: 15px; font-family: monospace; font-size: 8px; color: var(--accent); opacity: 0.8;">T < T_c : PHASE_TRANSITION</div>
+                        <div style="position: absolute; bottom: 10px; right: 15px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.5;">RESISTANCE: 0.000 Ω</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>CRITICAL_TEMP: 77K</span>
+                        <span>MEISSNER_EFFECT: ACTIVE</span>
+                    </div>
+                    <style>
+                        .lattice-container {
+                            display: grid;
+                            grid-template-columns: repeat(6, 1fr);
+                            gap: 15px;
+                            width: 100%;
+                            padding: 10px;
+                        }
+                        .lattice-ion {
+                            width: 4px;
+                            height: 4px;
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 50%;
+                            animation: lattice-vibe 2s infinite ease-in-out;
+                        }
+                        @keyframes lattice-vibe {
+                            0%, 100% { transform: scale(1); opacity: 0.1; }
+                            50% { transform: scale(1.5); opacity: 0.3; }
+                        }
+                        .cooper-pair {
+                            position: absolute;
+                            width: 6px;
+                            height: 2px;
+                            background: var(--accent);
+                            box-shadow: 0 0 10px var(--accent);
+                            border-radius: 1px;
+                            animation: cooper-flow 3s infinite linear;
+                        }
+                        @keyframes cooper-flow {
+                            0% { left: -10%; top: 20%; opacity: 0; }
+                            10% { opacity: 1; }
+                            90% { opacity: 1; }
+                            100% { left: 110%; top: 80%; opacity: 0; }
+                        }
+                        .cooper-pair:nth-child(even) { animation-duration: 4s; animation-delay: -1.5s; }
+                        .cooper-pair:nth-child(3n) { animation-duration: 2.5s; animation-delay: -0.5s; }
+                    </style>
+                </div>
+
+                <div v-if="theoryName.includes('Neuroplasticity')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border-radius: 12px;">
+                        <canvas id="neuroCanvas" width="200" height="100" style="width: 100%; height: 100%;"></canvas>
+                        <div style="position: absolute; top: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); opacity: 0.6;">HEBBIAN_LEARNING: ON</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>SYNAPTIC_WEIGHT: Σ w_i > θ</span>
+                        <span>LONG-TERM_POTENTIATION: ACTIVE</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -1115,6 +1178,26 @@
                         dist: Math.random() * 200,
                         v: 0.01 + Math.random() * 0.02,
                         size: Math.random() * 2
+                    });
+                }
+            } else if (mode === 'superconduct') {
+                for(let i=0; i<100; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: 2 + Math.random() * 5,
+                        vy: 0,
+                        s: 1
+                    });
+                }
+            } else if (mode === 'neuro') {
+                for(let i=0; i<60; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        s: Math.random() * 2
                     });
                 }
             } else {
@@ -1429,6 +1512,42 @@
                             ctx.stroke();
                         }
                     });
+                } else if (mode === 'superconduct') {
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        if(p.x > canvas.width) p.x = -10;
+                        ctx.fillStyle = 'rgba(0, 242, 255, 0.4)';
+                        ctx.fillRect(p.x, p.y, 10, 1);
+                        if(Math.random() > 0.99) {
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = 'var(--accent)';
+                            ctx.fillRect(p.x, p.y, 20, 2);
+                            ctx.shadowBlur = 0;
+                        }
+                    });
+                } else if (mode === 'neuro') {
+                    points.forEach((p, i) => {
+                        p.x += p.vx; p.y += p.vy;
+                        if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                        ctx.fillStyle = 'rgba(0, 242, 255, 0.3)';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        points.forEach((other, j) => {
+                            if (i < j) {
+                                const dist = Math.hypot(p.x - other.x, p.y - other.y);
+                                if (dist < 100) {
+                                    ctx.strokeStyle = `rgba(0, 242, 255, ${0.1 * (1 - dist/100)})`;
+                                    ctx.beginPath();
+                                    ctx.moveTo(p.x, p.y);
+                                    ctx.lineTo(other.x, other.y);
+                                    ctx.stroke();
+                                }
+                            }
+                        });
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1587,6 +1706,58 @@
                     }, 100);
                 };
 
+                const initNeuroCanvas = () => {
+                    setTimeout(() => {
+                        const nCanvas = document.getElementById('neuroCanvas');
+                        if (!nCanvas) return;
+                        const nCtx = nCanvas.getContext('2d');
+                        let nodes = [];
+                        for(let i=0; i<30; i++) nodes.push({
+                            x: Math.random() * nCanvas.width,
+                            y: Math.random() * nCanvas.height,
+                            vx: (Math.random()-0.5)*0.5,
+                            vy: (Math.random()-0.5)*0.5,
+                            pulse: Math.random() * Math.PI * 2
+                        });
+
+                        const nAnimate = () => {
+                            if (!document.getElementById('neuroCanvas')) return;
+                            nCtx.fillStyle = 'rgba(10, 10, 10, 0.3)';
+                            nCtx.fillRect(0, 0, nCanvas.width, nCanvas.height);
+                            
+                            nodes.forEach((n, i) => {
+                                n.x += n.vx; n.y += n.vy;
+                                if(n.x < 0 || n.x > nCanvas.width) n.vx *= -1;
+                                if(n.y < 0 || n.y > nCanvas.height) n.vy *= -1;
+                                
+                                n.pulse += 0.05;
+                                const p = (Math.sin(n.pulse) + 1) / 2;
+                                
+                                nodes.forEach((other, j) => {
+                                    if (i < j) {
+                                        const dist = Math.hypot(n.x - other.x, n.y - other.y);
+                                        if (dist < 60) {
+                                            nCtx.strokeStyle = `rgba(0, 242, 255, ${0.2 * (1 - dist/60) * p})`;
+                                            nCtx.lineWidth = 0.5;
+                                            nCtx.beginPath();
+                                            nCtx.moveTo(n.x, n.y);
+                                            nCtx.lineTo(other.x, other.y);
+                                            nCtx.stroke();
+                                        }
+                                    }
+                                });
+                                
+                                nCtx.fillStyle = `rgba(0, 242, 255, ${0.3 + p * 0.7})`;
+                                nCtx.beginPath();
+                                nCtx.arc(n.x, n.y, 1.5, 0, Math.PI * 2);
+                                nCtx.fill();
+                            });
+                            requestAnimationFrame(nAnimate);
+                        };
+                        nAnimate();
+                    }, 100);
+                };
+
                 const theories = [
                     {
                         name: "分形几何：自相似性 (Fractal Geometry: Self-Similarity)",
@@ -1708,6 +1879,16 @@
                         generate: (n) => "你的生活板块正处于长期的『静力蓄积』阶段。就像地壳板块的俯冲带，虽然表面平静，但底层的势能已经接近临界点（Critical Stress）。探测显示，一场改变人生地貌的『震级突变』将在本月发生，请做好迎接全新地形的准备。"
                     },
                     {
+                        name: "超导现象：零阻力命运 (Superconductivity: Zero-Resistance Fate)",
+                        mode: 'superconduct',
+                        generate: (n) => "检测到你正进入『超导态』——即心理阻力与外部摩擦系数同时趋于零的特殊阶段。就像在库珀对（Cooper Pairs）中穿行的电子，你的努力将不再产生热损耗，任何微小的初始动能都将转化为永恒的惯性流。这是实现飞跃的最佳窗口。"
+                    },
+                    {
+                        name: "神经可塑性：海布法则 (Neuroplasticity: Hebbian Learning)",
+                        mode: 'neuro',
+                        generate: (n) => "『共同激发的神经元会连在一起』。观测显示你的认知结构正在发生深度重组，旧有的思维势垒正在坍塌，取而代之的是更加高效的突触连接。通过有意识的强化，你正在物理上重塑自己的命运引擎。"
+                    },
+                    {
                         name: "全息原理：视界信息投影 (The Holographic Principle: Event Horizon Projection)",
                         mode: 'holographic',
                         generate: (n) => "根据全息原理，你的三维人生实际上是存储在二维视界上的信息投影。当前的挑战只是『像素点』的局部重排，并不改变你底层信息的守恒。即使在看似绝望的『黑洞』中心，你的核心价值依然通过霍金辐射向全宇宙广播。"
@@ -1758,6 +1939,7 @@
                         if (theory.mode === 'uncertainty') initUncertaintyCanvas();
                         if (theory.mode === 'boltzmann') initBoltzmannCanvas();
                         if (theory.mode === 'fractal') initFractalCanvas();
+                        if (theory.mode === 'neuro') initNeuroCanvas();
                         isObserving.value = false;
                         stabilityValue.value = 100;
                     }, 2800);
