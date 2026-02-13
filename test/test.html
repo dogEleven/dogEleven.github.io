@@ -54,6 +54,9 @@
         .text-HellDrop { color: #ff3b30; }
         .text-Zhutousan { color: #ff9500; }
         .text-Other { color: #8e8e93; }
+
+        .edit-input { flex-grow: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; font-size: 13px; background: white; margin: -4px 0; }
+        .edit-actions { display: flex; gap: 8px; margin-left: 8px; font-size: 14px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -97,7 +100,16 @@
                         <div v-for="issue in groupIssues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
                             <div class="checkbox" @click="toggleIssue(issue)"></div>
                             <div class="content">
-                                <div class="title">{{ issue.title }}</div>
+                                <template v-if="editingIssueId === issue.id">
+                                    <input v-model="editingTitle" @keyup.enter="saveEdit(issue)" @keyup.esc="cancelEdit" class="edit-input" ref="editInput">
+                                    <div class="edit-actions">
+                                        <span @click="saveEdit(issue)">✅</span>
+                                        <span @click="cancelEdit">❌</span>
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    <div class="title" @click="startEdit(issue)">{{ issue.title }}</div>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -107,7 +119,7 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted, computed } = Vue;
+        const { createApp, ref, onMounted, computed, nextTick } = Vue;
         const REPO = "dogEleven/tofutodo";
 
         createApp({
@@ -118,6 +130,9 @@
                 const loading = ref(false);
                 const newTask = ref('');
                 const newLabel = ref('Work');
+                const editingIssueId = ref(null);
+                const editingTitle = ref('');
+                const editInput = ref(null);
 
                 const api = axios.create({
                     baseURL: `https://api.github.com/repos/${REPO}`,
@@ -141,12 +156,6 @@
                         if (!placed) groups['Other'].push(issue);
                     });
                     
-                    // Filter out empty groups if you want, or keep specific order
-                    // const result = {};
-                    // for (const key in groups) {
-                    //    if (groups[key].length > 0) result[key] = groups[key];
-                    // }
-                    // return result;
                     return groups;
                 });
 
@@ -214,6 +223,40 @@
                     }
                 };
 
+                const startEdit = (issue) => {
+                    if (issue.state === 'closed') return;
+                    editingIssueId.value = issue.id;
+                    editingTitle.value = issue.title;
+                    nextTick(() => {
+                        if (editInput.value && editInput.value[0]) {
+                            editInput.value[0].focus();
+                        }
+                    });
+                };
+
+                const cancelEdit = () => {
+                    editingIssueId.value = null;
+                    editingTitle.value = '';
+                };
+
+                const saveEdit = async (issue) => {
+                    if (!editingTitle.value || editingTitle.value === issue.title) {
+                        cancelEdit();
+                        return;
+                    }
+                    const oldTitle = issue.title;
+                    issue.title = editingTitle.value;
+                    try {
+                        await api.patch(`/issues/${issue.number}`, { title: editingTitle.value }, {
+                            headers: { 'Authorization': `token ${token.value}` }
+                        });
+                        cancelEdit();
+                    } catch (e) {
+                        alert('Update title failed');
+                        issue.title = oldTitle;
+                    }
+                };
+
                 onMounted(() => {
                     if (token.value) fetchIssues();
                     
@@ -225,7 +268,11 @@
                     });
                 });
 
-                return { token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask, groupedIssues };
+                return { 
+                    token, inputToken, saveToken, logout, issues, loading, toggleIssue, 
+                    newTask, newLabel, addTask, groupedIssues,
+                    editingIssueId, editingTitle, startEdit, cancelEdit, saveEdit, editInput
+                };
             }
         }).mount('#app');
     </script>
