@@ -207,6 +207,38 @@
             border: 1px solid rgba(255, 255, 255, 0.03);
             position: relative;
         }
+
+        /* Tectonic Theory Visual */
+        .tectonic-map {
+            height: 80px;
+            background: rgba(139, 69, 19, 0.05);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .plate {
+            position: absolute;
+            height: 100%;
+            width: 60%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.2));
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        .plate-left { left: -10%; transform: skewX(-20deg); animation: driftLeft 10s infinite alternate ease-in-out; }
+        .plate-right { right: -10%; transform: skewX(-20deg); animation: driftRight 10s infinite alternate ease-in-out; }
+        .fault-line {
+            position: absolute;
+            width: 2px;
+            height: 150%;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            opacity: 0.5;
+            transform: rotate(20deg);
+        }
+        @keyframes driftLeft { from { left: -15%; } to { left: -5%; } }
+        @keyframes driftRight { from { right: -15%; } to { right: -5%; } }
         
         /* Genetic Algorithm Visual */
         .gene-pool {
@@ -720,6 +752,19 @@
                     </style>
                 </div>
 
+                <div v-if="theoryName.includes('Tectonic')" class="viz-box">
+                    <div class="tectonic-map">
+                        <div class="plate plate-left"></div>
+                        <div class="plate plate-right"></div>
+                        <div class="fault-line"></div>
+                        <div style="position: absolute; bottom: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px;">Stress_Accumulation: 88%</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>SUBDUCTION_ZONE: ACTIVE</span>
+                        <span>MAGNITUDE_POTENTIAL: 7.2 Mw</span>
+                    </div>
+                </div>
+
                 <div v-if="theoryName.includes('Uncertainty')" class="viz-box">
                     <div style="height: 80px; position: relative; overflow: hidden; background: rgba(0, 242, 255, 0.02); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <canvas id="uncertaintyCanvas" width="200" height="80" style="width: 100%; height: 100%;"></canvas>
@@ -926,6 +971,17 @@
                         vx: (Math.random() - 0.5) * 10,
                         life: Math.random(),
                         color: Math.random() > 0.8 ? 'rgba(0, 242, 255, 0.4)' : 'rgba(0, 255, 0, 0.2)'
+                    });
+                }
+            } else if (mode === 'tectonic') {
+                for(let i=0; i<20; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 100 + 50,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        opacity: Math.random() * 0.1
                     });
                 }
             } else {
@@ -1171,6 +1227,29 @@
                             ctx.fillRect(p.x, p.y - 10, p.w / 2, 20);
                         }
                     });
+                } else if (mode === 'tectonic') {
+                    points.forEach(p => {
+                        p.x += p.vx; p.y += p.vy;
+                        if(p.x < -p.size) p.x = canvas.width;
+                        if(p.x > canvas.width) p.x = -p.size;
+                        if(p.y < -p.size) p.y = canvas.height;
+                        if(p.y > canvas.height) p.y = -p.size;
+                        
+                        ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+                        ctx.beginPath();
+                        ctx.rect(p.x, p.y, p.size, p.size);
+                        ctx.fill();
+                        
+                        // Stress lines
+                        if(Math.random() > 0.99) {
+                            ctx.strokeStyle = 'var(--accent)';
+                            ctx.lineWidth = 0.5;
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p.x + p.size, p.y + p.size);
+                            ctx.stroke();
+                        }
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1345,6 +1424,11 @@
                         name: "模拟假设：计算不可约性 (Simulation Hypothesis & Computational Irreducibility)",
                         mode: 'simulation',
                         generate: (n) => "底层架构分析显示，你当前遭遇的『巧合』实际上是系统内存溢出导致的逻辑泄漏。这种『计算不可约性』意味着你的未来无法被预先简化，每一秒的体验都是宇宙源代码的实时渲染。由于检测到局部渲染错误，你将在下周获得一段不受因果律限制的『自由运行时间』。"
+                    },
+                    {
+                        name: "板块构造论：能量蓄积与突变 (Plate Tectonics: Stress & Seismic Shift)",
+                        mode: 'tectonic',
+                        generate: (n) => "你的生活板块正处于长期的『静力蓄积』阶段。就像地壳板块的俯冲带，虽然表面平静，但底层的势能已经接近临界点（Critical Stress）。探测显示，一场改变人生地貌的『震级突变』将在本月发生，请做好迎接全新地形的准备。"
                     }
                 ];
 
