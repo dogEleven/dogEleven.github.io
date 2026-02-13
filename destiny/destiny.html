@@ -103,43 +103,24 @@
             padding-top: 20px;
             border-top: 1px solid #333;
             animation: fadeIn 0.5s ease-out;
+            position: relative;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .theory-tag {
-            font-size: 10px;
-            background: rgba(0, 242, 255, 0.1);
-            padding: 2px 8px;
-            border-radius: 4px;
-            color: var(--accent);
-            display: inline-block;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .fortune-text {
-            font-size: 18px;
-            line-height: 1.6;
-            font-weight: 300;
-        }
-        /* Chaos Theory Visualizer */
-        .chaos-container {
-            position: fixed;
+        /* Scanning Animation */
+        .scanning-bar {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
-            z-index: -1;
-            pointer-events: none;
-            opacity: 0.4;
+            height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            animation: scan 1.5s infinite linear;
+            z-index: 10;
         }
-        /* Quantum Glow Animation */
-        @keyframes pulse-glow {
-            0% { box-shadow: 0 0 20px rgba(0, 242, 255, 0.05); }
-            50% { box-shadow: 0 0 40px rgba(0, 242, 255, 0.15); }
-            100% { box-shadow: 0 0 20px rgba(0, 242, 255, 0.05); }
+        @keyframes scan {
+            0% { top: 0; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
         }
         .container {
             background: var(--card-bg);
@@ -148,13 +129,26 @@
             box-shadow: 0 0 40px rgba(0, 242, 255, 0.05);
             border: 1px solid rgba(0, 242, 255, 0.1);
             animation: pulse-glow 4s infinite ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+        /* Spacetime Warp Effect */
+        .warp-active {
+            animation: warp-shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes warp-shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0) scale(1.01); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
     </style>
 </head>
 <body>
     <canvas id="chaosCanvas" class="chaos-container"></canvas>
     <div id="app">
-        <div class="container">
+        <div class="container" :class="{ 'warp-active': isObserving }">
+            <div v-if="isObserving" class="scanning-bar"></div>
             <h1>DESTINY COLLAPSE</h1>
             <p class="subtitle">基于科学理论的跨维度观测站</p>
             
@@ -167,8 +161,8 @@
                 {{ isObserving ? '正在计算概率幅...' : '启动观测程序' }}
             </button>
 
-            <div v-if="isObserving" class="loading">
-                [ SCANNING DIMENSIONS ]
+            <div v-if="isObserving" class="loading" style="margin-top: 20px; font-family: monospace; color: var(--accent);">
+                [ ANALYZING SPACETIME CURVATURE ]
             </div>
 
             <div v-if="fortune && !isObserving" class="result">
@@ -195,18 +189,34 @@
         window.addEventListener('resize', initCanvas);
         initCanvas();
 
-        window.startChaos = () => {
+        window.startChaos = (isRelativity) => {
             points = [];
             let x = 0.1, y = 0, z = 0;
             const a = 10, b = 28, c = 8/3;
             const dt = 0.01;
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
 
-            for(let i=0; i<500; i++) {
-                let dx = a * (y - x) * dt;
-                let dy = (x * (b - z) - y) * dt;
-                let dz = (x * y - c * z) * dt;
-                x += dx; y += dy; z += dz;
-                points.push({x: x * 15 + canvas.width/2, y: y * 15 + canvas.height/2});
+            if (isRelativity) {
+                // Circular warp visualization for General Relativity
+                for(let i=0; i<200; i++) {
+                    const angle = (i / 200) * Math.PI * 2 * 5;
+                    const radius = i * 2;
+                    points.push({
+                        x: centerX + Math.cos(angle) * radius,
+                        y: centerY + Math.sin(angle) * radius
+                    });
+                }
+            } else {
+                // Lorenz Attractor
+                for(let i=0; i<600; i++) {
+                    let dx = a * (y - x) * dt;
+                    let dy = (x * (b - z) - y) * dt;
+                    let dz = (x * y - c * z) * dt;
+                    x += dx; y += dy; z += dz;
+                    points.push({x: x * 15 + centerX, y: y * 15 + centerY});
+                }
             }
             
             let currentIdx = 0;
@@ -216,12 +226,12 @@
             function animate() {
                 if (currentIdx < points.length - 1) {
                     ctx.beginPath();
-                    ctx.strokeStyle = '#00f2ff';
-                    ctx.lineWidth = 0.5;
+                    ctx.strokeStyle = isRelativity ? '#ff3e3e' : '#00f2ff';
+                    ctx.lineWidth = isRelativity ? 1 : 0.5;
                     ctx.moveTo(points[currentIdx].x, points[currentIdx].y);
                     ctx.lineTo(points[currentIdx+1].x, points[currentIdx+1].y);
                     ctx.stroke();
-                    currentIdx++;
+                    currentIdx += isRelativity ? 2 : 1;
                     animationId = requestAnimationFrame(animate);
                 }
             }
@@ -238,6 +248,17 @@
                 const isObserving = ref(false);
 
                 const theories = [
+                    {
+                        name: "广义相对论：引力时间膨胀 (General Relativity)",
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你周围的引力场发生局部扭曲，你的主观时间正在加速，这意味着你将在更短的时间内完成他人需要数月的工作。",
+                                "由于你近期的思维活跃度引发了引力红移，你的事业机遇正向着可见光谱的高能端漂移。",
+                                "你在决策时表现出的质量密度过大，导致周围的时间流逝变慢。建议在接下来的一周保持耐心，好运在膨胀的时空中酝酿。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "混沌理论与蝴蝶效应 (Chaos Theory)",
                         generate: (n) => {
@@ -286,19 +307,25 @@
 
                 const observe = () => {
                     isObserving.value = true;
-                    if (window.startChaos) window.startChaos();
+                    const theoryIndex = Math.floor(Math.random() * theories.length);
+                    const theory = theories[theoryIndex];
+                    
+                    // Specific visual for Relativity
+                    if (window.startChaos) window.startChaos(theory.name.includes("Relativity"));
+                    
                     setTimeout(() => {
-                        const theory = theories[Math.floor(Math.random() * theories.length)];
                         theoryName.value = theory.name;
                         fortune.value = theory.generate(name.value);
                         scanTime.value = new Date().toLocaleTimeString();
                         isObserving.value = false;
-                    }, 1500);
+                    }, 2000);
                 };
 
                 return { name, fortune, theoryName, scanTime, isObserving, observe };
             }
         }).mount('#app');
     </script>
+</body>
+</html>
 </body>
 </html>
