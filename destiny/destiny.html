@@ -471,6 +471,32 @@
                 <div class="fortune-text">{{ fortune }}</div>
                 
                 <!-- Visual Modules -->
+                <div v-if="theoryName.includes('Grand Unified')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 100">
+                            <!-- Field Lines -->
+                            <path v-for="i in 8" :key="'f'+i"
+                                  :d="`M 100 50 Q ${100 + Math.cos(i*Math.PI/4)*60} ${50 + Math.sin(i*Math.PI/4)*60} ${100 + Math.cos(i*Math.PI/4)*120} ${50 + Math.sin(i*Math.PI/4)*120}`"
+                                  fill="none" stroke="var(--accent)" stroke-width="0.3" opacity="0.2">
+                                <animate attributeName="opacity" values="0.1;0.4;0.1" :dur="1+Math.random()*2+'s'" repeatCount="indefinite" />
+                            </path>
+                            <!-- Potential Well (Mexican Hat) -->
+                            <path d="M 40 80 Q 70 20 100 50 T 160 80" fill="none" stroke="var(--accent)" stroke-width="0.5" opacity="0.5" />
+                            <!-- Rolling Ball (Symmetry Breaking) -->
+                            <circle r="4" fill="var(--accent)">
+                                <animateMotion dur="3s" repeatCount="indefinite" path="M 100 50 Q 130 65 160 80" />
+                                <animate attributeName="opacity" values="1;0.5;1" dur="1.5s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="100" cy="50" r="2" fill="none" stroke="var(--accent)" stroke-width="0.5" stroke-dasharray="2,2" />
+                        </svg>
+                        <div style="position: absolute; top: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); opacity: 0.8;">V(φ) = λ(φ²-v²)²</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>SYMMETRY_STATE: BROKEN</span>
+                        <span>HIGGS_FIELD: COUPLING_ACTIVE</span>
+                    </div>
+                </div>
+
                 <div v-if="theoryName.includes('Genetic')" class="viz-box">
                     <div class="gene-pool">
                         <div v-for="i in 5" :key="i" class="gene-strand">
@@ -1146,6 +1172,19 @@
                         size: i < 3 ? 4 : 1.5
                     });
                 }
+            } else if (mode === 'gut') {
+                for(let i=0; i<80; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    points.push({
+                        x: centerX,
+                        y: centerY,
+                        targetX: centerX + Math.cos(angle) * (Math.random() * 400 + 100),
+                        targetY: centerY + Math.sin(angle) * (Math.random() * 400 + 100),
+                        v: 0.005 + Math.random() * 0.01,
+                        p: 0,
+                        size: Math.random() * 2 + 1
+                    });
+                }
             } else if (mode === 'orbital') {
                 for(let i=0; i<3; i++) {
                     points.push({
@@ -1436,6 +1475,17 @@
                                 }
                             });
                         }
+                    });
+                } else if (mode === 'gut') {
+                    points.forEach(p => {
+                        p.p += p.v;
+                        if(p.p > 1) p.p = 0;
+                        const x = p.x + (p.targetX - p.x) * p.p;
+                        const y = p.y + (p.targetY - p.y) * p.p;
+                        ctx.fillStyle = `rgba(0, 242, 255, ${1 - p.p})`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
                     });
                 } else if (mode === 'orbital') {
                     points.forEach((p, i) => {
@@ -1986,6 +2036,11 @@
                             ];
                             return outcomes[n.length % outcomes.length];
                         }
+                    },
+                    {
+                        name: "大统一理论：自对称性破缺 (Grand Unified Theory: Spontaneous Symmetry Breaking)",
+                        mode: 'gut',
+                        generate: (n) => "观测显示你的命运正处于『自对称性破缺』的前夜。正如希格斯场赋予粒子质量，你原本混沌且对称的可能性正通过一个关键的选择赋予现实以『重量』。这种从完美对称到具体现实的跌落，正是你个人宇宙产生实质影响力的开始。"
                     },
                     {
                         name: "黎曼猜想：素数分布 (Riemann Zeta Hypothesis)",
