@@ -988,6 +988,31 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Quantum Electrodynamics')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 100">
+                            <!-- Incoming/Outgoing Particles -->
+                            <line x1="20" y1="20" x2="80" y2="50" stroke="var(--accent)" stroke-width="1.5" />
+                            <line x1="20" y1="80" x2="80" y2="50" stroke="var(--accent)" stroke-width="1.5" />
+                            <line x1="120" y1="50" x2="180" y2="20" stroke="var(--accent)" stroke-width="1.5" />
+                            <line x1="120" y1="50" x2="180" y2="80" stroke="var(--accent)" stroke-width="1.5" />
+                            <!-- Propagator (Wavy line) -->
+                            <path d="M 80 50 C 90 40, 95 60, 105 40, 110 60, 120 50" fill="none" stroke="var(--secondary)" stroke-width="2" stroke-dasharray="2,2">
+                                <animate attributeName="stroke-dashoffset" from="0" to="10" dur="0.5s" repeatCount="indefinite" />
+                            </path>
+                            <!-- Loops (Virtual particles) -->
+                            <circle cx="100" cy="50" r="10" fill="none" stroke="var(--accent)" stroke-width="0.5" opacity="0.4">
+                                <animate attributeName="r" values="8;12;8" dur="1s" repeatCount="indefinite" />
+                            </circle>
+                        </svg>
+                        <div style="position: absolute; top: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); opacity: 0.8;">L = ψ̄(i⧸D - m)ψ - 1/4 FμνFμν</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>COUPLING_CONSTANT: α ≈ 1/137</span>
+                        <span>RENORMALIZATION: COMPLETE</span>
+                    </div>
+                </div>
+
                 <div v-if="theoryName.includes('Neuroplasticity')" class="viz-box">
                     <div style="height: 100px; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border-radius: 12px;">
                         <canvas id="neuroCanvas" width="200" height="100" style="width: 100%; height: 100%;"></canvas>
@@ -1322,6 +1347,17 @@
                         vx: (Math.random() - 0.5) * 0.5,
                         vy: (Math.random() - 0.5) * 0.5,
                         phase: Math.random() * Math.PI * 2
+                    });
+                }
+            } else if (mode === 'qed') {
+                for(let i=0; i<40; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        type: Math.random() > 0.5 ? 'line' : 'wiggle',
+                        angle: Math.random() * Math.PI * 2,
+                        v: Math.random() * 2 + 1,
+                        length: Math.random() * 50 + 20
                     });
                 }
             } else {
@@ -1727,6 +1763,34 @@
                         
                         ctx.strokeStyle = `rgba(0, 242, 255, ${0.1 * (Math.sin(p.phase) + 1)})`;
                         ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    });
+                } else if (mode === 'qed') {
+                    points.forEach(p => {
+                        p.x += Math.cos(p.angle) * p.v;
+                        p.y += Math.sin(p.angle) * p.v;
+                        if(p.x < -p.length) p.x = canvas.width;
+                        if(p.x > canvas.width + p.length) p.x = -p.length;
+                        if(p.y < -p.length) p.y = canvas.height;
+                        if(p.y > canvas.height + p.length) p.y = -p.length;
+
+                        ctx.strokeStyle = p.type === 'line' ? 'rgba(0, 242, 255, 0.2)' : 'rgba(255, 0, 193, 0.2)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        if (p.type === 'line') {
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p.x + Math.cos(p.angle) * p.length, p.y + Math.sin(p.angle) * p.length);
+                        } else {
+                            for(let j=0; j<p.length; j+=5) {
+                                const ox = Math.cos(p.angle) * j;
+                                const oy = Math.sin(p.angle) * j;
+                                const wave = Math.sin(j * 0.2) * 5;
+                                const wx = ox + Math.cos(p.angle + Math.PI/2) * wave;
+                                const wy = oy + Math.sin(p.angle + Math.PI/2) * wave;
+                                if(j === 0) ctx.moveTo(p.x + wx, p.y + wy);
+                                else ctx.lineTo(p.x + wx, p.y + wy);
+                            }
+                        }
                         ctx.stroke();
                     });
                 } else if (mode === 'fluid') {
@@ -2158,6 +2222,11 @@
                         name: "反应扩散系统：形态发生 (Reaction-Diffusion System: Morphogenesis)",
                         mode: 'reaction',
                         generate: (n) => "图灵的反应扩散模型显示，你的生活正处于『形态发生』的关键阶段。通过两种对立力量（激活与抑制）的微妙博弈，原本均匀混沌的现状正在自发形成高度有序的纹理。一个独特的、属于你的命运图景正破茧而出。"
+                    },
+                    {
+                        name: "量子电动力学：费曼路径 (Quantum Electrodynamics: Feynman Path)",
+                        mode: 'qed',
+                        generate: (n) => "观测到你的生命路径正由无数虚粒子的交换构成的费曼图组成。当前的暂时扰动只是一个『二阶修正』，并不改变核心传播子的前进方向。你正经历重整化过程，剔除冗余干扰，精准命中目标。"
                     }
                 ];
 
