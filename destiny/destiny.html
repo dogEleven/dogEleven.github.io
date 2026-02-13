@@ -456,6 +456,40 @@
             box-shadow: 0 0 20px #fff, 0 0 40px var(--accent);
             z-index: 2;
         }
+        /* Thermodynamics Visuals */
+        .thermo-container {
+            margin-top: 15px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--accent);
+            opacity: 0.6;
+            animation: jitter 0.2s infinite ease-in-out;
+        }
+        @keyframes jitter {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(var(--jx), var(--jy)); }
+            100% { transform: translate(0, 0); }
+        }
+        .entropy-label {
+            position: absolute;
+            font-family: monospace;
+            font-size: 10px;
+            color: var(--accent);
+            text-shadow: 0 0 5px var(--bg);
+            z-index: 2;
+        }
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -627,6 +661,18 @@
                     <div style="position: absolute; width: 100%; bottom: 5px; text-align: center; font-size: 8px; color: var(--accent); font-family: monospace;">Re = {{ (Math.random()*1000 + 2000).toFixed(0) }} | LAMINAR FLOW</div>
                 </div>
 
+                <div v-if="theoryName.includes('Thermodynamics')" class="thermo-container">
+                    <div v-for="i in 20" :key="i" class="particle" :style="{
+                        left: Math.random() * 100 + '%',
+                        top: Math.random() * 100 + '%',
+                        background: entropyValue > 50 ? '#ff3e3e' : '#00f2ff',
+                        '--jx': (Math.random() * 6 - 3) + 'px',
+                        '--jy': (Math.random() * 6 - 3) + 'px',
+                        animationDuration: (0.1 + Math.random() * 0.2) + 's'
+                    }"></div>
+                    <div class="entropy-label">ΔS = {{ (entropyValue / 10).toFixed(4) }} J/K</div>
+                </div>
+
                 <div v-if="theoryName.includes('Information Theory')" class="bit-stream">
                     {{ bitData }}
                 </div>
@@ -765,6 +811,16 @@
                         ty: centerY + (Math.random() - 0.5) * 400
                     });
                 }
+            } else if (mode === 'thermo') {
+                for(let i=0; i<300; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        temp: Math.random()
+                    });
+                }
             } else {
                 let x = 0.1, y = 0, z = 0;
                 const a = 10, b = 28, c = 8/3;
@@ -901,6 +957,18 @@
                         ctx.fillRect(p.x, p.y, 1.5, 1.5);
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'thermo') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                        ctx.fillStyle = `hsl(${p.temp * 60}, 100%, 50%)`;
+                        ctx.fillRect(p.x, p.y, 2, 2);
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'superconductivity') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -956,8 +1024,22 @@
                 const mcBars = ref([]);
                 const mcHighlight = ref(-1);
                 const terminalLogs = ref([]);
+                const entropyValue = ref(0);
 
                 const theories = [
+                    {
+                        name: "热力学第二定律：熵增与命运归宿 (Thermodynamics: Entropy & Fate Culmination)",
+                        mode: 'thermo',
+                        generate: (n) => {
+                            const outcomes = [
+                                "系统熵值（Entropy）目前处于极低水平。你的生活结构高度有序，这意味着现在是执行复杂长期计划的最佳时机，干扰项极少。",
+                                "检测到局部熵减（Negentropy）现象。通过近期的自律与整理，你成功逆转了混乱趋势，命运场正在向着高组织度的平衡态演化。",
+                                "热力学系统提示：当前的混乱（熵）是新结构诞生的前奏。虽然表面看起来无序，但巨大的势能正在无序中积聚，等待绝热膨胀的契机。"
+                            ];
+                            entropyValue.value = Math.random() * 100;
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "超导理论：BCS 库珀对与零电阻人生命运 (Superconductivity: BCS Theory & Zero-Resistance Path)",
                         mode: 'superconductivity',
