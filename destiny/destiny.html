@@ -420,6 +420,42 @@
             from { transform: rotate(0deg) scale(1); }
             to { transform: rotate(360deg) scale(1.5); }
         }
+        /* Superconductivity Visuals */
+        .sc-container {
+            margin-top: 15px;
+            height: 60px;
+            background: radial-gradient(circle at center, rgba(0, 242, 255, 0.1), transparent);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cooper-pair {
+            position: absolute;
+            width: 10px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 2px;
+            box-shadow: 0 0 10px var(--accent);
+            animation: sc-flow 3s infinite linear;
+        }
+        @keyframes sc-flow {
+            0% { transform: translateX(-100px) rotate(0deg); opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { transform: translateX(100px) rotate(360deg); opacity: 0; }
+        }
+        .meissner-sphere {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #fff, 0 0 40px var(--accent);
+            z-index: 2;
+        }
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -576,6 +612,16 @@
                     }"></div>
                 </div>
 
+                <div v-if="theoryName.includes('Superconductivity')" class="sc-container">
+                    <div class="meissner-sphere"></div>
+                    <div v-for="i in 6" :key="i" class="cooper-pair" :style="{ 
+                        top: (20 + Math.random() * 40) + '%', 
+                        animationDelay: (i * 0.5) + 's',
+                        '--ty': (Math.random() * 20 - 10) + 'px'
+                    }"></div>
+                    <div style="position: absolute; bottom: 5px; right: 10px; font-size: 8px; color: var(--accent); font-family: monospace;">Tc = 93K | ZERO RESISTANCE</div>
+                </div>
+
                 <div v-if="theoryName.includes('Fluid Dynamics')" class="fluid-container">
                     <div class="fluid-vortex"></div>
                     <div style="position: absolute; width: 100%; bottom: 5px; text-align: center; font-size: 8px; color: var(--accent); font-family: monospace;">Re = {{ (Math.random()*1000 + 2000).toFixed(0) }} | LAMINAR FLOW</div>
@@ -678,6 +724,15 @@
                         y: Math.random() * canvas.height,
                         val: Math.random() > 0.5 ? '1' : '0',
                         speed: Math.random() * 2 + 1
+                    });
+                }
+            } else if (mode === 'superconductivity') {
+                for(let i=0; i<150; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() * 4 + 2),
+                        partnerOffsetY: (Math.random() - 0.5) * 10
                     });
                 }
             } else if (mode === 'stellar') {
@@ -846,6 +901,17 @@
                         ctx.fillRect(p.x, p.y, 1.5, 1.5);
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'superconductivity') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'rgba(0, 242, 255, 0.6)';
+                    points.forEach(p => {
+                        ctx.fillRect(p.x, p.y, 3, 2);
+                        ctx.fillRect(p.x, p.y + p.partnerOffsetY, 3, 2);
+                        p.x += p.vx;
+                        if (p.x > canvas.width) p.x = -10;
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'stellar') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -892,6 +958,18 @@
                 const terminalLogs = ref([]);
 
                 const theories = [
+                    {
+                        name: "超导理论：BCS 库珀对与零电阻人生命运 (Superconductivity: BCS Theory & Zero-Resistance Path)",
+                        mode: 'superconductivity',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到由于你近期专注力的提升，你的命运场已进入『超导态』。前进道路上的所有社会阻力（电阻）已降至零，建议在临界温度（Tc）维持期间，全速冲刺你的核心目标。",
+                                "库珀对（Cooper Pairs）效应显现。你与关键合作伙伴的量子纠缠已达到最高能级，你们的协作将不再受任何能量损耗的影响，实现完美的协同进化。",
+                                "迈斯纳效应（Meissner Effect）已触发。所有负面的干扰与阻力已被你的强大势能排斥在场外，你现在处于一个极其纯净且高效的成功轨道上。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "流体力学：纳维-斯托克斯命运场 (Fluid Dynamics: Navier-Stokes Fate Field)",
                         mode: 'fluid',
