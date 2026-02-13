@@ -517,6 +517,34 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Fluid Dynamics')" class="viz-box">
+                    <div style="height: 60px; position: relative; overflow: hidden; background: rgba(0, 242, 255, 0.05); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 60" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="streamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:var(--accent);stop-opacity:0" />
+                                    <stop offset="50%" style="stop-color:var(--accent);stop-opacity:0.5" />
+                                    <stop offset="100%" style="stop-color:var(--accent);stop-opacity:0" />
+                                </linearGradient>
+                            </defs>
+                            <path v-for="i in 5" :key="i"
+                                  :d="`M -20 ${10+i*8} Q 50 ${5+i*8 + (Math.random()-0.5)*20} 100 ${10+i*8} T 220 ${10+i*8}`"
+                                  fill="none" stroke="url(#streamGrad)" stroke-width="1" opacity="0.6">
+                                <animate attributeName="stroke-dasharray" values="0,1000;1000,0" dur="3s" repeatCount="indefinite" />
+                                <animate attributeName="stroke-dashoffset" values="1000;0" dur="3s" repeatCount="indefinite" />
+                            </path>
+                            <circle v-for="i in 3" :key="'vortex'+i" :cx="40 + i*50" :cy="30 + (Math.random()-0.5)*20" r="4" fill="none" stroke="var(--accent)" stroke-width="0.5" opacity="0.3">
+                                <animate attributeName="r" values="2;6;2" dur="2s" repeatCount="indefinite" />
+                            </circle>
+                        </svg>
+                        <div style="position: absolute; top: 5px; right: 10px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.6;">REYNOLDS_NO: 2300</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>FLOW_STATE: LAMINAR_TRANSITION</span>
+                        <span>VISCOSITY: 1.002 mPa·s</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -752,6 +780,16 @@
                         ctx.arc(curX, curY, 1.5, 0, Math.PI * 2);
                         ctx.fill();
                     });
+                } else if (mode === 'fluid') {
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        p.y += Math.sin(p.x * 0.02 + p.offset) * 2;
+                        if(p.x > canvas.width + 20) p.x = -20;
+                        ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
                 } else {
                     points.forEach(p => {
                         p.x += p.vx; p.y += p.vy;
@@ -849,6 +887,11 @@
                         name: "暗物质与暗能量：不可见的影响 (Dark Matter & Dark Energy)",
                         mode: 'darkmatter',
                         generate: (n) => "观测显示，你生活中 95% 的驱动力来自于不可见的『暗区』——那些你尚未察觉的潜意识冲动与外部宏观趋势。目前暗能量正占据主导，预示着你的生活圈层即将发生不可逆转的加速扩张。顺应这种膨胀，而非对抗它。"
+                    },
+                    {
+                        name: "流体力学：层流与湍流 (Fluid Dynamics: Laminar & Turbulent Flow)",
+                        mode: 'fluid',
+                        generate: (n) => "生命流场的雷诺数显示，你正处于从平稳『层流』向充满变量的『湍流』过度的临界状态。这种波动并非混乱，而是高效率能量交换的体现。保持动力，你将在接下来的漩涡中获得跨越式的动能。"
                     }
                 ];
 
