@@ -409,8 +409,16 @@
             50% { border-color: rgba(0, 242, 255, 0.4); }
             100% { border-color: rgba(0, 242, 255, 0.1); }
         }
+        @keyframes reality-glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-1px, 1px); filter: hue-rotate(10deg); }
+            40% { transform: translate(1px, -1px); filter: contrast(1.2); }
+            60% { transform: translate(-1px, -1px); filter: brightness(1.1); }
+            80% { transform: translate(1px, 1px); filter: hue-rotate(-10deg); }
+            100% { transform: translate(0); }
+        }
         .container.observing {
-            animation: pulse-border 1s infinite;
+            animation: pulse-border 1s infinite, reality-glitch 0.2s infinite;
         }
 
         @keyframes diffuse {
@@ -427,7 +435,7 @@
     <div class="telemetry tl">PROB_MATRIX: {{ (Math.random()).toFixed(6) }}</div>
     <div class="telemetry tr">ENTROPY: {{ (Math.random() * 10).toFixed(2) }} J/K</div>
     <div class="telemetry bl">COORD: 31.23°N 121.47°E</div>
-    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.8.0</div>
+    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.9.0</div>
 
     <div id="app">
         <div class="container" :class="{ observing: isObserving }">
@@ -1024,6 +1032,35 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Quantum Chromodynamics')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 100">
+                            <!-- Gluon Strings -->
+                            <path v-for="i in 3" :key="'gluon'+i"
+                                  :d="i === 1 ? 'M 70 50 L 130 50' : (i === 2 ? 'M 70 50 L 100 80' : 'M 130 50 L 100 80')"
+                                  fill="none" :stroke="i === 1 ? '#ff0000' : (i === 2 ? '#00ff00' : '#0000ff')" stroke-width="2" opacity="0.3">
+                                <animate attributeName="stroke-dasharray" values="0,10;10,0" dur="0.2s" repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.2;0.6;0.2" dur="0.5s" repeatCount="indefinite" />
+                            </path>
+                            <!-- Quarks -->
+                            <circle cx="70" cy="50" r="6" fill="#ff0000" style="filter: drop-shadow(0 0 8px #ff0000)">
+                                <animate attributeName="cx" values="68;72;68" dur="0.3s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="130" cy="50" r="6" fill="#00ff00" style="filter: drop-shadow(0 0 8px #00ff00)">
+                                <animate attributeName="cx" values="128;132;128" dur="0.4s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="100" cy="80" r="6" fill="#0000ff" style="filter: drop-shadow(0 0 8px #0000ff)">
+                                <animate attributeName="cy" values="78;82;78" dur="0.25s" repeatCount="indefinite" />
+                            </circle>
+                        </svg>
+                        <div style="position: absolute; top: 10px; right: 15px; font-family: monospace; font-size: 8px; color: var(--accent); opacity: 0.8;">SU(3) COLOR_SYMMETRY</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>HADRONIZATION: STABLE</span>
+                        <span>GLUON_FIELD: CONFINED</span>
+                    </div>
+                </div>
+
                 <div v-if="theoryName.includes('Neuroplasticity')" class="viz-box">
                     <div style="height: 100px; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border-radius: 12px;">
                         <canvas id="neuroCanvas" width="200" height="100" style="width: 100%; height: 100%;"></canvas>
@@ -1323,6 +1360,17 @@
                         vx: 2 + Math.random() * 5,
                         vy: 0,
                         s: 1
+                    });
+                }
+            } else if (mode === 'qcd') {
+                for(let i=0; i<3; i++) {
+                    points.push({
+                        x: centerX + (Math.random() - 0.5) * 100,
+                        y: centerY + (Math.random() - 0.5) * 100,
+                        vx: (Math.random() - 0.5) * 5,
+                        vy: (Math.random() - 0.5) * 5,
+                        color: i === 0 ? '#ff0000' : (i === 1 ? '#00ff00' : '#0000ff'),
+                        r: 5
                     });
                 }
             } else if (mode === 'neuro') {
@@ -1706,6 +1754,42 @@
                             ctx.fillRect(p.x, p.y, 20, 2);
                             ctx.shadowBlur = 0;
                         }
+                    });
+                } else if (mode === 'qcd') {
+                    points.forEach((p, i) => {
+                        p.x += p.vx; p.y += p.vy;
+                        // Strong force spring back to center
+                        const dx = centerX - p.x;
+                        const dy = centerY - p.y;
+                        const dist = Math.hypot(dx, dy);
+                        const force = dist * 0.05; // Spring force
+                        p.vx += (dx / dist) * force;
+                        p.vy += (dy / dist) * force;
+                        
+                        // Damping
+                        p.vx *= 0.95;
+                        p.vy *= 0.95;
+
+                        // Draw Gluon lines between quarks
+                        points.forEach((other, j) => {
+                            if (i < j) {
+                                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                                ctx.setLineDash([2, 4]);
+                                ctx.beginPath();
+                                ctx.moveTo(p.x, p.y);
+                                ctx.lineTo(other.x, other.y);
+                                ctx.stroke();
+                                ctx.setLineDash([]);
+                            }
+                        });
+
+                        ctx.fillStyle = p.color;
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
                     });
                 } else if (mode === 'neuro') {
                     points.forEach((p, i) => {
@@ -2115,6 +2199,11 @@
                 };
 
                 const theories = [
+                    {
+                        name: "量子色动力学：夸克禁闭 (Quantum Chromodynamics: Color Confinement)",
+                        mode: 'qcd',
+                        generate: (n) => "色荷分析显示，你正处于强相互作用的『夸克禁闭』状态。这意味着你虽然渴望绝对的孤独（自由），但你与周围环境的连接是不可切断的——能量越大，吸引力越强。这种禁闭并非束缚，而是赋予你稳定质量的根源。你正与两个关键的生命维度形成一个坚固的『重子』结构，构成这个世界最底层的稳定基石。"
+                    },
                     {
                         name: "遍历理论：长程均衡 (Ergodic Theory & Long-term Equilibrium)",
                         mode: 'ergodic',
