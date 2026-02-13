@@ -41,6 +41,11 @@
         .theme-toggle { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; width: auto; }
         .logout-btn { background: none; color: var(--primary); font-weight: 400; padding: 4px 0; width: auto; font-size: 13px; border: none; cursor: pointer; }
 
+        .tabs { display: flex; gap: 4px; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 10px; margin-bottom: 12px; }
+        [data-theme='dark'] .tabs { background: rgba(255,255,255,0.05); }
+        .tab { flex: 1; text-align: center; padding: 6px; font-size: 13px; border-radius: 6px; cursor: pointer; color: var(--subtext); transition: all 0.2s; }
+        .tab.active { background: var(--card-bg); color: var(--text); font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
         .new-task { background: var(--card-bg); padding: 8px 10px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 8px; }
         .new-task-row { display: flex; gap: 8px; }
         .new-task input { margin: 0; border: none; background: transparent; padding: 0; font-size: 14px; }
@@ -74,6 +79,9 @@
         .text-Life { color: #34c759; }
         .text-HellDrop { color: #ff3b30; }
         .text-Zhutousan { color: #ff9500; }
+        .text-Idea { color: #5856d6; }
+        .text-Project { color: #af52de; }
+        .text-Reference { color: #ff2d55; }
         .text-Other { color: var(--subtext); }
 
         .edit-input { flex-grow: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; font-size: 13px; background: var(--input-bg); color: var(--text); margin: -4px 0; }
@@ -103,25 +111,37 @@
                 <button @click="logout" class="logout-btn">Logout</button>
             </div>
 
+            <div class="tabs">
+                <div class="tab" :class="{ active: currentTab === 'todo' }" @click="currentTab = 'todo'">📋 清单</div>
+                <div class="tab" :class="{ active: currentTab === 'idea' }" @click="currentTab = 'idea'">💡 想法</div>
+            </div>
+
             <div class="new-task">
                 <div class="new-task-row">
-                    <input v-model="newTask" placeholder="Add a new task..." @keyup.enter="addTask" style="flex-grow: 1;">
+                    <input v-model="newTask" :placeholder="currentTab === 'todo' ? 'Add a new task...' : 'Capturing an idea...'" @keyup.enter="addTask" style="flex-grow: 1;">
                 </div>
                 <div class="new-task-row" style="justify-content: space-between; align-items: center;">
                     <select v-model="newLabel">
-                        <option value="Work">💻 Work</option>
-                        <option value="Life">🧘‍♂️ Life</option>
-                        <option value="HellDrop">🎮 HellDrop</option>
-                        <option value="Zhutousan">🐷 Zhutousan</option>
+                        <template v-if="currentTab === 'todo'">
+                            <option value="Work">💻 Work</option>
+                            <option value="Life">🧘‍♂️ Life</option>
+                            <option value="HellDrop">🎮 HellDrop</option>
+                            <option value="Zhutousan">🐷 Zhutousan</option>
+                        </template>
+                        <template v-else>
+                            <option value="Idea">💡 Idea</option>
+                            <option value="Project">🚀 Project</option>
+                            <option value="Reference">📚 Reference</option>
+                        </template>
                     </select>
-                    <button @click="addTask" class="add-btn">Add Task</button>
+                    <button @click="addTask" class="add-btn">Add {{ currentTab === 'todo' ? 'Task' : 'Idea' }}</button>
                 </div>
             </div>
 
             <div v-if="loading" style="text-align: center; color: var(--subtext); padding: 20px;">Loading...</div>
 
             <div class="groups-container">
-                <div v-for="(groupIssues, groupName) in groupedIssues" :key="groupName" class="group-section">
+                <div v-for="(groupIssues, groupName) in filteredGroups" :key="groupName" class="group-section">
                     <h3 class="group-title" :class="'text-' + groupName">{{ groupName }} <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ groupIssues.length }}</span></h3>
                     <div class="todo-list">
                         <div v-for="issue in groupIssues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
@@ -151,7 +171,7 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted, computed, nextTick } = Vue;
+        const { createApp, ref, onMounted, computed, nextTick, watch } = Vue;
         const REPO = "dogEleven/tofutodo";
 
         createApp({
@@ -166,6 +186,12 @@
                 const editingTitle = ref('');
                 const editInput = ref(null);
                 const isDark = ref(localStorage.getItem('theme') === 'dark');
+                const currentTab = ref(localStorage.getItem('currentTab') || 'todo');
+
+                watch(currentTab, (val) => {
+                    localStorage.setItem('currentTab', val);
+                    newLabel.value = val === 'todo' ? 'Work' : 'Idea';
+                });
 
                 const api = axios.create({
                     baseURL: `https://api.github.com/repos/${REPO}`,
@@ -189,17 +215,17 @@
                     const diffMs = now - updated;
                     const diffDays = diffMs / (1000 * 60 * 60 * 24);
                     
-                    // 24小时内不透明度 0.8
-                    // 7天以上不透明度 0.2
                     if (diffDays <= 1) return 0.8;
                     if (diffDays >= 7) return 0.2;
-                    
-                    // 线性衰减
                     return 0.8 - (diffDays - 1) * (0.6 / 6);
                 };
 
                 const groupedIssues = computed(() => {
-                    const groups = { 'Work': [], 'Life': [], 'HellDrop': [], 'Zhutousan': [], 'Other': [] };
+                    const groups = { 
+                        'Work': [], 'Life': [], 'HellDrop': [], 'Zhutousan': [], 
+                        'Idea': [], 'Project': [], 'Reference': [],
+                        'Other': [] 
+                    };
                     
                     issues.value.forEach(issue => {
                         let placed = false;
@@ -208,7 +234,7 @@
                                 if (groups[label.name]) {
                                     groups[label.name].push(issue);
                                     placed = true;
-                                    break; // Only put in first matching group
+                                    break;
                                 }
                             }
                         }
@@ -216,6 +242,22 @@
                     });
                     
                     return groups;
+                });
+
+                const filteredGroups = computed(() => {
+                    const result = {};
+                    const todoLabels = ['Work', 'Life', 'HellDrop', 'Zhutousan', 'Other'];
+                    const ideaLabels = ['Idea', 'Project', 'Reference'];
+                    
+                    const targets = currentTab.value === 'todo' ? todoLabels : ideaLabels;
+                    
+                    targets.forEach(label => {
+                        if (groupedIssues.value[label] && groupedIssues.value[label].length > 0) {
+                            result[label] = groupedIssues.value[label];
+                        }
+                    });
+                    
+                    return result;
                 });
 
                 const saveToken = () => {
@@ -341,9 +383,9 @@
 
                 return { 
                     token, inputToken, saveToken, logout, issues, loading, toggleIssue, 
-                    newTask, newLabel, addTask, groupedIssues,
+                    newTask, newLabel, addTask, groupedIssues, filteredGroups,
                     editingIssueId, editingTitle, startEdit, cancelEdit, saveEdit, editInput,
-                    isDark, toggleTheme, formatDate, getMetaOpacity
+                    isDark, toggleTheme, formatDate, getMetaOpacity, currentTab
                 };
             }
         }).mount('#app');
