@@ -406,6 +406,25 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('String Theory')" class="viz-box">
+                    <div style="height: 60px; display: flex; align-items: center; justify-content: center; position: relative;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 60">
+                            <path v-for="i in 6" :key="i"
+                                  :d="'M 20 ' + (10 + i*7) + ' Q 100 ' + (Math.random()*40 + 10) + ' 180 ' + (10 + i*7)"
+                                  fill="none" 
+                                  stroke="var(--accent)" 
+                                  stroke-width="0.3" 
+                                  :opacity="0.2 + (i*0.1)">
+                                <animate attributeName="d" 
+                                         :values="'M 20 ' + (10 + i*7) + ' Q 100 ' + (Math.random()*40 + 10) + ' 180 ' + (10 + i*7) + '; M 20 ' + (10 + i*7) + ' Q 100 ' + (Math.random()*40 + 10) + ' 180 ' + (10 + i*7) + '; M 20 ' + (10 + i*7) + ' Q 100 ' + (Math.random()*40 + 10) + ' 180 ' + (10 + i*7)"
+                                         dur="2s" repeatCount="indefinite" />
+                            </path>
+                        </svg>
+                        <div style="position: absolute; font-family: monospace; font-size: 7px; color: var(--accent); top: 5px; right: 10px; opacity: 0.6;">DIMENSIONS: 11D</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 5px; text-align: center;">CALABI-YAU_MANIFOLD: RESONATING</div>
+                </div>
+
                 <div v-if="theoryName.includes('Thermodynamics')" class="viz-box">
                     <div style="height: 60px; position: relative; overflow: hidden; background: rgba(255, 60, 0, 0.05); border-radius: 12px;">
                         <div v-for="i in 30" :key="i" 
@@ -433,6 +452,26 @@
                     <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
                         <span>THERMAL_EQUILIBRIUM: REJECTED</span>
                         <span>ORDER_PARAMETER: 0.88</span>
+                    </div>
+                </div>
+
+                <div v-if="theoryName.includes('Information Theory')" class="viz-box">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div v-for="i in 4" :key="i" style="display: flex; gap: 4px;">
+                            <div v-for="j in 20" :key="j" 
+                                 :style="{ 
+                                    flex: 1, 
+                                    height: '8px', 
+                                    background: Math.random() > 0.5 ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                                    borderRadius: '1px',
+                                    opacity: Math.random() * 0.8 + 0.2
+                                 }">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>SHANNON_ENTROPY: 0.94 bits/sym</span>
+                        <span>SIGNAL_TO_NOISE: 42dB</span>
                     </div>
                 </div>
 
@@ -698,6 +737,16 @@
                         name: "热力学：负熵流与稳态 (Thermodynamics: Negative Entropy & Steady State)",
                         mode: 'thermo',
                         generate: (n) => "热力学第二定律显示，你的系统（生活）正处于一个暂时的高熵状态，导致信息流模糊。然而，探测到一股强大的『负熵流』（可能来自外部环境的注入或内在意志的觉醒）正在逆转这一趋势。通过耗散结构的建立，你正从混沌中演化出全新的有序稳态。"
+                    },
+                    {
+                        name: "信息论：香农熵与信号重建 (Information Theory & Signal Reconstruction)",
+                        mode: 'information',
+                        generate: (n) => "在当前充满噪声的生活背景中，你的核心意图（Signal）正经历香农极限的考验。观测显示，一个高保真的采样周期即将到来，你之前被误解或丢失的努力将被完美重建，实现信息的最大化增益。"
+                    },
+                    {
+                        name: "弦理论：高维共振 (String Theory & Multidimensional Resonance)",
+                        mode: 'string',
+                        generate: (n) => "你的命运并非单一的线，而是跨越11维空间的闭合弦。目前的低频波动只是在为一次跨维度的共振做准备。当你的基频与外部场匹配时，你将在多个生活维度（财富、情感、精神）同时观察到跃迁现象。"
                     }
                 ];
 
