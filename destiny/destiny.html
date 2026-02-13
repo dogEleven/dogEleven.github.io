@@ -230,6 +230,25 @@
             to { transform: rotateX(70deg) rotateZ(360deg); }
         }
 
+        /* Cellular Automata Visual */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: 1px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1px;
+            border-radius: 4px;
+        }
+        .grid-cell {
+            aspect-ratio: 1;
+            background: #030303;
+            border-radius: 1px;
+        }
+        .grid-cell.active {
+            background: var(--accent);
+            box-shadow: 0 0 5px var(--accent-glow);
+        }
+
         .scanning-line {
             position: absolute;
             left: 0; right: 0; height: 2px;
@@ -370,6 +389,16 @@
                         </div>
                     </div>
                     <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 12px; text-align: center;">EQUILIBRIUM_FOUND: COOPERATIVE_DOMINANCE</div>
+                </div>
+
+                <div v-if="theoryName.includes('Cellular')" class="viz-box">
+                    <div class="grid-container">
+                        <div v-for="i in 100" :key="i" class="grid-cell" :class="{ active: Math.random() > 0.8 }"></div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>GEN_COUNT: 42</span>
+                        <span>EMERGENCE: STABLE_OSCILLATOR</span>
+                    </div>
                 </div>
 
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
@@ -520,6 +549,13 @@
                             });
                         }
                     });
+                } else if (mode === 'cellular') {
+                    points.forEach(p => {
+                        if (p.active) {
+                            ctx.fillStyle = 'rgba(0, 242, 255, 0.05)';
+                            ctx.fillRect(p.x, p.y, 18, 18);
+                        }
+                    });
                 } else {
                     points.forEach(p => {
                         p.x += p.vx; p.y += p.vy;
@@ -592,6 +628,11 @@
                             ];
                             return outcomes[n.length % outcomes.length];
                         }
+                    },
+                    {
+                        name: "元胞自动机：生命涌现 (Cellular Automata & Emergent Complexity)",
+                        mode: 'cellular',
+                        generate: (n) => "你的生命轨迹正处于一个从简单规则向高度复杂性转化的临界点。就像元胞自动机中的『滑翔机』，一个微小的习惯正在你的生活矩阵中持续移动，并最终引发连锁反应，创造出预料之外的宏大结构。"
                     }
                 ];
 
