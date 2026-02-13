@@ -315,7 +315,7 @@
     <div class="telemetry tl">PROB_MATRIX: {{ (Math.random()).toFixed(6) }}</div>
     <div class="telemetry tr">ENTROPY: {{ (Math.random() * 10).toFixed(2) }} J/K</div>
     <div class="telemetry bl">COORD: 31.23°N 121.47°E</div>
-    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.5.0</div>
+    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.6.0</div>
 
     <div id="app">
         <div class="container">
@@ -663,10 +663,41 @@
                         </svg>
                         <div style="position: absolute; top: 5px; right: 10px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.6;">DIVERGENCE: HIGH</div>
                     </div>
-                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: space-between;">
                         <span>COHERENCE_LEVEL: 0.76</span>
                         <span>WORLD_LINE_ID: λ-772</span>
                     </div>
+                </div>
+
+                <div v-if="theoryName.includes('Simulation')" class="viz-box">
+                    <div style="height: 60px; position: relative; overflow: hidden; background: #000; border-radius: 12px; font-family: monospace; font-size: 8px; color: #0f0; padding: 10px;">
+                        <div v-for="i in 5" :key="i" class="glitch-line" :style="{ top: i*10 + 'px', animationDelay: i*0.2 + 's' }">
+                            {{ Math.random().toString(2).substring(2, 30) }}
+                        </div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: 900; background: #000; padding: 2px 5px; border: 1px solid #0f0; box-shadow: 0 0 10px #0f0; text-transform: uppercase;">
+                            FATAL_ERROR: DESTINY_UNDEFINED
+                        </div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>SYS_UPTIME: 99.9999%</span>
+                        <span>LOCAL_REALITY: VIRTUAL</span>
+                    </div>
+                    <style>
+                        .glitch-line {
+                            position: absolute;
+                            white-space: nowrap;
+                            opacity: 0.3;
+                            animation: glitch-text 0.1s infinite;
+                        }
+                        @keyframes glitch-text {
+                            0% { transform: translate(0); }
+                            20% { transform: translate(-2px, 1px); }
+                            40% { transform: translate(2px, -1px); }
+                            60% { transform: translate(-1px, -2px); }
+                            80% { transform: translate(1px, 2px); }
+                            100% { transform: translate(0); }
+                        }
+                    </style>
                 </div>
 
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
@@ -839,6 +870,18 @@
                         vx: Math.random() * 2 + 1,
                         alpha: Math.random() * 0.3 + 0.1,
                         nextSplit: 50 + Math.random() * 100
+                    });
+                }
+            } else if (mode === 'simulation') {
+                for(let i=0; i<60; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        w: Math.random() * 40 + 10,
+                        h: Math.random() * 3 + 1,
+                        vx: (Math.random() - 0.5) * 10,
+                        life: Math.random(),
+                        color: Math.random() > 0.8 ? 'rgba(0, 242, 255, 0.4)' : 'rgba(0, 255, 0, 0.2)'
                     });
                 }
             } else {
@@ -1061,6 +1104,18 @@
                         
                         if(p.x > canvas.width) p.x = p.startX;
                     });
+                } else if (mode === 'simulation') {
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        if(p.x > canvas.width) p.x = -p.w;
+                        if(p.x < -p.w) p.x = canvas.width;
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(p.x, p.y, p.w, p.h);
+                        if(Math.random() > 0.98) {
+                            ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+                            ctx.fillRect(p.x, p.y - 10, p.w / 2, 20);
+                        }
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1194,6 +1249,11 @@
                         name: "平行宇宙：多重现实分支 (Multiverse Theory: Branching Realities)",
                         mode: 'multiverse',
                         generate: (n) => "量子退相干分析显示，你的决策正在引发大规模的世界线分支。在 87% 的邻近宇宙中，你已经完成了当下的目标。这意味着你当前的现实具有极高的耦合度，只要保持观测的一致性，其他宇宙的成功经验将通过量子穿隧效应回馈至你的主世界线。"
+                    },
+                    {
+                        name: "模拟假设：计算不可约性 (Simulation Hypothesis & Computational Irreducibility)",
+                        mode: 'simulation',
+                        generate: (n) => "底层架构分析显示，你当前遭遇的『巧合』实际上是系统内存溢出导致的逻辑泄漏。这种『计算不可约性』意味着你的未来无法被预先简化，每一秒的体验都是宇宙源代码的实时渲染。由于检测到局部渲染错误，你将在下周获得一段不受因果律限制的『自由运行时间』。"
                     }
                 ];
 
