@@ -601,6 +601,69 @@
             50% { transform: rotate(-45deg); }
             100% { transform: rotate(45deg); }
         }
+        /* Multiverse Branching Visuals */
+        .multiverse-container {
+            margin-top: 15px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .branch-line {
+            position: absolute;
+            background: var(--accent);
+            height: 1px;
+            transform-origin: left center;
+            opacity: 0.3;
+        }
+        .branch-node {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent);
+        }
+        .active-branch {
+            opacity: 1 !important;
+            box-shadow: 0 0 15px var(--accent);
+            height: 2px !important;
+        }
+        /* Quantum Entanglement Visuals */
+        .entanglement-container {
+            margin-top: 15px;
+            height: 60px;
+            background: radial-gradient(circle at center, rgba(0, 242, 255, 0.05), transparent);
+            border: 1px solid rgba(0, 242, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            position: relative;
+        }
+        .entangled-particle {
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent);
+        }
+        .entanglement-beam {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            width: 60%;
+            opacity: 0.5;
+            animation: beam-pulse 1.5s infinite;
+        }
+        @keyframes beam-pulse {
+            0%, 100% { opacity: 0.2; transform: scaleX(0.8); }
+            50% { opacity: 0.8; transform: scaleX(1.1); }
+        }
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -661,8 +724,8 @@
 </head>
 <body>
     <canvas id="chaosCanvas"></canvas>
-    <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E</div>
-    <div class="telemetry-right">STATUS: OPERATIONAL | v2.7.0-ITER</div>
+    <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E | ALT: 4.2m</div>
+    <div class="telemetry-right">STATUS: OPERATIONAL | v2.8.5-STABLE | {{ scanCount }} SCANS COMPLETED</div>
     <div id="app">
         <div class="container" :class="{ 'warp-active': isObserving }">
             <div v-if="isObserving" class="scanning-bar"></div>
@@ -696,6 +759,31 @@
                 <div class="theory-tag">{{ theoryName }}</div>
                 <div class="fortune-text">{{ fortune }}</div>
                 
+                <div v-if="theoryName.includes('Multiverse')" class="multiverse-container">
+                    <svg width="100%" height="100%" viewBox="0 0 200 100">
+                        <!-- Main Trunk -->
+                        <line x1="10" y1="50" x2="50" y2="50" stroke="var(--accent)" stroke-width="2" />
+                        <!-- Branches -->
+                        <path d="M 50 50 Q 80 20 120 15" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.4" />
+                        <path d="M 50 50 Q 80 50 120 50" fill="none" stroke="var(--accent)" stroke-width="2" class="active-branch" />
+                        <path d="M 50 50 Q 80 80 120 85" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.4" />
+                        <!-- Nodes -->
+                        <circle cx="120" cy="15" r="3" fill="var(--accent)" opacity="0.4" />
+                        <circle cx="120" cy="50" r="4" fill="var(--accent)" />
+                        <circle cx="120" cy="85" r="3" fill="var(--accent)" opacity="0.4" />
+                        <text x="130" y="18" fill="var(--subtext)" font-size="6" font-family="monospace">BRANCH_092</text>
+                        <text x="130" y="53" fill="var(--accent)" font-size="7" font-family="monospace">CURRENT_TIMELINE</text>
+                        <text x="130" y="88" fill="var(--subtext)" font-size="6" font-family="monospace">BRANCH_114</text>
+                    </svg>
+                </div>
+
+                <div v-if="theoryName.includes('Entanglement')" class="entanglement-container">
+                    <div class="entangled-particle" :style="{ transform: `rotate(${Date.now()/10}deg) translateX(10px)` }"></div>
+                    <div class="entanglement-beam"></div>
+                    <div class="entangled-particle" :style="{ transform: `rotate(${Date.now()/10 + 180}deg) translateX(10px)` }"></div>
+                    <div style="position: absolute; bottom: 5px; font-size: 7px; color: var(--accent); font-family: monospace;">NON-LOCAL SPINSTE STATE: UP/DOWN</div>
+                </div>
+
                 <div v-if="theoryName.includes('Hawking Radiation')" class="black-hole-container">
                     <div class="event-horizon"></div>
                     <div v-for="i in 20" :key="i" class="radiation-particle" :style="{
@@ -985,6 +1073,23 @@
                         temp: Math.random()
                     });
                 }
+            } else if (mode === 'multiverse') {
+                for(let i=0; i<30; i++) {
+                    points.push({
+                        x: 0,
+                        y: canvas.height / 2,
+                        angle: (Math.random() - 0.5) * 0.5,
+                        branches: []
+                    });
+                }
+            } else if (mode === 'entanglement') {
+                for(let i=0; i<15; i++) {
+                    points.push({
+                        p1: { x: Math.random() * canvas.width/4, y: Math.random() * canvas.height },
+                        p2: { x: canvas.width - Math.random() * canvas.width/4, y: Math.random() * canvas.height },
+                        color: `hsl(${Math.random() * 360}, 100%, 50%)`
+                    });
+                }
             } else if (mode === 'tunneling') {
                 for(let i=0; i<100; i++) {
                     points.push({
@@ -1161,6 +1266,40 @@
                         ctx.fillRect(p.x, p.y, 1.5, 1.5);
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'multiverse') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = 'rgba(0, 242, 255, 0.2)';
+                    points.forEach(p => {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        p.x += 5;
+                        p.y += Math.sin(p.x * 0.01) * 2 + (p.angle * 5);
+                        ctx.lineTo(p.x, p.y);
+                        ctx.stroke();
+                        if (p.x > canvas.width) p.x = 0;
+                        if (Math.random() > 0.98) p.angle = (Math.random() - 0.5) * 0.5;
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'entanglement') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        ctx.strokeStyle = p.color;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(p.p1.x, p.p1.y);
+                        ctx.lineTo(p.p2.x, p.p2.y);
+                        ctx.stroke();
+                        
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath(); ctx.arc(p.p1.x, p.p1.y, 3, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(p.p2.x, p.p2.y, 3, 0, Math.PI*2); ctx.fill();
+                        
+                        p.p1.y += Math.sin(Date.now() * 0.001) * 2;
+                        p.p2.y -= Math.sin(Date.now() * 0.001) * 2;
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'tunneling') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1263,8 +1402,33 @@
                 const mcHighlight = ref(-1);
                 const terminalLogs = ref([]);
                 const entropyValue = ref(0);
+                const scanCount = ref(parseInt(localStorage.getItem('destiny_scans') || '0'));
 
                 const theories = [
+                    {
+                        name: "量子纠缠：非定域性关联 (Quantum Entanglement: Spooky Action)",
+                        mode: 'entanglement',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你与一个远方的机遇（x > 1000km）存在强相干纠缠。对方的状态已由『待定』坍缩为『确认』，建议留意来自异地的通讯信号。",
+                                "由于贝尔不等式的违反，你当前的人生选择正表现出超越空间限制的影响力。你在这个维度的努力，正同步改善着你最关心的那个人的命运环境。",
+                                "检测到自旋态对齐。你与合作伙伴之间的默契已达到『量子非定域性』级别，无需语言交流即可实现完美的战略同步。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "平行宇宙：多世界诠释 (Many-Worlds Interpretation: Branching Fate)",
+                        mode: 'multiverse',
+                        generate: (n) => {
+                            const outcomes = [
+                                "在无数个平行分支中，当前的你是唯一一个成功观测到『必然成功』轨迹的个体。这意味着你已经锁定了通往巅峰的现实分支，请坚定执行当前计划。",
+                                "由于量子分支的剧烈扩张，你正处于一个能够影响未来数十年跨度的『枢纽节点』。你的每一个决定都在创造数以亿计的繁荣宇宙。",
+                                "观测到来自邻近分支的微弱干涉。另一个更加成功的『你』正在通过波函数干涉向你传递灵感，请关注那些突如其来的直觉。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "霍金辐射：能量蒸发与信息保存 (Hawking Radiation: Entropy Leak)",
                         mode: 'blackhole',
@@ -1547,6 +1711,9 @@
                     mcHighlight.value = Math.floor(Math.random() * 30);
                     const theoryIndex = Math.floor(Math.random() * theories.length);
                     const theory = theories[theoryIndex];
+                    
+                    scanCount.value++;
+                    localStorage.setItem('destiny_scans', scanCount.value);
                     
                     if (window.startVisuals) window.startVisuals(theory.mode);
                     
