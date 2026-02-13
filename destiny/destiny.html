@@ -346,6 +346,97 @@
             letter-spacing: 2px;
             pointer-events: none;
         }
+        /* Higgs Field Visual */
+        .higgs-field {
+            margin-top: 15px;
+            height: 60px;
+            background: radial-gradient(circle at center, rgba(0, 242, 255, 0.05), transparent);
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .higgs-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 50%;
+            filter: blur(1px);
+            animation: float-around 4s infinite linear;
+        }
+        @keyframes float-around {
+            0% { transform: translate(0, 0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)); opacity: 0; }
+        }
+        /* Dark Energy Expansion */
+        .expansion-viz {
+            margin-top: 15px;
+            height: 40px;
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .expansion-grid {
+            width: 200%;
+            height: 200%;
+            background-image: 
+                linear-gradient(rgba(0, 242, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: expand-grid 10s infinite linear;
+        }
+        @keyframes expand-grid {
+            from { background-size: 20px 20px; transform: scale(1); }
+            to { background-size: 40px 40px; transform: scale(1.5); }
+        }
+        .glitch {
+            animation: glitch 1s linear infinite;
+        }
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px, 0) skew(0deg); }
+            4%, 60% { transform: translate(-2px, 0) skew(0deg); }
+            62% { transform: translate(0, 0) skew(5deg); }
+        }
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .glitch::before {
+            left: 2px;
+            text-shadow: -2px 0 #ff00c1;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+        .glitch::after {
+            left: -2px;
+            text-shadow: -2px 0 #00fff9, 2px 2px #ff00c1;
+            animation: glitch-anim2 1s infinite linear alternate-reverse;
+        }
+        @keyframes glitch-anim {
+            0% { clip: rect(31px, 9999px, 94px, 0); }
+            20% { clip: rect(62px, 9999px, 42px, 0); }
+            40% { clip: rect(10px, 9999px, 78px, 0); }
+            60% { clip: rect(50px, 9999px, 13px, 0); }
+            80% { clip: rect(85px, 9999px, 40px, 0); }
+            100% { clip: rect(3px, 9999px, 98px, 0); }
+        }
+        @keyframes glitch-anim2 {
+            0% { clip: rect(65px, 9999px, 100px, 0); }
+            20% { clip: rect(25px, 9999px, 6px, 0); }
+            40% { clip: rect(45px, 9999px, 40px, 0); }
+            60% { clip: rect(12px, 9999px, 50px, 0); }
+            80% { clip: rect(88px, 9999px, 80px, 0); }
+            100% { clip: rect(5px, 9999px, 20px, 0); }
+        }
         .terminal-log {
             font-family: monospace;
             font-size: 8px;
@@ -373,15 +464,18 @@
             
             <div class="input-group">
                 <label>观测主体 (姓名/指纹代号)</label>
-                <input v-model="name" placeholder="输入以建立量子纠缠...">
+                <input v-model="name" placeholder="输入以建立量子纠缠..." :class="{ 'glitch': isObserving }">
             </div>
             
             <button @click="observe" :disabled="!name || isObserving">
                 {{ isObserving ? '正在计算概率幅...' : '启动观测程序' }}
             </button>
 
-            <div v-if="isObserving" class="loading" style="margin-top: 20px; font-family: monospace; color: var(--accent);">
+            <div v-if=\"isObserving\" class=\"loading\" style=\"margin-top: 20px; font-family: monospace; color: var(--accent);\">
                 [ ANALYZING DATASTREAM ]
+                <div class=\"terminal-log\">
+                    <div v-for=\"log in terminalLogs\" :key=\"log\">> {{ log }}</div>
+                </div>
             </div>
 
             <div v-if="fortune && !isObserving" class="result">
@@ -433,6 +527,21 @@
                     <div class="stat-bar-bg"><div class="stat-bar-fill" :style="{ width: (Math.random() * 30 + 10) + '%' }"></div></div>
                 </div>
 
+                <div v-if="theoryName.includes('Higgs')" class="higgs-field">
+                    <div v-for="i in 15" :key="i" class="higgs-particle" :style="{
+                        left: Math.random() * 100 + '%',
+                        top: Math.random() * 100 + '%',
+                        '--tx': (Math.random() * 100 - 50) + 'px',
+                        '--ty': (Math.random() * 100 - 50) + 'px',
+                        animationDelay: Math.random() * 2 + 's'
+                    }"></div>
+                </div>
+
+                <div v-if="theoryName.includes('Dark Energy')" class="expansion-viz">
+                    <div class="expansion-grid"></div>
+                    <div style="position: absolute; font-family: monospace; font-size: 10px; color: var(--accent); text-shadow: 0 0 5px var(--bg);">H0 = 67.4 km/s/Mpc</div>
+                </div>
+
                 <div v-if="theoryName.includes('String Theory')" class="string-container">
                     <div v-for="i in 10" :key="i" class="string-wave" :style="{ 
                         top: (10 + i * 8) + '%', 
@@ -471,7 +580,25 @@
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
-            if (mode === 'relativity' || mode === 'doppler') {
+            if (mode === 'higgs') {
+                for(let i=0; i<400; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5,
+                        size: Math.random() * 2
+                    });
+                }
+            } else if (mode === 'darkenergy') {
+                for(let i=0; i<200; i++) {
+                    points.push({
+                        x: (Math.random() - 0.5) * 100 + centerX,
+                        y: (Math.random() - 0.5) * 100 + centerY,
+                        dist: Math.random() * 100 + 10
+                    });
+                }
+            } else if (mode === 'relativity' || mode === 'doppler') {
                 for(let i=0; i<200; i++) {
                     const angle = (i / 200) * Math.PI * 2 * 5;
                     const radius = i * 2;
@@ -560,7 +687,40 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             function animate() {
-                if (mode === 'strings') {
+                if (mode === 'higgs') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'rgba(0, 242, 255, 0.8)';
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'darkenergy') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = 'rgba(0, 242, 255, 0.3)';
+                    points.forEach(p => {
+                        const dx = p.x - centerX;
+                        const dy = p.y - centerY;
+                        p.x += dx * 0.02;
+                        p.y += dy * 0.02;
+                        if(Math.abs(dx) > canvas.width || Math.abs(dy) > canvas.height) {
+                            p.x = (Math.random() - 0.5) * 50 + centerX;
+                            p.y = (Math.random() - 0.5) * 50 + centerY;
+                        }
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x + dx * 0.05, p.y + dy * 0.05);
+                        ctx.stroke();
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'strings') {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.strokeStyle = 'rgba(0, 242, 255, 0.4)';
                     ctx.lineWidth = 1;
@@ -674,8 +834,33 @@
                 const dopplerShift = ref(50);
                 const mcBars = ref([]);
                 const mcHighlight = ref(-1);
+                const terminalLogs = ref([]);
 
                 const theories = [
+                    {
+                        name: "希格斯场：自发对称性破缺 (Higgs Field: Symmetry Breaking)",
+                        mode: 'higgs',
+                        generate: (n) => {
+                            const outcomes = [
+                                "你正在跨越希格斯场，由于自发对称性破缺，你的某些潜在想法正在获得『质量』。这意味着它们即将转化为现实中的财富与影响力。",
+                                "观测到由于相位转换产生的戈德斯通玻色子（Goldstone Bosons）。你的多余精力正在转化为一种稳定的社会势能，保持当前的交互频率。",
+                                "希格斯玻色子（上帝粒子）检测通过。你的核心竞争力已通过场耦合获得了确定的物理属性，不再只是空中楼阁。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "暗能量：宇宙加速膨胀命运 (Dark Energy: Accelerated Expansion)",
+                        mode: 'darkenergy',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你的个人潜能正在经历类似宇宙常数（Λ）的加速膨胀。传统的时间限制已失效，你将在未来的季度实现爆发式增长。",
+                                "真空能量密度由于你的决策注入而升高。周围的阻力（引力）已无法束缚你的扩张，建议采取更激进的全球化或跨领域策略。",
+                                "哈勃常数（H0）本地偏移。你的机会正在以超光速脱离你的视界，只有通过极致的效率才能捕捉到那些即将消失的顶级资源。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "蒙特卡洛算法：概率空间采样 (Monte Carlo Path Sampling)",
                         mode: 'monte',
@@ -836,6 +1021,25 @@
 
                 const observe = () => {
                     isObserving.value = true;
+                    terminalLogs.value = [];
+                    const logs = [
+                        "INITIALIZING QUANTUM BRIDGE...",
+                        "SCANNING LOCAL SPACE-TIME CURVATURE...",
+                        "FETCHING COVARIANCES...",
+                        "COLLAPSING WAVEFUNCTION...",
+                        "DECODING HAWKING RADIATION...",
+                        "SYNCHRONIZING WITH MULTIVERSE..."
+                    ];
+                    let logIdx = 0;
+                    const logInterval = setInterval(() => {
+                        if (logIdx < logs.length) {
+                            terminalLogs.value.push(logs[logIdx++]);
+                            if (terminalLogs.value.length > 4) terminalLogs.value.shift();
+                        } else {
+                            clearInterval(logInterval);
+                        }
+                    }, 300);
+
                     bitData.value = Array.from({length: 40}, () => Math.random() > 0.5 ? '1' : '0').join('');
                     dopplerShift.value = Math.random() * 80 + 10;
                     mcBars.value = Array.from({length: 30}, () => Math.random() * 80 + 10);
@@ -853,7 +1057,7 @@
                     }, 2000);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift, mcBars, mcHighlight };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift, mcBars, mcHighlight, terminalLogs };
             }
         }).mount('#app');
     </script>
