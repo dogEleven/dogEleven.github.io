@@ -139,11 +139,24 @@
         .result {
             margin-top: 45px;
             padding: 30px;
-            background: rgba(255, 255, 255, 0.02);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
             border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            animation: resultReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .result::after {
+            content: "";
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(0, 242, 255, 0.03) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        @keyframes resultReveal {
+            0% { opacity: 0; transform: translateY(40px) scale(0.95); filter: blur(10px); }
+            100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
         }
         @keyframes slideUp {
             from { opacity: 0; transform: translateY(30px); }
@@ -574,6 +587,32 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Orbital Mechanics')" class="viz-box">
+                    <div style="height: 80px; position: relative; overflow: hidden; background: rgba(255, 255, 255, 0.02); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 80">
+                            <!-- Ellipse Path -->
+                            <ellipse cx="100" cy="40" rx="70" ry="25" fill="none" stroke="rgba(0, 242, 255, 0.2)" stroke-width="0.5" stroke-dasharray="2,2" />
+                            <!-- Focal Point (Sun) -->
+                            <circle cx="140" cy="40" r="4" fill="var(--accent)">
+                                <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
+                                <circle cx="140" cy="40" r="8" fill="var(--accent)" opacity="0.1">
+                                    <animate attributeName="r" values="4;12;4" dur="2s" repeatCount="indefinite" />
+                                </circle>
+                            </circle>
+                            <!-- Orbiting Planet -->
+                            <circle r="3" fill="var(--accent)">
+                                <animateMotion dur="4s" repeatCount="indefinite" path="M 30 40 A 70 25 0 1 1 170 40 A 70 25 0 1 1 30 40" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.4 0 0.2 1" />
+                                <animate attributeName="box-shadow" values="0 0 5px var(--accent); 0 0 15px var(--accent); 0 0 5px var(--accent)" dur="4s" repeatCount="indefinite" />
+                            </circle>
+                        </svg>
+                        <div style="position: absolute; top: 5px; right: 10px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.6;">KEPLER_STATE: PERIHELION_APPROACH</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>ANGULAR_VELOCITY: ω_MAX</span>
+                        <span>ECCENTRICITY: e=0.48</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -694,6 +733,17 @@
                         vy: (Math.random() - 0.5) * 0.5,
                         isHub: i < 3,
                         size: i < 3 ? 4 : 1.5
+                    });
+                }
+            } else if (mode === 'orbital') {
+                for(let i=0; i<3; i++) {
+                    points.push({
+                        cx: centerX,
+                        cy: centerY,
+                        rx: 100 + i * 80,
+                        ry: 40 + i * 30,
+                        angle: Math.random() * Math.PI * 2,
+                        v: 0.01 + (3-i) * 0.01
                     });
                 }
             } else {
@@ -848,6 +898,32 @@
                             });
                         }
                     });
+                } else if (mode === 'orbital') {
+                    points.forEach((p, i) => {
+                        p.angle += p.v;
+                        const x = p.cx + Math.cos(p.angle) * p.rx;
+                        const y = p.cy + Math.sin(p.angle) * p.ry;
+                        
+                        // Draw orbit
+                        ctx.strokeStyle = `rgba(0, 242, 255, ${0.1 - i*0.02})`;
+                        ctx.beginPath();
+                        ctx.ellipse(p.cx, p.cy, p.rx, p.ry, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+
+                        // Draw planet
+                        ctx.fillStyle = `rgba(0, 242, 255, ${0.8 - i*0.2})`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4 - i, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Glow at perihelion (simplified as right side)
+                        if (Math.cos(p.angle) > 0.8) {
+                            ctx.shadowBlur = 15;
+                            ctx.shadowColor = 'var(--accent)';
+                            ctx.fill();
+                            ctx.shadowBlur = 0;
+                        }
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -965,6 +1041,11 @@
                         name: "流体力学：层流与湍流 (Fluid Dynamics: Laminar & Turbulent Flow)",
                         mode: 'fluid',
                         generate: (n) => "生命流场的雷诺数显示，你正处于从平稳『层流』向充满变量的『湍流』过度的临界状态。这种波动并非混乱，而是高效率能量交换的体现。保持动力，你将在接下来的漩涡中获得跨越式的动能。"
+                    },
+                    {
+                        name: "天体力学：开普勒轨道与引力助推 (Orbital Mechanics: Keplerian Orbit & Gravity Assist)",
+                        mode: 'orbital',
+                        generate: (n) => "生命轨道正如椭圆行星路径。分析显示你当前正处于『近日点』（Perihelion），动能达到峰值。这意味着在未来一个公转周期内，你的决断力将获得引力助推，实现远超平时的位移速度。抓住这次加速机会。"
                     }
                 ];
 
@@ -977,6 +1058,8 @@
                         "SEQUENCING TEMPORAL GENES...",
                         "MEASURING ENTROPY GRADIENT...",
                         "RESOLVING LORENZ ATTRACTOR...",
+                        "MAPPING NON-EUCLIDEAN DESTINY...",
+                        "SYNCHRONIZING ORBITAL RESONANCE...",
                         "FINALIZING REALITY COLLAPSE..."
                     ];
                     let logIdx = 0;
