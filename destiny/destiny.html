@@ -284,6 +284,57 @@
             letter-spacing: 2px;
             pointer-events: none;
         }
+        /* CRT Scanline Effect */
+        .container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+        /* Monte Carlo Simulation Visuals */
+        .monte-carlo-viz {
+            margin-top: 15px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            padding: 0 10px;
+        }
+        .mc-bar {
+            flex: 1;
+            background: var(--accent);
+            opacity: 0.3;
+            transition: height 1s ease-out;
+        }
+        .mc-bar.highlight {
+            opacity: 1;
+            box-shadow: 0 0 10px var(--accent);
+        }
+        /* Stellar Nucleosynthesis */
+        .stellar-core {
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, #fff, var(--accent), transparent);
+            border-radius: 50%;
+            margin: 15px auto;
+            box-shadow: 0 0 20px var(--accent);
+            animation: pulse-glow 2s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { transform: scale(0.9); opacity: 0.6; }
+            to { transform: scale(1.1); opacity: 1; }
+        }
         .telemetry-right {
             position: fixed;
             bottom: 20px;
@@ -294,6 +345,15 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             pointer-events: none;
+        }
+        .terminal-log {
+            font-family: monospace;
+            font-size: 8px;
+            color: #444;
+            text-align: left;
+            margin-top: 10px;
+            max-height: 40px;
+            overflow: hidden;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -328,6 +388,12 @@
                 <div class="theory-tag">{{ theoryName }}</div>
                 <div class="fortune-text">{{ fortune }}</div>
                 
+                <div v-if="theoryName.includes('Monte Carlo')" class="monte-carlo-viz">
+                    <div v-for="(h, i) in mcBars" :key="i" class="mc-bar" :class="{ highlight: i === mcHighlight }" :style="{ height: h + '%' }"></div>
+                </div>
+
+                <div v-if="theoryName.includes('Nucleosynthesis')" class="stellar-core"></div>
+
                 <div v-if="theoryName.includes('Doppler')" class="doppler-spectrum">
                     <div class="spectrum-bar"></div>
                     <div class="spectrum-pointer" :style="{ left: dopplerShift + '%' }"></div>
@@ -456,6 +522,26 @@
                         speed: Math.random() * 2 + 1
                     });
                 }
+            } else if (mode === 'stellar') {
+                for(let i=0; i<300; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * 200;
+                    points.push({
+                        x: centerX + Math.cos(angle) * radius,
+                        y: centerY + Math.sin(angle) * radius,
+                        vx: Math.cos(angle + Math.PI/2) * (200/radius),
+                        vy: Math.sin(angle + Math.PI/2) * (200/radius)
+                    });
+                }
+            } else if (mode === 'monte') {
+                for(let i=0; i<500; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        tx: centerX + (Math.random() - 0.5) * 400,
+                        ty: centerY + (Math.random() - 0.5) * 400
+                    });
+                }
             } else {
                 let x = 0.1, y = 0, z = 0;
                 const a = 10, b = 28, c = 8/3;
@@ -535,6 +621,31 @@
                         if (p.y > canvas.height) p.y = 0;
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'monte') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'rgba(0, 242, 255, 0.8)';
+                    points.forEach(p => {
+                        p.x += (p.tx - p.x) * 0.02;
+                        p.y += (p.ty - p.y) * 0.02;
+                        ctx.fillRect(p.x, p.y, 1.5, 1.5);
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'stellar') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        const dist = Math.sqrt((p.x - centerX)**2 + (p.y - centerY)**2);
+                        const ax = (centerX - p.x) / (dist * 0.1);
+                        const ay = (centerY - p.y) / (dist * 0.1);
+                        p.vx += ax;
+                        p.vy += ay;
+                        p.x += p.vx * 0.1;
+                        p.y += p.vy * 0.1;
+                        ctx.fillStyle = `hsl(180, 100%, ${Math.min(100, 50 + 1000/dist)}%)`;
+                        ctx.fillRect(p.x, p.y, 2, 2);
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else {
                     if (currentIdx < points.length - 1) {
                         ctx.beginPath();
@@ -561,8 +672,34 @@
                 const isObserving = ref(false);
                 const bitData = ref('');
                 const dopplerShift = ref(50);
+                const mcBars = ref([]);
+                const mcHighlight = ref(-1);
 
                 const theories = [
+                    {
+                        name: "蒙特卡洛算法：概率空间采样 (Monte Carlo Path Sampling)",
+                        mode: 'monte',
+                        generate: (n) => {
+                            const outcomes = [
+                                "在1,000,000次路径模拟中，有98.4%的样本收敛于『卓越成功』。你的当前决策正处于概率分布的最优尖峰。",
+                                "大数定律正在生效。尽管短期存在波动，但你的命运期望值(Expected Value)正稳步向正值漂移，保持耐心是统计学上的最优解。",
+                                "随机漫步测试显示，你正处于『均值回归』阶段。之前的过度消耗正在被系统性补偿，预计未来的平稳性将大幅提升。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "恒星核合成：命运锻造理论 (Stellar Nucleosynthesis)",
+                        mode: 'stellar',
+                        generate: (n) => {
+                            const outcomes = [
+                                "你正处于『超新星爆发』的前夜。核心压力正在将平庸的碳元素转化为珍贵的重金属元素（财富与声望），爆发已不可避免。",
+                                "观测到稳定的氢核聚变。你的内在能量输出极其平稳，这种持久的恒星级动力将支撑你完成跨度为十年的长远计划。",
+                                "检测到引力坍缩。但这并非终结，而是形成中子星的高密度过程。你的专业能力正在经历质的压缩，变得不可摧毁。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "多普勒效应：命运频谱偏移 (Relativistic Doppler Shift)",
                         mode: 'doppler',
@@ -701,6 +838,8 @@
                     isObserving.value = true;
                     bitData.value = Array.from({length: 40}, () => Math.random() > 0.5 ? '1' : '0').join('');
                     dopplerShift.value = Math.random() * 80 + 10;
+                    mcBars.value = Array.from({length: 30}, () => Math.random() * 80 + 10);
+                    mcHighlight.value = Math.floor(Math.random() * 30);
                     const theoryIndex = Math.floor(Math.random() * theories.length);
                     const theory = theories[theoryIndex];
                     
@@ -714,7 +853,7 @@
                     }, 2000);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift, mcBars, mcHighlight };
             }
         }).mount('#app');
     </script>
