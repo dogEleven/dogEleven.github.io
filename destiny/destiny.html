@@ -124,6 +124,17 @@
             line-height: 1.6;
             font-weight: 300;
         }
+        /* Chaos Theory Visualizer */
+        .chaos-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.4;
+        }
         /* Quantum Glow Animation */
         @keyframes pulse-glow {
             0% { box-shadow: 0 0 20px rgba(0, 242, 255, 0.05); }
@@ -141,6 +152,7 @@
     </style>
 </head>
 <body>
+    <canvas id="chaosCanvas" class="chaos-container"></canvas>
     <div id="app">
         <div class="container">
             <h1>DESTINY COLLAPSE</h1>
@@ -170,6 +182,52 @@
     </div>
 
     <script>
+        // Chaos Theory Visualizer (Lorenz Attractor-inspired)
+        const canvas = document.getElementById('chaosCanvas');
+        const ctx = canvas.getContext('2d');
+        let points = [];
+        let animationId;
+
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+
+        window.startChaos = () => {
+            points = [];
+            let x = 0.1, y = 0, z = 0;
+            const a = 10, b = 28, c = 8/3;
+            const dt = 0.01;
+
+            for(let i=0; i<500; i++) {
+                let dx = a * (y - x) * dt;
+                let dy = (x * (b - z) - y) * dt;
+                let dz = (x * y - c * z) * dt;
+                x += dx; y += dy; z += dz;
+                points.push({x: x * 15 + canvas.width/2, y: y * 15 + canvas.height/2});
+            }
+            
+            let currentIdx = 0;
+            cancelAnimationFrame(animationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            function animate() {
+                if (currentIdx < points.length - 1) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#00f2ff';
+                    ctx.lineWidth = 0.5;
+                    ctx.moveTo(points[currentIdx].x, points[currentIdx].y);
+                    ctx.lineTo(points[currentIdx+1].x, points[currentIdx+1].y);
+                    ctx.stroke();
+                    currentIdx++;
+                    animationId = requestAnimationFrame(animate);
+                }
+            }
+            animate();
+        };
+
         const { createApp, ref } = Vue;
         createApp({
             setup() {
@@ -180,6 +238,17 @@
                 const isObserving = ref(false);
 
                 const theories = [
+                    {
+                        name: "混沌理论与蝴蝶效应 (Chaos Theory)",
+                        generate: (n) => {
+                            const outcomes = [
+                                "亚马逊雨林的蝴蝶扇动了翅膀，你本周的一个微小决定将引发职业生涯的风暴级巨变。",
+                                "洛伦兹吸引子显示你的生活轨迹正进入一个稳定的奇异吸引子轨道，秩序将从混乱中诞生。",
+                                "对初始条件的敏感依赖表明，改变明早的起床时间将彻底重写你下个月的财务曲线。"
+                            ];
+                            return outcomes[(n.length + n.charCodeAt(0)) % outcomes.length];
+                        }
+                    },
                     {
                         name: "量子相干性理论 (Quantum Coherence)",
                         generate: (n) => {
@@ -217,6 +286,7 @@
 
                 const observe = () => {
                     isObserving.value = true;
+                    if (window.startChaos) window.startChaos();
                     setTimeout(() => {
                         const theory = theories[Math.floor(Math.random() * theories.length)];
                         theoryName.value = theory.name;
