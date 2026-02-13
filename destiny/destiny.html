@@ -386,11 +386,31 @@
             position: fixed;
             width: 400px;
             height: 400px;
-            background: radial-gradient(circle, rgba(0, 242, 255, 0.08) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(0, 242, 255, 0.1) 0%, transparent 70%);
             pointer-events: none;
             z-index: -1;
             transform: translate(-50%, -50%);
             transition: width 0.3s, height 0.3s;
+            mix-blend-mode: screen;
+        }
+        .container::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: 
+                linear-gradient(rgba(0, 242, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 255, 0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        @keyframes pulse-border {
+            0% { border-color: rgba(0, 242, 255, 0.1); }
+            50% { border-color: rgba(0, 242, 255, 0.4); }
+            100% { border-color: rgba(0, 242, 255, 0.1); }
+        }
+        .container.observing {
+            animation: pulse-border 1s infinite;
         }
 
         @keyframes diffuse {
@@ -410,7 +430,7 @@
     <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.7.2</div>
 
     <div id="app">
-        <div class="container">
+        <div class="container" :class="{ observing: isObserving }">
             <div v-if="isObserving" class="scanning-line"></div>
             
             <div style="position: absolute; top: 20px; right: 30px; font-family: monospace; font-size: 8px; color: var(--subtext); text-align: right;">
@@ -942,6 +962,35 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Neural Architecture')" class="viz-box">
+                    <div style="height: 100px; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border-radius: 12px; display: flex; align-items: center; justify-content: space-around; padding: 0 10px;">
+                        <div v-for="layer in [4, 6, 4]" :key="layer" style="display: flex; flex-direction: column; gap: 8px; z-index: 2;">
+                            <div v-for="node in layer" :key="node" 
+                                 class="neuron-node"
+                                 :style="{ 
+                                    width: '6px', 
+                                    height: '6px', 
+                                    background: Math.random() > 0.6 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
+                                    borderRadius: '50%',
+                                    boxShadow: Math.random() > 0.6 ? '0 0 8px var(--accent)' : 'none'
+                                 }">
+                            </div>
+                        </div>
+                        <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.2; pointer-events: none;">
+                            <line v-for="i in 20" :key="i"
+                                  :x1="20 + Math.random()*40" :y1="Math.random()*100"
+                                  :x2="140 + Math.random()*40" :y2="Math.random()*100"
+                                  stroke="var(--accent)" stroke-width="0.3">
+                                <animate attributeName="opacity" values="0.1;0.5;0.1" :dur="1+Math.random()*2+'s'" repeatCount="indefinite" />
+                            </line>
+                        </svg>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>GRADIENT_DESCENT: CONVERGING</span>
+                        <span>LOSS: 0.00042</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -1200,6 +1249,20 @@
                         s: Math.random() * 2
                     });
                 }
+            } else if (mode === 'deeplearning') {
+                const layers = [10, 15, 10];
+                const layerSpacing = canvas.width / (layers.length + 1);
+                layers.forEach((nodes, li) => {
+                    const nodeSpacing = canvas.height / (nodes + 1);
+                    for(let ni=1; ni<=nodes; ni++) {
+                        points.push({
+                            x: (li + 1) * layerSpacing,
+                            y: ni * nodeSpacing,
+                            layer: li,
+                            pulse: Math.random() * Math.PI * 2
+                        });
+                    }
+                });
             } else {
                 for(let i=0; i<150; i++) {
                     points.push({
@@ -1548,6 +1611,28 @@
                             }
                         });
                     });
+                } else if (mode === 'deeplearning') {
+                    points.forEach((p, i) => {
+                        p.pulse += 0.05;
+                        const glow = (Math.sin(p.pulse) + 1) / 2;
+                        ctx.fillStyle = `rgba(0, 242, 255, ${0.1 + glow * 0.4})`;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2 + glow * 2, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Connect to next layer
+                        points.forEach((other, j) => {
+                            if (other.layer === p.layer + 1) {
+                                const dist = Math.hypot(p.x - other.x, p.y - other.y);
+                                ctx.strokeStyle = `rgba(0, 242, 255, ${0.05 * (1 - dist/canvas.width)})`;
+                                ctx.lineWidth = 0.5;
+                                ctx.beginPath();
+                                ctx.moveTo(p.x, p.y);
+                                ctx.lineTo(other.x, other.y);
+                                ctx.stroke();
+                            }
+                        });
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1887,6 +1972,11 @@
                         name: "神经可塑性：海布法则 (Neuroplasticity: Hebbian Learning)",
                         mode: 'neuro',
                         generate: (n) => "『共同激发的神经元会连在一起』。观测显示你的认知结构正在发生深度重组，旧有的思维势垒正在坍塌，取而代之的是更加高效的突触连接。通过有意识的强化，你正在物理上重塑自己的命运引擎。"
+                    },
+                    {
+                        name: "深度学习：计算命运架构 (Deep Learning: Neural Architecture)",
+                        mode: 'deeplearning',
+                        generate: (n) => "你的行为模式正在经过多层非线性映射，收敛至一个全局最优解。梯度下降过程显示，你已经越过了命运的『局部最小值』陷阱。当前的『权重衰减』正是为了剔除冗余，让你的核心价值在接下来的推理阶段爆发。"
                     },
                     {
                         name: "全息原理：视界信息投影 (The Holographic Principle: Event Horizon Projection)",
