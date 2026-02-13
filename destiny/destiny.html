@@ -236,6 +236,34 @@
             50% { transform: translateY(2px) scaleY(2); }
             100% { transform: translateY(-2px) scaleY(1); }
         }
+        /* Doppler Shift Visual */
+        .doppler-spectrum {
+            margin-top: 15px;
+            height: 30px;
+            position: relative;
+        }
+        .spectrum-bar {
+            height: 8px;
+            width: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff);
+            border-radius: 4px;
+            opacity: 0.6;
+        }
+        .spectrum-pointer {
+            position: absolute;
+            top: -5px;
+            width: 2px;
+            height: 18px;
+            background: #fff;
+            box-shadow: 0 0 8px #fff;
+            transition: left 1s ease-out;
+        }
+        .neural-net {
+            margin-top: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+        }
         canvas#chaosCanvas {
             position: fixed;
             top: 0;
@@ -276,7 +304,7 @@
 <body>
     <canvas id="chaosCanvas"></canvas>
     <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E</div>
-    <div class="telemetry-right">STATUS: OPERATIONAL | v2.4.0-ITER</div>
+    <div class="telemetry-right">STATUS: OPERATIONAL | v2.5.0-ITER</div>
     <div id="app">
         <div class="container" :class="{ 'warp-active': isObserving }">
             <div v-if="isObserving" class="scanning-bar"></div>
@@ -300,6 +328,23 @@
                 <div class="theory-tag">{{ theoryName }}</div>
                 <div class="fortune-text">{{ fortune }}</div>
                 
+                <div v-if="theoryName.includes('Doppler')" class="doppler-spectrum">
+                    <div class="spectrum-bar"></div>
+                    <div class="spectrum-pointer" :style="{ left: dopplerShift + '%' }"></div>
+                    <div style="display: flex; justify-content: space-between; font-size: 8px; margin-top: 5px; color: var(--subtext);">
+                        <span>REDSHIFT (PAST)</span>
+                        <span>BLUESHIFT (FUTURE)</span>
+                    </div>
+                </div>
+
+                <div v-if="theoryName.includes('Neural')" class="neural-net">
+                    <svg width="100%" height="60">
+                        <circle v-for="i in 3" :cx="20 + i*40" cy="15" r="4" fill="var(--accent)" opacity="0.6" />
+                        <circle v-for="i in 4" :cx="i*50" cy="45" r="4" fill="var(--accent)" />
+                        <line v-for="i in 3" v-for="j in 4" :x1="20 + i*40" y1="15" :x2="j*50" y2="45" stroke="var(--accent)" stroke-width="0.5" opacity="0.2" />
+                    </svg>
+                </div>
+
                 <div v-if="theoryName.includes('Game Theory')" class="matrix-grid">
                     <div class="matrix-cell">C: (3, 3)</div>
                     <div class="matrix-cell">D: (0, 5)</div>
@@ -360,11 +405,15 @@
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
-            if (mode === 'relativity') {
+            if (mode === 'relativity' || mode === 'doppler') {
                 for(let i=0; i<200; i++) {
                     const angle = (i / 200) * Math.PI * 2 * 5;
                     const radius = i * 2;
-                    points.push({x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius});
+                    points.push({
+                        x: centerX + Math.cos(angle) * radius, 
+                        y: centerY + Math.sin(angle) * radius,
+                        color: mode === 'doppler' ? `hsl(${i % 360}, 100%, 50%)` : '#ff3e3e'
+                    });
                 }
             } else if (mode === 'strings') {
                 for(let i=0; i<30; i++) {
@@ -489,12 +538,12 @@
                 } else {
                     if (currentIdx < points.length - 1) {
                         ctx.beginPath();
-                        ctx.strokeStyle = mode === 'relativity' ? '#ff3e3e' : '#00f2ff';
+                        ctx.strokeStyle = points[currentIdx].color || (mode === 'relativity' ? '#ff3e3e' : '#00f2ff');
                         ctx.lineWidth = 0.5;
                         ctx.moveTo(points[currentIdx].x, points[currentIdx].y);
                         ctx.lineTo(points[currentIdx+1].x, points[currentIdx+1].y);
                         ctx.stroke();
-                        currentIdx += mode === 'relativity' ? 2 : 1;
+                        currentIdx += (mode === 'relativity' || mode === 'doppler') ? 2 : 1;
                         animationId = requestAnimationFrame(animate);
                     }
                 }
@@ -511,8 +560,33 @@
                 const scanTime = ref('');
                 const isObserving = ref(false);
                 const bitData = ref('');
+                const dopplerShift = ref(50);
 
                 const theories = [
+                    {
+                        name: "多普勒效应：命运频谱偏移 (Relativistic Doppler Shift)",
+                        mode: 'doppler',
+                        generate: (n) => {
+                            const outcomes = [
+                                "检测到显著的『蓝移』现象。你的好运正在以接近光速的速度向你靠近，建议在接下来的72小时内保持全速前进。",
+                                "观测到轻微的『红移』。过去的某些因果正在逐渐远离，此时正是摆脱旧束缚、轻装上阵的最佳时机。",
+                                "频谱分析显示你处于『静止坐标系』。周围的能量正在坍缩成一个稳定的核心，这是深度思考与复盘的黄金期。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "神经网络：命运权重调优 (Neural Network: Synaptic Weights)",
+                        mode: 'info',
+                        generate: (n) => {
+                            const outcomes = [
+                                "系统正在重新调整你的『成功权重』。梯度下降算法已找到局部最优路径，你的执行力将获得显著提升。",
+                                "激活函数（Activation Function）检测到非线性激增。一个微小的努力将触发连锁反应，带来超乎想象的收益。",
+                                "由于反向传播（Backpropagation）修正，你之前的某些挫折已被转化为宝贵的训练数据，新版本的你已上线。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "信息论：香农熵与信道容量 (Information Theory)",
                         mode: 'info',
@@ -626,6 +700,7 @@
                 const observe = () => {
                     isObserving.value = true;
                     bitData.value = Array.from({length: 40}, () => Math.random() > 0.5 ? '1' : '0').join('');
+                    dopplerShift.value = Math.random() * 80 + 10;
                     const theoryIndex = Math.floor(Math.random() * theories.length);
                     const theory = theories[theoryIndex];
                     
@@ -639,7 +714,7 @@
                     }, 2000);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, bitData, dopplerShift };
             }
         }).mount('#app');
     </script>
