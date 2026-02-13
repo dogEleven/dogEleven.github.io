@@ -116,41 +116,55 @@
             color: var(--accent);
             display: inline-block;
             margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .fortune-text {
             font-size: 18px;
             line-height: 1.6;
+            font-weight: 300;
         }
-        .loading {
-            margin-top: 20px;
-            color: var(--accent);
-            font-size: 12px;
-            letter-spacing: 2px;
+        /* Quantum Glow Animation */
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 20px rgba(0, 242, 255, 0.05); }
+            50% { box-shadow: 0 0 40px rgba(0, 242, 255, 0.15); }
+            100% { box-shadow: 0 0 20px rgba(0, 242, 255, 0.05); }
+        }
+        .container {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.05);
+            border: 1px solid rgba(0, 242, 255, 0.1);
+            animation: pulse-glow 4s infinite ease-in-out;
         }
     </style>
 </head>
 <body>
     <div id="app">
         <div class="container">
-            <h1>QUANTUM DESTINY</h1>
-            <p class="subtitle">基于量子坍缩与混沌理论的未来观测</p>
+            <h1>DESTINY COLLAPSE</h1>
+            <p class="subtitle">基于科学理论的跨维度观测站</p>
             
             <div class="input-group">
-                <label>主体特征 (姓名/代号)</label>
-                <input v-model="name" placeholder="请输入观测目标...">
+                <label>观测主体 (姓名/指纹代号)</label>
+                <input v-model="name" placeholder="输入以建立量子纠缠...">
             </div>
             
             <button @click="observe" :disabled="!name || isObserving">
-                {{ isObserving ? '正在进行波函数坍缩...' : '开始量子观测' }}
+                {{ isObserving ? '正在计算概率幅...' : '启动观测程序' }}
             </button>
 
             <div v-if="isObserving" class="loading">
-                OBSERVING<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+                [ SCANNING DIMENSIONS ]
             </div>
 
             <div v-if="fortune && !isObserving" class="result">
                 <div class="theory-tag">{{ theoryName }}</div>
                 <div class="fortune-text">{{ fortune }}</div>
+                <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
+                    观测时间: {{ scanTime }} | 误差项: ±0.0002%
+                </div>
             </div>
         </div>
     </div>
@@ -162,21 +176,41 @@
                 const name = ref('');
                 const fortune = ref('');
                 const theoryName = ref('');
+                const scanTime = ref('');
                 const isObserving = ref(false);
 
                 const theories = [
                     {
                         name: "量子相干性理论 (Quantum Coherence)",
                         generate: (n) => {
-                            const outcomes = ["处于高能态，事业将出现突发性跃迁。", "波函数极其平稳，适合在低熵环境下深耕。", "存在量子纠缠，近期会有远方的重要关联人物介入。"];
+                            const outcomes = [
+                                "观测结果显示你的波函数正在宏观化，现实中的阻力将由于相干抵消而减小。",
+                                "由于观测者效应，你的未来路径已从叠加态坍缩至『高能成功』分支。",
+                                "存在跨维度纠缠，一个在远方（x > 100km）的粒子变化将带给你新的机遇。"
+                            ];
                             return outcomes[n.length % outcomes.length];
                         }
                     },
                     {
-                        name: "熵增与热力学第二定律 (Entropy)",
+                        name: "热力学第二定律 (Entropy)",
                         generate: (n) => {
-                            const outcomes = ["系统有序度正在增加，混乱的事务将趋于清晰。", "当前处于局部低熵状态，由于Butterfly Effect，微小的决定将改变下周的走向。", "热寂风险预警，建议在社交场域注入新的能量单体。"];
+                            const outcomes = [
+                                "系统熵值正在逆向波动，混乱的事务将由于你的意志注入而重新有序。",
+                                "热寂风险暂时解除。你正处于局部负熵流中，效率将获得 40% 的理论提升。",
+                                "麦克斯韦妖正在分选你的机会：保留高价值社交，剔除无序信息干扰。"
+                            ];
                             return outcomes[n.charCodeAt(0) % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "薛定谔的猫 (Probability Collapse)",
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测箱已开启：你的某项犹豫不决的计划已确认为『存活』状态，请立即执行。",
+                                "坍缩结果：叠加态消失。现实将以一种极其确定的方式向你展示其友好的一面。",
+                                "警告：观测到多重宇宙分支。在当前分支下，你的财富指数由于量子隧穿效应而出现异常增涨。"
+                            ];
+                            return outcomes[n.charCodeAt(n.length - 1) % outcomes.length];
                         }
                     }
                 ];
@@ -187,11 +221,12 @@
                         const theory = theories[Math.floor(Math.random() * theories.length)];
                         theoryName.value = theory.name;
                         fortune.value = theory.generate(name.value);
+                        scanTime.value = new Date().toLocaleTimeString();
                         isObserving.value = false;
                     }, 1500);
                 };
 
-                return { name, fortune, theoryName, isObserving, observe };
+                return { name, fortune, theoryName, scanTime, isObserving, observe };
             }
         }).mount('#app');
     </script>
