@@ -15,6 +15,9 @@
         }
         body {
             background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 2px 2px, rgba(0, 242, 255, 0.05) 1px, transparent 0);
+            background-size: 40px 40px;
             color: var(--text);
             font-family: 'Inter', -apple-system, system-ui, sans-serif;
             margin: 0;
@@ -530,6 +533,74 @@
             55% { transform: translateX(10px); opacity: 0.8; }
             100% { transform: translateX(100px); opacity: 0; }
         }
+        /* Hawking Radiation Visuals */
+        .black-hole-container {
+            margin-top: 15px;
+            height: 80px;
+            background: #000;
+            border-radius: 50%;
+            width: 80px;
+            margin: 15px auto;
+            position: relative;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0, 242, 255, 0.2);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .event-horizon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: #000;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px #00f2ff, 0 0 30px #007aff;
+            z-index: 2;
+        }
+        .radiation-particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            animation: radiate 2s infinite ease-out;
+        }
+        @keyframes radiate {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; top: 50%; left: 50%; }
+            100% { transform: translate(var(--rx), var(--ry)) scale(2); opacity: 0; top: 50%; left: 50%; }
+        }
+        /* Kinetic Energy / Pendulum */
+        .pendulum-container {
+            margin-top: 15px;
+            height: 60px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        .pendulum-arm {
+            width: 2px;
+            height: 40px;
+            background: var(--accent);
+            transform-origin: top center;
+            animation: swing 2s infinite ease-in-out;
+            position: relative;
+        }
+        .pendulum-bob {
+            position: absolute;
+            bottom: -5px;
+            left: -4px;
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent);
+        }
+        @keyframes swing {
+            0% { transform: rotate(45deg); }
+            50% { transform: rotate(-45deg); }
+            100% { transform: rotate(45deg); }
+        }
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -591,7 +662,7 @@
 <body>
     <canvas id="chaosCanvas"></canvas>
     <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E</div>
-    <div class="telemetry-right">STATUS: OPERATIONAL | v2.6.0-ITER</div>
+    <div class="telemetry-right">STATUS: OPERATIONAL | v2.7.0-ITER</div>
     <div id="app">
         <div class="container" :class="{ 'warp-active': isObserving }">
             <div v-if="isObserving" class="scanning-bar"></div>
@@ -625,6 +696,21 @@
                 <div class="theory-tag">{{ theoryName }}</div>
                 <div class="fortune-text">{{ fortune }}</div>
                 
+                <div v-if="theoryName.includes('Hawking Radiation')" class="black-hole-container">
+                    <div class="event-horizon"></div>
+                    <div v-for="i in 20" :key="i" class="radiation-particle" :style="{
+                        '--rx': (Math.random() * 100 - 50) + 'px',
+                        '--ry': (Math.random() * 100 - 50) + 'px',
+                        animationDelay: Math.random() * 2 + 's'
+                    }"></div>
+                    <div style="position: absolute; bottom: 5px; width: 100%; text-align: center; font-size: 7px; color: var(--accent); font-family: monospace; z-index: 3;">RADIATION LEAK DETECTED</div>
+                </div>
+
+                <div v-if="theoryName.includes('Kinetic')" class="pendulum-container">
+                    <div class="pendulum-arm"><div class="pendulum-bob"></div></div>
+                    <div style="position: absolute; bottom: 5px; font-size: 8px; color: var(--accent); font-family: monospace;">E = 1/2mv² + mgh</div>
+                </div>
+
                 <div v-if="theoryName.includes('Monte Carlo')" class="monte-carlo-viz">
                     <div v-for="(h, i) in mcBars" :key="i" class="mc-bar" :class="{ highlight: i === mcHighlight }" :style="{ height: h + '%' }"></div>
                 </div>
@@ -759,7 +845,29 @@
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
-            if (mode === 'higgs') {
+            if (mode === 'blackhole') {
+                for(let i=0; i<300; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    points.push({
+                        x: centerX + Math.cos(angle) * (Math.random() * 300 + 100),
+                        y: centerY + Math.sin(angle) * (Math.random() * 300 + 100),
+                        vx: 0,
+                        vy: 0,
+                        angle: angle,
+                        dist: Math.random() * 300 + 100
+                    });
+                }
+            } else if (mode === 'kinetic') {
+                for(let i=0; i<100; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: canvas.height,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: -(Math.random() * 10 + 5),
+                        gravity: 0.15
+                    });
+                }
+            } else if (mode === 'higgs') {
                 for(let i=0; i<400; i++) {
                     points.push({
                         x: Math.random() * canvas.width,
@@ -904,7 +1012,38 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             function animate() {
-                if (mode === 'higgs') {
+                if (mode === 'blackhole') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        p.dist *= 0.98;
+                        p.angle += 0.05;
+                        p.x = centerX + Math.cos(p.angle) * p.dist;
+                        p.y = centerY + Math.sin(p.angle) * p.dist;
+                        ctx.fillStyle = `hsl(${p.dist}, 100%, 50%)`;
+                        ctx.fillRect(p.x, p.y, 2, 2);
+                        if(p.dist < 10) {
+                            p.dist = Math.random() * 300 + 100;
+                            p.angle = Math.random() * Math.PI * 2;
+                        }
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'kinetic') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#00f2ff';
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += p.gravity;
+                        ctx.fillRect(p.x, p.y, 3, 3);
+                        if(p.y > canvas.height) {
+                            p.y = canvas.height;
+                            p.vy *= -0.8;
+                        }
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'higgs') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.fillStyle = 'rgba(0, 242, 255, 0.8)';
@@ -1126,6 +1265,30 @@
                 const entropyValue = ref(0);
 
                 const theories = [
+                    {
+                        name: "霍金辐射：能量蒸发与信息保存 (Hawking Radiation: Entropy Leak)",
+                        mode: 'blackhole',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你生活中的『黑洞期』（高压与停滞）正在通过霍金辐射缓慢蒸发。那些看似消失的机会正以纯粹信息的形式重新辐射回现实世界，预示着压力的释放与灵感的爆发。",
+                                "由于视界（Event Horizon）附近的量子涨落，你正处于一个极其特殊的信息交换点。即使是曾经的失败，也在通过热辐射转化为推动你前进的原始动力。系统的总熵虽然在增加，但你的局部序位正在提升。",
+                                "检测到奇点附近的物质抛射。你之前由于过度投入而『深陷』其中的某项事务，即将由于黑洞的蒸发效应而以全新的、更高维度的形式重新出现。注意那些从灰烬中升起的微弱信号。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "动力学系统：机械能守恒与动量定理 (Kinetic Systems & Momentum)",
+                        mode: 'kinetic',
+                        generate: (n) => {
+                            const outcomes = [
+                                "你的命运摆锤正处于势能最高的顶点。重力加速度将把你推向一个极高动能的周期，建议在接下来的时间里保持身体与思维的惯性，不要随意改变方向。",
+                                "检测到完全弹性碰撞。你近期的社交互动将实现完美的动量转移，你所付出的努力将以等值的动能反馈到你的核心目标上，没有能量耗散。",
+                                "由于摩擦力系数减小，你的生活阻力已降至最低。目前是建立『初速度』的最佳契机，一旦进入稳态运动，你将凭借惯性跨越任何微小的势垒。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "量子隧穿效应：跨越不可能的障碍 (Quantum Tunneling)",
                         mode: 'tunneling',
