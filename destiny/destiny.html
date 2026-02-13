@@ -201,6 +201,29 @@
             width: 0%;
             transition: width 1s cubic-bezier(0.1, 0.5, 0.5, 1);
         }
+        /* String Theory Visuals */
+        .string-container {
+            margin-top: 15px;
+            height: 60px;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .string-wave {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: var(--accent);
+            top: 50%;
+            opacity: 0.3;
+            animation: wave-vibrate 0.1s infinite;
+        }
+        @keyframes wave-vibrate {
+            0% { transform: translateY(0) scaleY(1); }
+            50% { transform: translateY(2px) scaleY(2); }
+            100% { transform: translateY(-2px) scaleY(1); }
+        }
         canvas#chaosCanvas {
             position: fixed;
             top: 0;
@@ -263,6 +286,14 @@
                     <div class="stat-bar-bg"><div class="stat-bar-fill" :style="{ width: (Math.random() * 30 + 10) + '%' }"></div></div>
                 </div>
 
+                <div v-if="theoryName.includes('String Theory')" class="string-container">
+                    <div v-for="i in 10" :key="i" class="string-wave" :style="{ 
+                        top: (10 + i * 8) + '%', 
+                        animationDelay: (i * 0.05) + 's',
+                        opacity: 0.1 + (i * 0.05)
+                    }"></div>
+                </div>
+
                 <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
                     观测时间: {{ scanTime }} | 误差项: ±0.0002%
                 </div>
@@ -294,6 +325,15 @@
                     const angle = (i / 200) * Math.PI * 2 * 5;
                     const radius = i * 2;
                     points.push({x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius});
+                }
+            } else if (mode === 'strings') {
+                for(let i=0; i<30; i++) {
+                    points.push({
+                        y: (canvas.height / 30) * i,
+                        amp: Math.random() * 50 + 20,
+                        freq: Math.random() * 0.02 + 0.01,
+                        phase: Math.random() * Math.PI * 2
+                    });
                 }
             } else if (mode === 'game') {
                 for(let i=0; i<150; i++) {
@@ -336,7 +376,22 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             function animate() {
-                if (mode === 'game') {
+                if (mode === 'strings') {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = 'rgba(0, 242, 255, 0.4)';
+                    ctx.lineWidth = 1;
+                    const time = Date.now() * 0.005;
+                    points.forEach(p => {
+                        ctx.beginPath();
+                        for (let x = 0; x < canvas.width; x += 5) {
+                            const y = p.y + Math.sin(x * p.freq + p.phase + time) * p.amp;
+                            if (x === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.stroke();
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'game') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.fillStyle = '#00f2ff';
@@ -398,6 +453,18 @@
                 const isObserving = ref(false);
 
                 const theories = [
+                    {
+                        name: "弦理论：高维维度纠缠 (String Theory)",
+                        mode: 'strings',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你的命运波函数正在第六维度（卡拉比-丘流形）发生剧烈振动。这预示着隐藏的机遇将从日常的四维时空中意外浮现。",
+                                "弦的振动模式与『成功』基态共振。跨维度的张力正在重新分配你的财富潜能，建议关注那些看似微不足道的细节。",
+                                "存在超对称对称性破缺。虽然表面看起来对称性消失了，但深层结构的和谐正在引导你走向一个更高能级的职业节点。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "遗传算法：进化命运 (Genetic Algorithm)",
                         mode: 'genetic',
