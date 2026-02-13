@@ -10,32 +10,53 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <style>
-        :root { --primary: #007aff; --bg: #f2f2f7; --card-bg: #ffffff; --text: #1c1c1e; --subtext: #8e8e93; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); padding: 12px; max-width: 600px; margin: 0 auto; color: var(--text); -webkit-font-smoothing: antialiased; }
+        :root { 
+            --primary: #007aff; 
+            --bg: #f2f2f7; 
+            --card-bg: #ffffff; 
+            --text: #1c1c1e; 
+            --subtext: #8e8e93; 
+            --input-bg: #f9f9f9;
+            --border: rgba(0,0,0,0.05);
+        }
+        [data-theme='dark'] {
+            --bg: #1c1c1e;
+            --card-bg: #2c2c2e;
+            --text: #f2f2f7;
+            --subtext: #8e8e93;
+            --input-bg: #3a3a3c;
+            --border: rgba(255,255,255,0.1);
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); padding: 12px; max-width: 600px; margin: 0 auto; color: var(--text); -webkit-font-smoothing: antialiased; transition: background 0.3s, color 0.3s; }
         .login-box { background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; margin-top: 50px; }
-        input { width: 100%; box-sizing: border-box; padding: 12px 16px; margin: 15px 0; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 16px; background: #f9f9f9; transition: all 0.2s; }
-        input:focus { border-color: var(--primary); outline: none; background: white; }
+        input { width: 100%; box-sizing: border-box; padding: 12px 16px; margin: 15px 0; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 16px; background: var(--input-bg); color: var(--text); transition: all 0.2s; }
+        [data-theme='dark'] input { border-color: #3a3a3c; }
+        input:focus { border-color: var(--primary); outline: none; background: var(--card-bg); }
         button { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; transition: opacity 0.2s; width: 100%; }
         button:active { opacity: 0.8; }
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 4px; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
         h1 { font-size: 18px; font-weight: 700; margin: 0; }
-        .logout-btn { background: none; color: var(--primary); font-weight: 400; padding: 4px 0; width: auto; font-size: 13px; }
+        .theme-toggle { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; width: auto; }
+        .logout-btn { background: none; color: var(--primary); font-weight: 400; padding: 4px 0; width: auto; font-size: 13px; border: none; cursor: pointer; }
 
         .new-task { background: var(--card-bg); padding: 8px 10px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 8px; }
         .new-task-row { display: flex; gap: 8px; }
         .new-task input { margin: 0; border: none; background: transparent; padding: 0; font-size: 14px; }
-        .new-task select { padding: 6px; border-radius: 6px; border: 1px solid #e5e5ea; background: #f2f2f7; font-size: 13px; color: var(--text); }
+        .new-task select { padding: 6px; border-radius: 6px; border: 1px solid #e5e5ea; background: var(--bg); font-size: 13px; color: var(--text); }
+        [data-theme='dark'] .new-task select { border-color: #3a3a3c; }
         .add-btn { width: auto; padding: 6px 12px; font-size: 13px; border-radius: 6px; }
 
         .groups-container { display: flex; flex-direction: column; gap: 8px; }
-        .group-title { font-size: 13px; font-weight: 700; margin: 0 0 4px 4px; display: flex; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; color: #666; }
+        .group-title { font-size: 13px; font-weight: 700; margin: 0 0 4px 4px; display: flex; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; color: var(--subtext); }
         .group-title span { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 8px; font-size: 10px; margin-left: 6px; color: var(--text); font-weight: 600; }
+        [data-theme='dark'] .group-title span { background: rgba(255,255,255,0.1); }
         
         .todo-list { display: flex; flex-direction: column; gap: 0; background: var(--card-bg); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-        .todo-item { background: transparent; padding: 10px 12px; border-radius: 0; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .todo-item { background: transparent; padding: 10px 12px; border-radius: 0; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
         .todo-item:last-child { border-bottom: none; }
-        .todo-item:active { background: #f2f2f7; }
+        .todo-item:active { background: var(--bg); }
         .todo-item.done { opacity: 0.5; }
         .todo-item.done .title { text-decoration: line-through; }
         
@@ -46,16 +67,16 @@
         .todo-item.done .checkbox::after { display: block; }
 
         .content { flex-grow: 1; display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
-        .title { font-size: 13px; line-height: 1.3; word-break: break-word; flex-grow: 1; margin-right: 4px; color: #333; }
+        .title { font-size: 13px; line-height: 1.3; word-break: break-word; flex-grow: 1; margin-right: 4px; color: var(--text); }
         
         /* Label Colors */
         .text-Work { color: #007aff; }
         .text-Life { color: #34c759; }
         .text-HellDrop { color: #ff3b30; }
         .text-Zhutousan { color: #ff9500; }
-        .text-Other { color: #8e8e93; }
+        .text-Other { color: var(--subtext); }
 
-        .edit-input { flex-grow: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; font-size: 13px; background: white; margin: -4px 0; }
+        .edit-input { flex-grow: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; font-size: 13px; background: var(--input-bg); color: var(--text); margin: -4px 0; }
         .edit-actions { display: flex; gap: 8px; margin-left: 8px; font-size: 14px; cursor: pointer; }
     </style>
 </head>
@@ -72,7 +93,10 @@
         <!-- Main View -->
         <div v-else>
             <div class="header">
-                <h1>📋 待办清单</h1>
+                <div class="header-left">
+                    <h1>📋 待办清单</h1>
+                    <button @click="toggleTheme" class="theme-toggle">{{ isDark ? '🌙' : '☀️' }}</button>
+                </div>
                 <button @click="logout" class="logout-btn">Logout</button>
             </div>
 
@@ -133,6 +157,7 @@
                 const editingIssueId = ref(null);
                 const editingTitle = ref('');
                 const editInput = ref(null);
+                const isDark = ref(localStorage.getItem('theme') === 'dark');
 
                 const api = axios.create({
                     baseURL: `https://api.github.com/repos/${REPO}`,
@@ -257,8 +282,20 @@
                     }
                 };
 
+                const toggleTheme = () => {
+                    isDark.value = !isDark.value;
+                    const theme = isDark.value ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-theme', theme);
+                    localStorage.setItem('theme', theme);
+                };
+
                 onMounted(() => {
                     if (token.value) fetchIssues();
+                    
+                    // 初始化主题
+                    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                    isDark.value = savedTheme === 'dark';
+                    document.documentElement.setAttribute('data-theme', savedTheme);
                     
                     // 每次回到页面（可见性改变为可见时）自动重新拉取数据
                     document.addEventListener('visibilitychange', () => {
@@ -271,7 +308,8 @@
                 return { 
                     token, inputToken, saveToken, logout, issues, loading, toggleIssue, 
                     newTask, newLabel, addTask, groupedIssues,
-                    editingIssueId, editingTitle, startEdit, cancelEdit, saveEdit, editInput
+                    editingIssueId, editingTitle, startEdit, cancelEdit, saveEdit, editInput,
+                    isDark, toggleTheme
                 };
             }
         }).mount('#app');
