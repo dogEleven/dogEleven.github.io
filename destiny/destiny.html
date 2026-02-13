@@ -644,8 +644,46 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Multiverse')" class="viz-box">
+                    <div style="height: 70px; position: relative; overflow: hidden; background: rgba(0, 242, 255, 0.02); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="100%" height="100%" viewBox="0 0 200 70">
+                            <!-- Root -->
+                            <line x1="10" y1="35" x2="40" y2="35" stroke="var(--accent)" stroke-width="1" opacity="0.8" />
+                            <!-- Branches -->
+                            <g v-for="i in 3" :key="'branch'+i">
+                                <path :d="`M 40 35 Q 60 ${15+i*15} 100 ${10+i*15}`" fill="none" stroke="var(--accent)" :stroke-width="0.5" :opacity="0.3 + i*0.2">
+                                    <animate attributeName="stroke-dasharray" values="0,200;200,0" dur="2s" repeatCount="indefinite" />
+                                </path>
+                                <circle :cx="100" :cy="10+i*15" r="1.5" fill="var(--accent)" :opacity="0.4 + i*0.2">
+                                    <animate attributeName="r" values="1;2;1" dur="1s" :begin="i*0.3+'s'" repeatCount="indefinite" />
+                                </circle>
+                                <!-- Sub-branches -->
+                                <path v-for="j in 2" :key="'sub'+j" :d="`M 100 ${10+i*15} Q 130 ${10+i*15 + (j-1.5)*10} 180 ${10+i*15 + (j-1.5)*15}`" fill="none" stroke="var(--accent)" stroke-width="0.2" opacity="0.2" />
+                            </g>
+                        </svg>
+                        <div style="position: absolute; top: 5px; right: 10px; font-family: monospace; font-size: 7px; color: var(--accent); opacity: 0.6;">DIVERGENCE: HIGH</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px; display: flex; justify-content: space-between;">
+                        <span>COHERENCE_LEVEL: 0.76</span>
+                        <span>WORLD_LINE_ID: λ-772</span>
+                    </div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
+                </div>
+            </div>
+
+            <!-- History Section -->
+            <div v-if="scanHistory.length > 0 && !isObserving" style="margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+                <div style="font-family: monospace; font-size: 8px; color: var(--subtext); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; text-align: left;">Recent Observations</div>
+                <div v-for="entry in scanHistory" :key="entry.id" 
+                     style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.03);">
+                    <div style="text-align: left;">
+                        <div style="font-size: 10px; font-weight: 700; color: #888;">{{ entry.name }}</div>
+                        <div style="font-size: 8px; color: #555;">{{ entry.theory.split(':')[0] }}</div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext);">{{ entry.time }}</div>
                 </div>
             </div>
         </div>
@@ -789,6 +827,18 @@
                         angle: angle,
                         dist: dist,
                         v: 0.01
+                    });
+                }
+            } else if (mode === 'multiverse') {
+                for(let i=0; i<30; i++) {
+                    const startY = (canvas.height / 30) * i;
+                    points.push({
+                        startX: 0,
+                        x: 0,
+                        y: startY,
+                        vx: Math.random() * 2 + 1,
+                        alpha: Math.random() * 0.3 + 0.1,
+                        nextSplit: 50 + Math.random() * 100
                     });
                 }
             } else {
@@ -994,6 +1044,23 @@
                         ctx.arc(x2, y2, 3, 0, Math.PI * 2);
                         ctx.fill();
                     });
+                } else if (mode === 'multiverse') {
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        ctx.strokeStyle = `rgba(0, 242, 255, ${p.alpha})`;
+                        ctx.beginPath();
+                        ctx.moveTo(p.startX, p.y);
+                        ctx.lineTo(p.x, p.y);
+                        ctx.stroke();
+                        
+                        if (p.x > p.nextSplit) {
+                            p.nextSplit += 100;
+                            // Add a little vertical jitter
+                            p.y += (Math.random() - 0.5) * 2;
+                        }
+                        
+                        if(p.x > canvas.width) p.x = p.startX;
+                    });
                 } else if (mode === 'fluid') {
                     points.forEach(p => {
                         p.x += p.vx;
@@ -1031,6 +1098,7 @@
                 const isObserving = ref(false);
                 const terminalLogs = ref([]);
                 const scanCount = ref(parseInt(localStorage.getItem('destiny_scans') || '0'));
+                const scanHistory = ref(JSON.parse(localStorage.getItem('destiny_history') || '[]'));
 
                 const theories = [
                     {
@@ -1121,6 +1189,11 @@
                         name: "量子纠缠：非定域性联系 (Quantum Entanglement: Spooky Action at a Distance)",
                         mode: 'entanglement',
                         generate: (n) => "量子相干分析揭示，你正与一个遥远的时空质点处于『量子纠缠』状态。这意味着即便在物理空间上处于孤立，你的任何正面改变都会瞬间同步给那个与你命运交织的人或事。你们之间的『非定域性』联系正处于共振巅峰。"
+                    },
+                    {
+                        name: "平行宇宙：多重现实分支 (Multiverse Theory: Branching Realities)",
+                        mode: 'multiverse',
+                        generate: (n) => "量子退相干分析显示，你的决策正在引发大规模的世界线分支。在 87% 的邻近宇宙中，你已经完成了当下的目标。这意味着你当前的现实具有极高的耦合度，只要保持观测的一致性，其他宇宙的成功经验将通过量子穿隧效应回馈至你的主世界线。"
                     }
                 ];
 
@@ -1150,12 +1223,24 @@
                         scanTime.value = new Date().toLocaleTimeString();
                         scanCount.value++;
                         localStorage.setItem('destiny_scans', scanCount.value);
+                        
+                        // Save to history
+                        const historyEntry = {
+                            id: Date.now(),
+                            name: name.value,
+                            theory: theory.name,
+                            time: scanTime.value
+                        };
+                        scanHistory.value.unshift(historyEntry);
+                        if (scanHistory.value.length > 5) scanHistory.value.pop();
+                        localStorage.setItem('destiny_history', JSON.stringify(scanHistory.value));
+
                         window.startVisuals(theory.mode);
                         isObserving.value = false;
                     }, 2800);
                 };
 
-                return { name, fortune, theoryName, scanTime, isObserving, observe, terminalLogs, scanCount };
+                return { name, fortune, theoryName, scanTime, isObserving, observe, terminalLogs, scanCount, scanHistory };
             }
         }).mount('#app');
     </script>
