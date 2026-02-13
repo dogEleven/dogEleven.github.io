@@ -7,12 +7,13 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         :root {
-            --bg: #050505;
-            --card-bg: #111;
+            --bg: #030303;
+            --card-bg: #0a0a0a;
             --accent: #00f2ff;
             --accent-glow: rgba(0, 242, 255, 0.4);
+            --secondary: #ff00c1;
             --text: #e0e0e0;
-            --subtext: #888;
+            --subtext: #666;
         }
         @font-face {
             font-family: 'Geist';
@@ -21,9 +22,9 @@
         body {
             background-color: var(--bg);
             background-image: 
-                radial-gradient(circle at 2px 2px, rgba(0, 242, 255, 0.05) 1px, transparent 0),
-                linear-gradient(rgba(0, 242, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 242, 255, 0.02) 1px, transparent 1px);
+                radial-gradient(circle at 2px 2px, rgba(0, 242, 255, 0.03) 1px, transparent 0),
+                linear-gradient(rgba(0, 242, 255, 0.01) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 255, 0.01) 1px, transparent 1px);
             background-size: 40px 40px, 100px 100px, 100px 100px;
             color: var(--text);
             font-family: 'Geist', 'Inter', -apple-system, system-ui, sans-serif;
@@ -36,255 +37,232 @@
         }
         #app {
             width: 100%;
-            max-width: 500px;
+            max-width: 520px;
             padding: 20px;
             text-align: center;
             z-index: 10;
         }
         .container {
-            background: rgba(17, 17, 17, 0.75);
-            backdrop-filter: blur(30px) saturate(200%);
-            padding: 40px;
-            border-radius: 32px;
-            box-shadow: 0 0 80px rgba(0, 0, 0, 0.5), 0 0 30px rgba(0, 242, 255, 0.1);
-            border: 1px solid rgba(0, 242, 255, 0.2);
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(40px) saturate(180%);
+            padding: 45px;
+            border-radius: 40px;
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 242, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             position: relative;
             overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .container:hover {
-            box-shadow: 0 0 100px rgba(0, 242, 255, 0.2);
-            border-color: rgba(0, 242, 255, 0.5);
-            transform: scale(1.02);
+            border-color: rgba(0, 242, 255, 0.3);
+            box-shadow: 0 0 120px rgba(0, 242, 255, 0.15);
+            transform: translateY(-5px);
         }
-        .container::after {
+        .container::before {
             content: "";
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: conic-gradient(from 0deg, transparent, var(--accent-glow), transparent 30%);
-            animation: rotate-border 10s infinite linear;
-            z-index: -1;
-            opacity: 0.1;
-        }
-        @keyframes rotate-border {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.3;
         }
         h1 {
-            font-size: 32px;
-            margin-bottom: 8px;
-            letter-spacing: -1.5px;
-            background: linear-gradient(135deg, #00f2ff, #007aff, #ff00c1);
+            font-size: 36px;
+            margin-bottom: 5px;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg, #fff, #888);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            font-weight: 800;
+            font-weight: 900;
         }
         p.subtitle {
             color: var(--subtext);
-            font-size: 14px;
-            margin-bottom: 30px;
-            font-weight: 300;
-            letter-spacing: 2px;
+            font-size: 11px;
+            margin-bottom: 35px;
+            font-weight: 600;
+            letter-spacing: 4px;
             text-transform: uppercase;
         }
         .input-group {
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             text-align: left;
         }
         label {
             display: block;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
-            margin-bottom: 10px;
-            color: var(--accent);
+            margin-bottom: 12px;
+            color: var(--subtext);
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
         input {
             width: 100%;
-            background: rgba(26, 26, 26, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 16px 20px;
-            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 18px 24px;
+            border-radius: 20px;
             color: white;
             font-size: 16px;
             box-sizing: border-box;
-            transition: all 0.3s;
+            transition: all 0.4s;
             font-family: inherit;
         }
         input:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
-            background: rgba(30, 30, 30, 0.9);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.1);
         }
         button {
             width: 100%;
-            padding: 18px;
-            background: linear-gradient(90deg, #00f2ff, #007aff);
+            padding: 20px;
+            background: #fff;
             color: #000;
             border: none;
-            border-radius: 16px;
-            font-size: 16px;
-            font-weight: 800;
+            border-radius: 20px;
+            font-size: 15px;
+            font-weight: 900;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.4s;
             margin-top: 10px;
-            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(0, 242, 255, 0.5);
+            transform: scale(1.02);
+            background: var(--accent);
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.4);
         }
-        button:active {
-            transform: scale(0.98);
-        }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
+        button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
         .result {
-            margin-top: 40px;
-            padding-top: 25px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            animation: resultAppear 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-            position: relative;
+            margin-top: 45px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        @keyframes resultAppear {
-            from { opacity: 0; transform: translateY(20px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .fortune-text {
-            font-size: 17px;
+            font-size: 16px;
             line-height: 1.8;
-            margin-bottom: 15px;
-            color: #fff;
+            color: #bbb;
             text-align: left;
-            padding: 0 10px;
+            margin-bottom: 25px;
         }
         .theory-tag {
             display: inline-block;
-            padding: 6px 14px;
-            background: rgba(0, 242, 255, 0.1);
-            border: 1px solid var(--accent);
-            border-radius: 100px;
-            font-size: 11px;
-            font-weight: 800;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
             color: var(--accent);
             margin-bottom: 20px;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+            letter-spacing: 1px;
         }
-        /* Visual modules CSS */
-        .riemann-container {
-            margin-top: 20px;
-            height: 120px;
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 16px;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid rgba(0, 242, 255, 0.1);
-        }
-        .chaos-butterfly {
-            width: 60px;
-            height: 40px;
-            margin: 20px auto;
-            position: relative;
-            animation: flutter 0.2s infinite;
-        }
-        @keyframes flutter {
-            0%, 100% { transform: scaleY(1); }
-            50% { transform: scaleY(0.5); }
-        }
-        .wing {
-            position: absolute;
-            width: 30px;
-            height: 40px;
-            background: var(--accent);
-            opacity: 0.6;
-            border-radius: 50% 50% 10% 80%;
-        }
-        .wing.left { left: 0; transform-origin: right center; }
-        .wing.right { right: 0; transform-origin: left center; transform: scaleX(-1); }
 
-        /* Existing styles... (truncated for brevity in think, but I'll write full in file) */
-        .scanning-bar {
+        /* Module Specific Visuals */
+        .viz-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            position: relative;
+        }
+        
+        /* Genetic Algorithm Visual */
+        .gene-pool {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .gene-strand {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+            overflow: hidden;
+            display: flex;
+        }
+        .gene-segment {
+            height: 100%;
+            flex: 1;
+            transition: background 0.5s;
+        }
+
+        .scanning-line {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--accent), transparent);
-            box-shadow: 0 0 20px var(--accent);
-            animation: scan 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+            left: 0; right: 0; height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
             z-index: 100;
+            pointer-events: none;
+            animation: scan 3s infinite linear;
         }
         @keyframes scan {
-            0% { top: 0; opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
+            0% { top: 0%; opacity: 0; }
+            50% { opacity: 1; }
             100% { top: 100%; opacity: 0; }
         }
-        canvas#chaosCanvas {
+
+        .telemetry {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            font-family: monospace;
+            font-size: 9px;
+            color: var(--subtext);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+        .tl { top: 30px; left: 30px; }
+        .tr { top: 30px; right: 30px; }
+        .bl { bottom: 30px; left: 30px; }
+        .br { bottom: 30px; right: 30px; }
+
+        canvas#bgCanvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: -1;
-            opacity: 0.6;
         }
-        /* Reuse other visual styles from original */
-        .multiverse-container, .entanglement-container, .black-hole-container, .pendulum-container, .monte-carlo-viz, .stellar-core, .doppler-spectrum, .neural-net, .matrix-grid, .evolution-stats, .higgs-field, .expansion-viz, .string-container, .sc-container, .fluid-container, .tunnel-container, .thermo-container, .zeno-container, .interference-container, .symmetry-container, .cmb-container, .godel-container, .neutrino-container {
-            margin-top: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .bit-stream { font-family: monospace; font-size: 10px; color: var(--accent); opacity: 0.6; margin-top: 10px; white-space: nowrap; overflow: hidden; border-left: 2px solid var(--accent); padding-left: 8px; }
-        .telemetry, .telemetry-right { font-family: monospace; font-size: 9px; color: var(--subtext); text-transform: uppercase; letter-spacing: 2px; pointer-events: none; position: fixed; bottom: 20px; }
-        .telemetry { left: 20px; } .telemetry-right { right: 20px; }
-        .terminal-log { font-family: monospace; font-size: 9px; color: #666; text-align: left; margin-top: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
-        .neural-progress-container { width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; margin: 20px 0; overflow: hidden; position: relative; }
-        .neural-progress-fill { height: 100%; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 200% 100%; animation: neural-flow 2s infinite linear; width: 100%; }
-        @keyframes neural-flow { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     </style>
 </head>
 <body>
-    <canvas id="chaosCanvas"></canvas>
-    <div class="telemetry">LAT: 31.2304° N | LON: 121.4737° E | COLLAPSE_INDEX: {{ (Math.random()*100).toFixed(2) }}</div>
-    <div class="telemetry-right">SIGNAL: STABLE | NODE: SOUP-MAC-MINI | SCANS: {{ scanCount }}</div>
+    <canvas id="bgCanvas"></canvas>
     
+    <div class="telemetry tl">PROB_MATRIX: {{ (Math.random()).toFixed(6) }}</div>
+    <div class="telemetry tr">ENTROPY: {{ (Math.random() * 10).toFixed(2) }} J/K</div>
+    <div class="telemetry bl">COORD: 31.23°N 121.47°E</div>
+    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.1.0</div>
+
     <div id="app">
-        <div class="container" :class="{ 'warp-active': isObserving }" id="mainContainer">
-            <div v-if="isObserving" class="scanning-bar"></div>
+        <div class="container">
+            <div v-if="isObserving" class="scanning-line"></div>
             
-            <div style="position: absolute; top: 15px; right: 25px; font-family: monospace; font-size: 9px; color: rgba(0, 242, 255, 0.3); text-align: right; pointer-events: none; line-height: 1.5;">
-                μ_COEFF: {{ (Math.random() * 0.5).toFixed(4) }}<br>
-                ψ_AMP: {{ (Math.random() * 2).toFixed(2) }}<br>
-                STATE: {{ isObserving ? 'MEASURING' : 'IDLE' }}
+            <div style="position: absolute; top: 20px; right: 30px; font-family: monospace; font-size: 8px; color: var(--subtext); text-align: right;">
+                SYS_STATUS: {{ isObserving ? 'ACTIVE' : 'READY' }}<br>
+                CPU_LOAD: {{ (Math.random()*10 + 2).toFixed(1) }}%
             </div>
 
             <h1>QUANTUM DESTINY</h1>
-            <p class="subtitle">Advanced Probabilistic Observatory</p>
+            <p class="subtitle">Predictive Reality Engine</p>
             
             <div class="input-group">
-                <label>Target Identifier (Subject Name)</label>
-                <input v-model="name" placeholder="Enter name to anchor reality..." :disabled="isObserving">
+                <label>Subject Signature</label>
+                <input v-model="name" placeholder="Enter identifier..." :disabled="isObserving" spellcheck="false">
             </div>
             
             <button @click="observe" :disabled="!name || isObserving">
-                {{ isObserving ? 'COLLAPSING WAVEFUNCTION...' : 'EXECUTE OBSERVATION' }}
+                {{ isObserving ? 'Processing Reality...' : 'Initiate Analysis' }}
             </button>
 
-            <div v-if="isObserving" class="loading" style="margin-top: 20px;">
-                <div class="neural-progress-container">
-                    <div class="neural-progress-fill"></div>
-                </div>
-                <div class="terminal-log">
-                    <div v-for="log in terminalLogs" :key="log">> {{ log }}</div>
+            <div v-if="isObserving" style="margin-top: 30px;">
+                <div style="font-family: monospace; font-size: 10px; color: var(--accent); text-align: left; line-height: 2;">
+                    <div v-for="log in terminalLogs" :key="log">>> {{ log }}</div>
                 </div>
             </div>
 
@@ -292,60 +270,50 @@
                 <div class="theory-tag">{{ theoryName }}</div>
                 <div class="fortune-text">{{ fortune }}</div>
                 
-                <!-- Theory Specific Visuals -->
-                <div v-if="theoryName.includes('Riemann')" class="riemann-container">
-                    <svg width="100%" height="100%" viewBox="0 0 200 100">
-                        <path d="M 0 50 Q 50 10 100 50 T 200 50" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.3" />
-                        <path d="M 0 50 Q 50 90 100 50 T 200 50" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.3" />
-                        <circle v-for="i in 12" :cx="i * 16" :cy="50 + Math.sin(i * 1.5) * 35" r="2" fill="var(--accent)">
-                            <animate attributeName="opacity" values="0.2;1;0.2" :dur="(Math.random() * 2 + 1) + 's'" repeatCount="indefinite" />
-                        </circle>
-                        <line x1="100" y1="0" x2="100" y2="100" stroke="rgba(255,255,255,0.1)" stroke-dasharray="2,2" />
-                        <text x="105" y="15" fill="var(--subtext)" font-size="6" font-family="monospace">CRITICAL LINE (Re=1/2)</text>
-                    </svg>
-                </div>
-
-                <div v-if="theoryName.includes('Chaos')" class="chaos-viz">
-                    <div class="chaos-butterfly">
-                        <div class="wing left"></div>
-                        <div class="wing right"></div>
+                <!-- Visual Modules -->
+                <div v-if="theoryName.includes('Genetic')" class="viz-box">
+                    <div class="gene-pool">
+                        <div v-for="i in 5" :key="i" class="gene-strand">
+                            <div v-for="j in 20" :key="j" class="gene-segment" 
+                                 :style="{ background: Math.random() > 0.7 ? 'var(--accent)' : 'rgba(255,255,255,0.1)' }">
+                            </div>
+                        </div>
                     </div>
-                    <div style="font-family: monospace; font-size: 8px; color: var(--accent);">ATTRACTOR STABILITY: {{ (Math.random()*100).toFixed(2) }}%</div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 12px; display: flex; justify-content: space-between;">
+                        <span>GEN_EVOLUTION: SUCCESS</span>
+                        <span>FITNESS: 0.9984</span>
+                    </div>
                 </div>
 
-                <!-- Multiverse... -->
-                <div v-if="theoryName.includes('Multiverse')" class="multiverse-container" style="height: 100px;">
-                    <svg width="100%" height="100%" viewBox="0 0 200 100">
-                        <line x1="10" y1="50" x2="50" y2="50" stroke="var(--accent)" stroke-width="2" />
-                        <path d="M 50 50 Q 80 20 120 15" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.4" />
-                        <path d="M 50 50 Q 80 50 120 50" fill="none" stroke="var(--accent)" stroke-width="2" />
-                        <path d="M 50 50 Q 80 80 120 85" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.4" />
-                        <circle cx="120" cy="50" r="4" fill="var(--accent)" />
-                        <text x="130" y="53" fill="var(--accent)" font-size="7" font-family="monospace">CURRENT_TIMELINE</text>
+                <div v-if="theoryName.includes('Chaos')" class="viz-box">
+                    <svg width="100%" height="60" viewBox="0 0 200 60">
+                        <path d="M 10 30 Q 50 10 100 30 T 190 30" fill="none" stroke="var(--accent)" stroke-width="0.5" opacity="0.5">
+                            <animate attributeName="d" values="M 10 30 Q 50 10 100 30 T 190 30; M 10 30 Q 50 50 100 30 T 190 30; M 10 30 Q 50 10 100 30 T 190 30" dur="3s" repeatCount="indefinite" />
+                        </path>
+                        <circle cx="100" cy="30" r="2" fill="var(--accent)">
+                            <animate attributeName="r" values="2;5;2" dur="2s" repeatCount="indefinite" />
+                        </circle>
                     </svg>
                 </div>
 
-                <!-- ... Rest of modules preserved and optimized ... -->
-                <!-- Entanglement, Hawking, Kinetic, etc. -->
-                <div v-if="theoryName.includes('Entanglement')" class="entanglement-container" style="height: 60px; display: flex; align-items: center; justify-content: space-around; position: relative;">
-                    <div class="entangled-particle" style="width: 12px; height: 12px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 20px var(--accent);"></div>
-                    <div class="entanglement-beam" style="position: absolute; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); width: 60%; opacity: 0.5; animation: beam-pulse 1.5s infinite;"></div>
-                    <div class="entangled-particle" style="width: 12px; height: 12px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 20px var(--accent);"></div>
+                <div v-if="theoryName.includes('Riemann')" class="viz-box">
+                    <div style="height: 40px; display: flex; align-items: flex-end; gap: 2px;">
+                        <div v-for="i in 40" :key="i" 
+                             :style="{ height: (Math.abs(Math.sin(i * 0.2)) * 100) + '%', width: '4px', background: 'var(--accent)', opacity: Math.random() * 0.5 + 0.2 }">
+                        </div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 10px;">ZETA_ZERO_CROSSING: DETECTION_LOCKED</div>
                 </div>
 
-                <div v-if="theoryName.includes('Hawking')" class="black-hole-container" style="height: 80px; background: #000; border-radius: 50%; width: 80px; margin: 15px auto; position: relative; box-shadow: 0 0 30px rgba(0, 242, 255, 0.3);">
-                    <div class="event-horizon" style="position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: #000; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px #00f2ff;"></div>
-                </div>
-
-                <div style="margin-top: 25px; font-size: 11px; color: var(--subtext); font-family: monospace;">
-                    TIMESTAMP: {{ scanTime }} | ERROR_MARGIN: ±0.000184%
+                <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
+                    TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('chaosCanvas');
+        const canvas = document.getElementById('bgCanvas');
         const ctx = canvas.getContext('2d');
         let points = [];
         let animationId;
@@ -358,78 +326,75 @@
         initCanvas();
 
         window.startVisuals = (mode) => {
+            cancelAnimationFrame(animationId);
             points = [];
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            cancelAnimationFrame(animationId);
 
-            if (mode === 'riemann') {
-                for(let i=0; i<300; i++) {
+            if (mode === 'genetic') {
+                for(let i=0; i<100; i++) {
                     points.push({
-                        x: centerX,
-                        y: centerY,
-                        angle: Math.random() * Math.PI * 2,
-                        radius: Math.random() * 400,
-                        speed: 0.005 + Math.random() * 0.01,
-                        size: 1 + Math.random() * 2
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        s: Math.random() * 2,
+                        v: Math.random() * 0.5 + 0.1,
+                        a: Math.random() * Math.PI * 2
                     });
                 }
             } else if (mode === 'chaos') {
+                // Lorenz attractor sim simplified for bg
                 let x = 0.1, y = 0, z = 0;
-                const a = 10, b = 28, c = 8/3;
-                const dt = 0.01;
-                for(let i=0; i<2000; i++) {
+                const a = 10, b = 28, c = 8/3, dt = 0.01;
+                for(let i=0; i<1000; i++) {
                     let dx = a * (y - x) * dt;
                     let dy = (x * (b - z) - y) * dt;
                     let dz = (x * y - c * z) * dt;
                     x += dx; y += dy; z += dz;
-                    points.push({x: x * 15 + centerX, y: y * 15 + centerY, color: `hsl(${i % 360}, 100%, 50%)`});
+                    points.push({x: x * 20 + centerX, y: y * 20 + centerY});
                 }
             } else {
-                // Default Quantum Foam
                 for(let i=0; i<150; i++) {
                     points.push({
                         x: Math.random() * canvas.width,
                         y: Math.random() * canvas.height,
-                        size: Math.random() * 1.5,
-                        opacity: Math.random(),
-                        vx: (Math.random() - 0.5) * 0.5,
-                        vy: (Math.random() - 0.5) * 0.5
+                        s: Math.random() * 1,
+                        vx: (Math.random() - 0.5) * 0.2,
+                        vy: (Math.random() - 0.5) * 0.2
                     });
                 }
             }
 
             function animate() {
-                ctx.fillStyle = 'rgba(5, 5, 5, 0.15)';
+                ctx.fillStyle = 'rgba(3, 3, 3, 0.1)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                if (mode === 'riemann') {
+                if (mode === 'genetic') {
                     points.forEach(p => {
-                        p.angle += p.speed;
-                        const x = centerX + Math.cos(p.angle) * p.radius;
-                        const y = centerY + Math.sin(p.angle) * p.radius;
-                        ctx.fillStyle = `rgba(0, 242, 255, ${0.4 + Math.sin(p.angle)*0.2})`;
+                        p.x += Math.cos(p.a) * p.v;
+                        p.y += Math.sin(p.a) * p.v;
+                        if(p.x < 0 || p.x > canvas.width) p.a = Math.PI - p.a;
+                        if(p.y < 0 || p.y > canvas.height) p.a = -p.a;
+                        ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
                         ctx.beginPath();
-                        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+                        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
                         ctx.fill();
                     });
                 } else if (mode === 'chaos') {
-                    for(let i=0; i<points.length - 1; i++) {
-                        ctx.strokeStyle = points[i].color;
-                        ctx.lineWidth = 0.5;
-                        ctx.beginPath();
-                        ctx.moveTo(points[i].x, points[i].y);
-                        ctx.lineTo(points[i+1].x, points[i+1].y);
-                        ctx.stroke();
+                    ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)';
+                    ctx.beginPath();
+                    ctx.moveTo(points[0].x, points[0].y);
+                    for(let i=1; i<points.length; i++) {
+                        ctx.lineTo(points[i].x, points[i].y);
                     }
+                    ctx.stroke();
                 } else {
                     points.forEach(p => {
                         p.x += p.vx; p.y += p.vy;
                         if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
                         if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
-                        ctx.fillStyle = `rgba(0, 242, 255, ${p.opacity * 0.3})`;
+                        ctx.fillStyle = 'rgba(0, 242, 255, 0.15)';
                         ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
                         ctx.fill();
                     });
                 }
@@ -452,38 +417,31 @@
 
                 const theories = [
                     {
-                        name: "黎曼猜想：命运的素数分布 (Riemann Zeta Hypothesis)",
+                        name: "遗传算法：演化适性 (Genetic Algorithm & Evolutionary Fate)",
+                        mode: 'genetic',
+                        generate: (n) => {
+                            const outcomes = [
+                                "基因池演化显示，你当前的行为模式正在快速收敛于一个『全局最优解』。只要保持目前的变异率（创新性），你将在三个周期内迎来生命质变。",
+                                "由于环境压力的增加，你的『适性函数』正在重塑。建议在未来两周内增加社交基因的表达强度，以在多维博弈中占据生存优势。",
+                                "探测到一股强大的『定向选择』力量。你过去积累的非核心技能正在发生交叉重组，预示着一个全新的职业领域即将为你开启。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "黎曼猜想：素数分布 (Riemann Zeta Hypothesis)",
                         mode: 'riemann',
-                        generate: (n) => {
-                            const outcomes = [
-                                "观测到你的命运分布正紧密围绕『临界线』展开。这意味着你的生活虽然充满波动，但其底层规律极其稳健，所有看似随机的事件都在为最终的秩序积蓄能量。",
-                                "由于非平凡零点的排布极其规律，你当前正处于一个『素数跨度』的黄金期。在这个阶段，你将获得打破常规的灵感，实现非线性的跃迁。",
-                                "黎曼Zeta函数显示，你的社会影响力正在经历一次非平凡的振荡。通过与核心圈层的同频共振，你将跨越平凡的现实，进入一个更具秩序感的高阶位面。"
-                            ];
-                            return outcomes[n.length % outcomes.length];
-                        }
+                        generate: (n) => "观测到你的命运分布正紧密围绕『临界线』展开。这意味着你的生活虽然充满波动，但其底层规律极其稳健，所有看似随机的事件都在为最终的秩序积蓄能量。"
                     },
                     {
-                        name: "混沌理论：初始条件敏感性 (Chaos Theory & Butterfly Effect)",
+                        name: "混沌理论：蝴蝶效应 (Chaos Theory: Butterfly Effect)",
                         mode: 'chaos',
-                        generate: (n) => {
-                            const outcomes = [
-                                "亚马逊雨林的蝴蝶扇动了翅膀，你本周的一个微小决定将引发职业生涯的风暴级巨变。注意那些看似无关紧要的邀约。",
-                                "洛伦兹吸引子显示你的生活轨迹正进入一个稳定的奇异吸引子轨道，秩序将从混乱中诞生。你正处于某种宏大模式的边缘。",
-                                "对初始条件的敏感依赖表明，改变你处理琐事的方式将彻底重写你下个月的财务曲线。非线性增长即将来临。"
-                            ];
-                            return outcomes[n.length % outcomes.length];
-                        }
+                        generate: (n) => "对初始条件的敏感依赖表明，改变你处理琐事的方式将彻底重写你下个月的财务曲线。一次微小的蝴蝶振翅，正引导你走向宏大的奇异吸引子。"
                     },
                     {
-                        name: "量子隧穿：跨越势垒 (Quantum Tunneling)",
+                        name: "量子隧穿：势垒跃迁 (Quantum Tunneling)",
                         mode: 'tunneling',
-                        generate: (n) => "波函数分析显示，你正面临一个传统逻辑上『无法逾越』的障碍。但由于量子隧穿效应，你已经获得了直接穿透壁垒的概率。这是一个奇迹发生的窗口期。"
-                    },
-                    {
-                        name: "博弈论：纳什均衡 (Game Theory: Nash Equilibrium)",
-                        mode: 'game',
-                        generate: (n) => "在当前的竞争环境中，你的最优策略是保持不可预测性。通过引入量子随机性，你将打破现有的僵局，实现帕累托改进。"
+                        generate: (n) => "波函数分析显示，你正面临一个传统逻辑上无法逾越的障碍。但由于量子隧穿效应，你已经获得了直接穿透势垒的概率。本月将有不合常理的突破。"
                     }
                 ];
 
@@ -491,10 +449,11 @@
                     isObserving.value = true;
                     terminalLogs.value = [];
                     const logs = [
-                        "INITIALIZING QUANTUM BRIDGE...",
-                        "SCANNING LOCAL SPACE-TIME CURVATURE...",
-                        "COLLAPSING WAVEFUNCTION...",
-                        "SYNCHRONIZING WITH MULTIVERSE..."
+                        "INITIALIZING NEURAL BRIDGE...",
+                        "CALIBRATING PROBABILITY FIELD...",
+                        "SEQUENCING TEMPORAL GENES...",
+                        "RESOLVING LORENZ ATTRACTOR...",
+                        "FINALIZING REALITY COLLAPSE..."
                     ];
                     let logIdx = 0;
                     const logInterval = setInterval(() => {
@@ -511,7 +470,7 @@
                         localStorage.setItem('destiny_scans', scanCount.value);
                         window.startVisuals(theory.mode);
                         isObserving.value = false;
-                    }, 2500);
+                    }, 2800);
                 };
 
                 return { name, fortune, theoryName, scanTime, isObserving, observe, terminalLogs, scanCount };
