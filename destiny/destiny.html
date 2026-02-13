@@ -394,6 +394,32 @@
             from { background-size: 20px 20px; transform: scale(1); }
             to { background-size: 40px 40px; transform: scale(1.5); }
         }
+        /* Fluid Dynamics / Navier-Stokes Visuals */
+        .fluid-container {
+            margin-top: 15px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .fluid-vortex {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: conic-gradient(from 0deg, transparent, var(--accent), transparent);
+            border-radius: 50%;
+            opacity: 0.2;
+            filter: blur(10px);
+            animation: rotate-vortex 4s infinite linear;
+            top: -20px;
+            left: 50%;
+            margin-left: -50px;
+        }
+        @keyframes rotate-vortex {
+            from { transform: rotate(0deg) scale(1); }
+            to { transform: rotate(360deg) scale(1.5); }
+        }
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -550,6 +576,11 @@
                     }"></div>
                 </div>
 
+                <div v-if="theoryName.includes('Fluid Dynamics')" class="fluid-container">
+                    <div class="fluid-vortex"></div>
+                    <div style="position: absolute; width: 100%; bottom: 5px; text-align: center; font-size: 8px; color: var(--accent); font-family: monospace;">Re = {{ (Math.random()*1000 + 2000).toFixed(0) }} | LAMINAR FLOW</div>
+                </div>
+
                 <div v-if="theoryName.includes('Information Theory')" class="bit-stream">
                     {{ bitData }}
                 </div>
@@ -658,6 +689,16 @@
                         y: centerY + Math.sin(angle) * radius,
                         vx: Math.cos(angle + Math.PI/2) * (200/radius),
                         vy: Math.sin(angle + Math.PI/2) * (200/radius)
+                    });
+                }
+            } else if (mode === 'fluid') {
+                for(let i=0; i<200; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() * 2 + 1),
+                        vy: 0,
+                        life: Math.random() * 100
                     });
                 }
             } else if (mode === 'monte') {
@@ -781,6 +822,20 @@
                         if (p.y > canvas.height) p.y = 0;
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'fluid') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = 'rgba(0, 242, 255, 0.4)';
+                    points.forEach(p => {
+                        const wave = Math.sin(p.x * 0.01 + Date.now() * 0.002) * 20;
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y + wave);
+                        p.x += p.vx;
+                        ctx.lineTo(p.x, p.y + wave);
+                        ctx.stroke();
+                        if (p.x > canvas.width) p.x = 0;
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'monte') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -837,6 +892,18 @@
                 const terminalLogs = ref([]);
 
                 const theories = [
+                    {
+                        name: "流体力学：纳维-斯托克斯命运场 (Fluid Dynamics: Navier-Stokes Fate Field)",
+                        mode: 'fluid',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到由于你的近期决策引发的湍流（Turbulence）正在平息。命运场正进入稳定的层流状态，这意味着你的计划将以前所未有的顺滑度向前推进。",
+                                "压力梯度力（Pressure Gradient Force）正在将你推向一个高能级的机遇旋涡。不要抵抗这种流动，在雷诺数（Re）达到临界值前，这是最佳的加速期。",
+                                "检测到边界层分离现象。旧的社会关系正在剥离，这减少了你前进的阻力（Drag）。新的流线型人生路径已经生成，建议保持高速航行。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "希格斯场：自发对称性破缺 (Higgs Field: Symmetry Breaking)",
                         mode: 'higgs',
