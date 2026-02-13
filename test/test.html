@@ -78,6 +78,9 @@
 
         .edit-input { flex-grow: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; font-size: 13px; background: var(--input-bg); color: var(--text); margin: -4px 0; }
         .edit-actions { display: flex; gap: 8px; margin-left: 8px; font-size: 14px; cursor: pointer; }
+
+        .title-container { flex-grow: 1; display: flex; flex-direction: column; gap: 2px; }
+        .issue-meta { font-size: 10px; color: var(--subtext); transition: opacity 0.3s; }
     </style>
 </head>
 <body>
@@ -132,7 +135,12 @@
                                     </div>
                                 </template>
                                 <template v-else>
-                                    <div class="title" @click="startEdit(issue)">{{ issue.title }}</div>
+                                    <div class="title-container" @click="startEdit(issue)">
+                                        <div class="title">{{ issue.title }}</div>
+                                        <div class="issue-meta" :style="{ opacity: getMetaOpacity(issue) }">
+                                            Created: {{ formatDate(issue.created_at) }} | Updated: {{ formatDate(issue.updated_at) }}
+                                        </div>
+                                    </div>
                                 </template>
                             </div>
                         </div>
@@ -163,6 +171,31 @@
                     baseURL: `https://api.github.com/repos/${REPO}`,
                     headers: { 'Accept': 'application/vnd.github.v3+json' }
                 });
+
+                const formatDate = (isoString) => {
+                    const date = new Date(isoString);
+                    return date.toLocaleString('zh-CN', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                };
+
+                const getMetaOpacity = (issue) => {
+                    const updated = new Date(issue.updated_at).getTime();
+                    const now = new Date().getTime();
+                    const diffMs = now - updated;
+                    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                    
+                    // 24小时内不透明度 0.8
+                    // 7天以上不透明度 0.2
+                    if (diffDays <= 1) return 0.8;
+                    if (diffDays >= 7) return 0.2;
+                    
+                    // 线性衰减
+                    return 0.8 - (diffDays - 1) * (0.6 / 6);
+                };
 
                 const groupedIssues = computed(() => {
                     const groups = { 'Work': [], 'Life': [], 'HellDrop': [], 'Zhutousan': [], 'Other': [] };
@@ -309,7 +342,7 @@
                     token, inputToken, saveToken, logout, issues, loading, toggleIssue, 
                     newTask, newLabel, addTask, groupedIssues,
                     editingIssueId, editingTitle, startEdit, cancelEdit, saveEdit, editInput,
-                    isDark, toggleTheme
+                    isDark, toggleTheme, formatDate, getMetaOpacity
                 };
             }
         }).mount('#app');
