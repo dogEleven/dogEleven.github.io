@@ -715,6 +715,48 @@
             50% { opacity: 1; }
         }
 
+        /* Double Slit Interference Visuals */
+        .interference-container {
+            margin-top: 15px;
+            height: 100px;
+            background: #000;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .interference-pattern {
+            width: 100%;
+            height: 40px;
+            background: repeating-linear-gradient(90deg, 
+                transparent, 
+                transparent 10%, 
+                var(--accent) 15%, 
+                transparent 20%
+            );
+            opacity: 0.6;
+            filter: blur(4px);
+            animation: interference-pulse 2s infinite alternate;
+        }
+        @keyframes interference-pulse {
+            from { opacity: 0.2; transform: scaleY(0.8); }
+            to { opacity: 0.8; transform: scaleY(1.2); }
+        }
+        .slit-barrier {
+            display: flex;
+            gap: 20px;
+            margin: 10px 0;
+        }
+        .slit {
+            width: 4px;
+            height: 20px;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
         /* Spontaneous Symmetry Breaking Visuals */
         .symmetry-container {
             margin-top: 15px;
@@ -1114,6 +1156,15 @@
                     <div style="position: absolute; bottom: 5px; font-size: 8px; color: var(--accent); font-family: monospace;">OBSERVATION FREEZE: ACTIVE</div>
                 </div>
 
+                <div v-if="theoryName.includes('Double-Slit')" class="interference-container">
+                    <div class="slit-barrier">
+                        <div class="slit"></div>
+                        <div class="slit"></div>
+                    </div>
+                    <div class="interference-pattern"></div>
+                    <div style="position: absolute; bottom: 5px; font-family: monospace; font-size: 8px; color: var(--accent);">WAVE-PARTICLE DUALITY DETECTED</div>
+                </div>
+
                 <div v-if="theoryName.includes('Symmetry Breaking')" class="symmetry-container">
                     <div class="mexican-hat">
                         <div class="symmetry-ball" :style="{ transform: symmetryBroken ? 'translate(25px, 0)' : 'translate(0, 0)' }"></div>
@@ -1390,6 +1441,15 @@
                         y: Math.random() * canvas.height,
                         vx: (Math.random() - 0.5) * 0.2, // Frozen movement
                         vy: (Math.random() - 0.5) * 0.2
+                    });
+                }
+            } else if (mode === 'doubleslit') {
+                for(let i=0; i<400; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        opacity: 0,
+                        targetOpacity: 0
                     });
                 }
             } else if (mode === 'symmetry') {
@@ -1727,6 +1787,20 @@
                         ctx.beginPath();
                         ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
                         ctx.fill();
+                    });
+                    animationId = requestAnimationFrame(animate);
+                } else if (mode === 'doubleslit') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.3)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach((p, i) => {
+                        // Interference pattern probability
+                        const xNorm = p.x / canvas.width;
+                        const intensity = Math.pow(Math.cos(xNorm * 50), 2) * Math.pow(Math.sin(xNorm * 5 + Date.now() * 0.001), 2);
+                        p.targetOpacity = intensity;
+                        p.opacity += (p.targetOpacity - p.opacity) * 0.1;
+                        
+                        ctx.fillStyle = `rgba(0, 242, 255, ${p.opacity * 0.5})`;
+                        ctx.fillRect(p.x, p.y, 2, 2);
                     });
                     animationId = requestAnimationFrame(animate);
                 } else if (mode === 'symmetry') {
@@ -2135,6 +2209,18 @@
                                 "警告：观测到多重宇宙分支。在当前分支下，你的财富指数由于量子隧穿效应而出现异常增涨。"
                             ];
                             return outcomes[n.charCodeAt(n.length - 1) % outcomes.length];
+                        }
+                    },
+                    {
+                        name: "双缝干涉：观测引发的波包坍缩 (Double-Slit Interference)",
+                        mode: 'doubleslit',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到由于『路径信息』的泄露，你的波函数已由弥散的干涉态坍缩为确定的粒子态。这意味着原本模糊的机会正在具体化为唯一的路径。",
+                                "检测到由于非观测引发的相干干涉条纹。你目前处于多维机遇的重叠区，你的每一个微小行为都在与未来的多种可能性产生相干增强。保持这种『不被定义』的状态，直到能量达到峰值。",
+                                "由于量子擦除实验的启发，你之前的某些错误路径已被系统性『擦除』。现在的你处于一个全新的纯净波包中，未来的干涉图样显示出极高的成功概率峰值。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
                         }
                     }
                 ];
