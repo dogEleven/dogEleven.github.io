@@ -138,8 +138,11 @@
 
         .result {
             margin-top: 45px;
-            padding-top: 30px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
             animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes slideUp {
@@ -269,7 +272,7 @@
     <div class="telemetry tl">PROB_MATRIX: {{ (Math.random()).toFixed(6) }}</div>
     <div class="telemetry tr">ENTROPY: {{ (Math.random() * 10).toFixed(2) }} J/K</div>
     <div class="telemetry bl">COORD: 31.23°N 121.47°E</div>
-    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.1.0</div>
+    <div class="telemetry br">SCANS: {{ scanCount }} | VER: 2.2.0</div>
 
     <div id="app">
         <div class="container">
@@ -348,6 +351,27 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Game Theory')" class="viz-box">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <div v-for="i in 4" :key="i" 
+                             class="strategy-cell"
+                             :style="{ 
+                                border: '1px solid rgba(0, 242, 255, 0.2)', 
+                                padding: '10px', 
+                                borderRadius: '8px',
+                                background: (i === 1) ? 'rgba(0, 242, 255, 0.1)' : 'transparent',
+                                position: 'relative'
+                             }">
+                            <div v-if="i === 1" style="position: absolute; top: -5px; right: -5px; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent);"></div>
+                            <div style="font-family: monospace; font-size: 9px; color: var(--accent); margin-bottom: 4px;">P{{i}}: {{ (Math.random() * 10).toFixed(0) }}</div>
+                            <div style="height: 2px; background: rgba(255,255,255,0.05); width: 100%;">
+                                <div :style="{ width: (Math.random() * 100) + '%', height: '100%', background: 'var(--accent)', opacity: 0.5 }"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 8px; color: var(--subtext); margin-top: 12px; text-align: center;">EQUILIBRIUM_FOUND: COOPERATIVE_DOMINANCE</div>
+                </div>
+
                 <div style="margin-top: 30px; font-size: 9px; color: var(--subtext); font-family: monospace; letter-spacing: 1px;">
                     TS: {{ scanTime }} | HASH: {{ Math.random().toString(36).substring(7).toUpperCase() }}
                 </div>
@@ -409,6 +433,22 @@
                         v: (1 / dist) * 10
                     });
                 }
+            } else if (mode === 'gametheory') {
+                const rows = 10, cols = 10;
+                const spacingX = canvas.width / (cols + 1);
+                const spacingY = canvas.height / (rows + 1);
+                for(let r=1; r<=rows; r++) {
+                    for(let c=1; c<=cols; c++) {
+                        points.push({
+                            x: c * spacingX,
+                            y: r * spacingY,
+                            baseX: c * spacingX,
+                            baseY: r * spacingY,
+                            active: Math.random() > 0.8,
+                            pulse: Math.random() * Math.PI * 2
+                        });
+                    }
+                }
             } else {
                 for(let i=0; i<150; i++) {
                     points.push({
@@ -453,6 +493,32 @@
                         ctx.beginPath();
                         ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
                         ctx.fill();
+                    });
+                } else if (mode === 'gametheory') {
+                    points.forEach((p, i) => {
+                        p.pulse += 0.05;
+                        const scale = 1 + Math.sin(p.pulse) * 0.3;
+                        ctx.fillStyle = p.active ? `rgba(0, 242, 255, ${0.1 + Math.sin(p.pulse)*0.05})` : 'rgba(255, 255, 255, 0.02)';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2 * scale, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Connect to neighbors
+                        if (p.active) {
+                            points.forEach((other, oi) => {
+                                if (oi > i && other.active) {
+                                    const dist = Math.hypot(p.x - other.x, p.y - other.y);
+                                    if (dist < 200) {
+                                        ctx.strokeStyle = `rgba(0, 242, 255, ${0.05 * (1 - dist/200)})`;
+                                        ctx.lineWidth = 0.5;
+                                        ctx.beginPath();
+                                        ctx.moveTo(p.x, p.y);
+                                        ctx.lineTo(other.x, other.y);
+                                        ctx.stroke();
+                                    }
+                                }
+                            });
+                        }
                     });
                 } else {
                     points.forEach(p => {
@@ -514,6 +580,18 @@
                         name: "量子隧穿：势垒跃迁 (Quantum Tunneling)",
                         mode: 'tunneling',
                         generate: (n) => "波函数分析显示，你正面临一个传统逻辑上无法逾越的障碍。但由于量子隧穿效应，你已经获得了直接穿透势垒的概率。本月将有不合常理的突破。"
+                    },
+                    {
+                        name: "博弈论：纳什均衡 (Game Theory & Nash Equilibrium)",
+                        mode: 'gametheory',
+                        generate: (n) => {
+                            const outcomes = [
+                                "社交场域的多维博弈显示，你正处于一个非对称信息的优势地位。采取『合作博弈』策略将使你的整体收益（人际关系与机会）达到帕累托最优。",
+                                "博弈矩阵分析表明，你过去一段时间的『让步』正在形成一种长期的威慑均衡。对方正在重新评估你的底线，预计下周将达成对你更有利的协议。",
+                                "在当前的社会博弈中，你正处于『零和博弈』的边缘。切换到『重复博弈』视角，以长期信誉换取短期资源，是当下的最优策略（Nash Equilibrium）。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
                     }
                 ];
 
