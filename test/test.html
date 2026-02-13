@@ -204,7 +204,7 @@
                     const isThisYear = date.getFullYear() === now.getFullYear();
                     
                     if (isThisYear) {
-                        return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                        return `${date.getMonth() + 1}/${date.getDate()}`;
                     }
                     return date.toLocaleDateString('zh-CN', { year: '2-digit', month: 'numeric', day: 'numeric' });
                 };
