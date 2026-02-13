@@ -820,6 +820,40 @@
             100% { background-position: -200% 0; }
         }
 
+        /* Neutrino Oscillation Visuals */
+        .neutrino-container {
+            margin-top: 15px;
+            height: 60px;
+            background: radial-gradient(circle at center, rgba(0, 242, 255, 0.05), transparent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .neutrino-particle {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 0 15px #fff, 0 0 30px var(--accent);
+            transition: background-color 0.5s ease, box-shadow 0.5s ease;
+            z-index: 2;
+        }
+        .neutrino-wave {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            border-radius: 50%;
+            animation: neutrino-ripple 2s infinite linear;
+        }
+        @keyframes neutrino-ripple {
+            from { transform: scale(0.5); opacity: 1; }
+            to { transform: scale(2.5); opacity: 0; }
+        }
+
         .glitch {
             animation: glitch 1s linear infinite;
         }
@@ -1108,6 +1142,15 @@
                     </div>
                 </div>
 
+                <div v-if="theoryName.includes('Neutrino')" class="neutrino-container">
+                    <div v-for="i in 3" :key="i" class="neutrino-wave" :style="{ animationDelay: (i * 0.6) + 's' }"></div>
+                    <div class="neutrino-particle" :style="{ 
+                        backgroundColor: ['#00f2ff', '#ff00c1', '#ffff00'][Math.floor(Date.now() / 1000) % 3],
+                        boxShadow: `0 0 20px ${['#00f2ff', '#ff00c1', '#ffff00'][Math.floor(Date.now() / 1000) % 3]}`
+                    }"></div>
+                    <div style="position: absolute; bottom: 5px; font-family: monospace; font-size: 8px; color: var(--accent);">FLAVOR: {{ ['ELECTRON', 'MUON', 'TAU'][Math.floor(Date.now() / 1000) % 3] }}</div>
+                </div>
+
                 <div style="margin-top: 15px; font-size: 11px; color: var(--subtext);">
                     观测时间: {{ scanTime }} | 误差项: ±0.0002%
                 </div>
@@ -1319,6 +1362,15 @@
                         y: Math.random() * canvas.height,
                         vx: Math.random() * 2 + 2,
                         hasTunneled: false
+                    });
+                }
+            } else if (mode === 'neutrino') {
+                for(let i=0; i<300; i++) {
+                    points.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2
                     });
                 }
             } else if (mode === 'godel') {
@@ -1631,6 +1683,21 @@
                         ctx.fillRect(p.x, p.y, canvas.width/20, canvas.height/10);
                     });
                     animationId = requestAnimationFrame(animate);
+                } else if (mode === 'neutrino') {
+                    ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    points.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        if(p.x < 0 || p.x > canvas.width) p.x = p.x < 0 ? canvas.width : 0;
+                        if(p.y < 0 || p.y > canvas.height) p.y = p.y < 0 ? canvas.height : 0;
+                        const hue = (Date.now() * 0.1 + p.x) % 360;
+                        ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.6)`;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    animationId = requestAnimationFrame(animate);
                 } else if (mode === 'godel') {
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1728,6 +1795,18 @@
                 const cmbPixels = ref([]);
 
                 const theories = [
+                    {
+                        name: "中微子振荡：身份与相位的连续演化 (Neutrino Oscillation)",
+                        mode: 'neutrino',
+                        generate: (n) => {
+                            const outcomes = [
+                                "观测到你当前处于『电子中微子』相位。这意味着你正在深度处理当前的细节工作，但检测到强烈的演化趋势。很快，你将自发转化为『μ中微子』相位，步入更宏观的战略主导期。",
+                                "由于跨时空的相位漫游，你的职业身份正在经历一次『风味变换』。这种转变并非由于外力，而是你内在量子属性的必然演化。拥抱这种不确定性，它是你跨领域成功的核心机制。",
+                                "检测到最大强度的混合角（Mixing Angle）。你正在融合多种完全不同的能力维度，形成一种此前未见的全新命运态。这种『振荡』将使你免于被任何单一的规则所束缚。"
+                            ];
+                            return outcomes[n.length % outcomes.length];
+                        }
+                    },
                     {
                         name: "哥德尔不完备定理：逻辑尽头的不可知未来 (Gödel's Incompleteness)",
                         mode: 'godel',
