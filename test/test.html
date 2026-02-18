@@ -331,8 +331,13 @@
                 // Watchers
                 watch(currentTab, (val) => {
                     localStorage.setItem('currentTab', val);
-                    if (availableLabels.value.length > 0) newLabel.value = availableLabels.value[0];
-                });
+                    // Default labels for each tab
+                    if (val === 'todo') {
+                        newLabel.value = 'Work';
+                    } else {
+                        newLabel.value = 'Idea';
+                    }
+                }, { immediate: true });
                 watch(collapsedGroups, (val) => localStorage.setItem('collapsedGroups', JSON.stringify(val)), { deep: true });
 
                 // Methods
