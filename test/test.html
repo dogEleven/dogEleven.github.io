@@ -137,7 +137,12 @@
                     <h1>📋 待办清单</h1>
                     <button @click="toggleTheme" class="theme-toggle">{{ isDark ? '🌙' : '☀️' }}</button>
                 </div>
-                <button @click="logout" class="logout-btn">Logout</button>
+                <div style="display:flex; gap:10px;">
+                    <button @click="showGroupModal = true" class="logout-btn" style="color:var(--text); font-weight:600;">
+                        {{ currentTab === 'idea' ? '+ 📁' : '+ 组' }}
+                    </button>
+                    <button @click="logout" class="logout-btn">Logout</button>
+                </div>
             </div>
 
             <div class="tabs">
