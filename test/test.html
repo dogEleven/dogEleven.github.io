@@ -169,7 +169,31 @@
 
             <div v-if="loading" style="text-align: center; color: var(--subtext); padding: 20px;">Loading...</div>
 
-            <div class="groups-container">
+            <!-- Memo View (File Structure Style) -->
+            <div v-if="currentTab === 'idea'" class="groups-container">
+                <div v-for="(groupIssues, groupName) in filteredGroups" :key="groupName" class="group-section">
+                    <h3 class="group-title" :class="'text-' + groupName">
+                        📂 {{ groupName }} 
+                        <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ groupIssues.length }}</span>
+                    </h3>
+                    <div class="todo-list">
+                        <div v-for="issue in groupIssues" :key="issue.id" class="todo-item" @click="openEditor(issue)">
+                            <div class="content" style="align-items: center;">
+                                <span style="font-size:18px; margin-right:8px;">📄</span>
+                                <div class="title-container" style="flex-direction: column; gap:0;">
+                                    <div class="title" style="font-weight:600; font-size:14px;">{{ issue.title }}</div>
+                                    <div class="issue-meta" style="font-size:11px; margin-top:0;">
+                                        {{ formatDate(issue.updated_at) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Todo View (Checkbox Style) -->
+            <div v-else class="groups-container">
                 <div v-for="(groupIssues, groupName) in filteredGroups" :key="groupName" class="group-section">
                     <h3 class="group-title" :class="'text-' + groupName">{{ groupName }} <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ groupIssues.length }}</span></h3>
                     <div class="todo-list">
@@ -270,7 +294,6 @@
                         let placed = false;
                         if (issue.labels && issue.labels.length > 0) {
                             for (const label of issue.labels) {
-                                // Skip ignored labels
                                 if (ignoredLabels.includes(label.name.toLowerCase())) continue;
 
                                 if (groups[label.name]) {
