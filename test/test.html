@@ -288,12 +288,25 @@
                 const groupedIssues = computed(() => {
                     const groups = {};
                     availableLabels.value.forEach(l => groups[l] = []);
+                    
+                    // Separate bucket for truly uncategorized items (no known labels at all)
                     groups['Other'] = [];
+
+                    // Define all known system labels to exclude them from 'Other' if they don't match current tab
+                    const allSystemLabels = [...defaultTodoLabels, ...defaultIdeaLabels];
 
                     issues.value.forEach(issue => {
                         let placed = false;
+                        let hasSystemLabel = false;
+
                         if (issue.labels && issue.labels.length > 0) {
                             for (const label of issue.labels) {
+                                // Check if this issue belongs to ANY known system group
+                                if (allSystemLabels.includes(label.name)) {
+                                    hasSystemLabel = true;
+                                }
+
+                                // Place in current tab's groups if matched
                                 if (groups[label.name]) {
                                     groups[label.name].push(issue);
                                     placed = true;
@@ -301,7 +314,10 @@
                                 }
                             }
                         }
-                        if (!placed && !issue.labels.some(l => ignoredLabels.includes(l.name.toLowerCase()))) {
+
+                        // Only add to 'Other' if it wasn't placed AND it doesn't belong to the *other* tab's system labels
+                        // If it has a label from the other tab (e.g. 'Work' while in 'Idea' tab), we skip it entirely.
+                        if (!placed && !hasSystemLabel && !issue.labels.some(l => ignoredLabels.includes(l.name.toLowerCase()))) {
                             groups['Other'].push(issue);
                         }
                     });
