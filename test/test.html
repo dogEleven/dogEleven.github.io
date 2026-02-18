@@ -8,12 +8,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TofuTodo</title>
     <link rel="icon" type="image/png" href="favicon.png">
+    
+    <!-- PWA Setup -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TofuTodo">
+    <link rel="apple-touch-icon" href="https://github.com/dogEleven.png">
+
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
         :root { 
-            --primary: #007aff; 
-            --bg: #f2f2f7; 
+            --primary: #4a90e2; /* Changed to Tofu Blue */
+            --bg: #f5f5f7; 
             --card-bg: #ffffff; 
             --text: #1c1c1e; 
             --subtext: #8e8e93; 
@@ -30,9 +40,9 @@
         }
         body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); padding: 12px; max-width: 600px; margin: 0 auto; color: var(--text); -webkit-font-smoothing: antialiased; transition: background 0.3s, color 0.3s; }
         .login-box { background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; margin-top: 50px; }
-        input { width: 100%; box-sizing: border-box; padding: 12px 16px; margin: 15px 0; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 16px; background: var(--input-bg); color: var(--text); transition: all 0.2s; }
-        [data-theme='dark'] input { border-color: #3a3a3c; }
-        input:focus { border-color: var(--primary); outline: none; background: var(--card-bg); }
+        input, textarea { width: 100%; box-sizing: border-box; padding: 12px 16px; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 16px; background: var(--input-bg); color: var(--text); transition: all 0.2s; font-family: inherit; }
+        [data-theme='dark'] input, [data-theme='dark'] textarea { border-color: #3a3a3c; }
+        input:focus, textarea:focus { border-color: var(--primary); outline: none; background: var(--card-bg); }
         button { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; transition: opacity 0.2s; width: 100%; }
         button:active { opacity: 0.8; }
         
@@ -60,7 +70,7 @@
         [data-theme='dark'] .group-title span { background: rgba(255,255,255,0.1); }
         
         .todo-list { display: flex; flex-direction: column; gap: 0; background: var(--card-bg); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-        .todo-item { background: transparent; padding: 10px 12px; border-radius: 0; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+        .todo-item { background: transparent; padding: 10px 12px; border-radius: 0; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0; border-bottom: 1px solid var(--border); cursor: pointer; }
         .todo-item:last-child { border-bottom: none; }
         .todo-item:active { background: var(--bg); }
         .todo-item.done { opacity: 0.5; }
@@ -85,11 +95,29 @@
         .text-Reference { color: #ff2d55; }
         .text-Other { color: var(--subtext); }
 
-        .edit-input { flex-grow: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 4px 8px; font-size: 13px; background: var(--input-bg); color: var(--text); margin: -4px 0; }
-        .edit-actions { display: flex; gap: 8px; margin-left: 8px; font-size: 14px; cursor: pointer; }
-
         .title-container { flex-grow: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
         .issue-meta { font-size: 9px; color: var(--subtext); white-space: nowrap; margin-top: 2px; flex-shrink: 0; }
+
+        /* Full Screen Editor Modal */
+        .editor-modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg); z-index: 1000;
+            display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.3s ease;
+        }
+        .editor-modal.active { transform: translateY(0); }
+        .editor-header {
+            padding: 15px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(var(--card-bg), 0.9);
+        }
+        .editor-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .editor-title { font-size: 18px; font-weight: bold; border: none; background: transparent; outline: none; }
+        .editor-textarea { flex: 1; border: none; background: transparent; resize: none; font-size: 16px; line-height: 1.6; outline: none; font-family: inherit; }
+        .md-preview { display: none; padding: 10px 0; font-size: 16px; line-height: 1.6; }
+        .md-preview.active { display: block; }
+        .md-preview h1 { border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+        .md-preview img { max-width: 100%; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -114,12 +142,12 @@
 
             <div class="tabs">
                 <div class="tab" :class="{ active: currentTab === 'todo' }" @click="currentTab = 'todo'">📋 清单</div>
-                <div class="tab" :class="{ active: currentTab === 'idea' }" @click="currentTab = 'idea'">💡 想法</div>
+                <div class="tab" :class="{ active: currentTab === 'idea' }" @click="currentTab = 'idea'">📝 备忘录</div>
             </div>
 
             <div class="new-task">
                 <div class="new-task-row">
-                    <input v-model="newTask" :placeholder="currentTab === 'todo' ? 'Add a new task...' : 'Capturing an idea...'" @keyup.enter="addTask" style="flex-grow: 1;">
+                    <input v-model="newTask" :placeholder="currentTab === 'todo' ? 'Add a new task...' : 'Type a memo...'" @keyup.enter="addTask" style="flex-grow: 1;">
                 </div>
                 <div class="new-task-row" style="justify-content: space-between; align-items: center;">
                     <select v-model="newLabel">
@@ -135,7 +163,7 @@
                             <option value="Reference">📚 Reference</option>
                         </template>
                     </select>
-                    <button @click="addTask" class="add-btn">Add {{ currentTab === 'todo' ? 'Task' : 'Idea' }}</button>
+                    <button @click="addTask" class="add-btn">Add {{ currentTab === 'todo' ? 'Task' : 'Memo' }}</button>
                 </div>
             </div>
 
@@ -146,31 +174,38 @@
                     <h3 class="group-title" :class="'text-' + groupName">{{ groupName }} <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ groupIssues.length }}</span></h3>
                     <div class="todo-list">
                         <div v-for="issue in groupIssues" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
-                            <div class="checkbox" @click="toggleIssue(issue)"></div>
-                            <div class="content">
-                                <template v-if="editingIssueId === issue.id">
-                                    <input v-model="editingTitle" @keyup.enter="saveEdit(issue)" @keyup.esc="cancelEdit" class="edit-input" ref="editInput">
-                                    <div class="edit-actions">
-                                        <span @click="saveEdit(issue)">✅</span>
-                                        <span @click="cancelEdit">❌</span>
+                            <div class="checkbox" @click.stop="toggleIssue(issue)"></div>
+                            <div class="content" @click="openEditor(issue)">
+                                <div class="title-container">
+                                    <div class="title">{{ issue.title }}</div>
+                                    <div class="issue-meta">
+                                        <span :style="{ opacity: getMetaOpacity(issue.created_at) }">{{ formatDate(issue.created_at) }}</span>
                                     </div>
-                                </template>
-                                <template v-else>
-                                    <div class="title-container" @click="startEdit(issue)">
-                                        <div class="title">{{ issue.title }}</div>
-                                        <div class="issue-meta">
-                                            <span :style="{ opacity: getMetaOpacity(issue.created_at) }">{{ formatDate(issue.created_at) }}</span>
-                                            <span style="margin: 0 4px; opacity: 0.3;">·</span>
-                                            <span :style="{ opacity: getMetaOpacity(issue.updated_at) }">{{ formatDate(issue.updated_at) }}</span>
-                                        </div>
-                                    </div>
-                                </template>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Markdown Editor Modal -->
+        <div class="editor-modal" :class="{ active: isEditorOpen }">
+            <div class="editor-header">
+                <button class="logout-btn" @click="closeEditor">取消</button>
+                <div style="font-weight:600;">编辑</div>
+                <button class="logout-btn" style="font-weight:600;" @click="saveEditor">保存</button>
+            </div>
+            <div class="editor-body">
+                <input v-model="editingTitle" class="editor-title" placeholder="标题">
+                <div style="display:flex; gap:10px; border-bottom: 1px solid var(--border); padding-bottom:5px;">
+                    <button class="logout-btn" @click="showPreview = !showPreview">{{ showPreview ? '✏️ 编辑' : '👁️ 预览' }}</button>
+                </div>
+                <textarea v-show="!showPreview" v-model="editingBody" class="editor-textarea" placeholder="支持 Markdown..."></textarea>
+                <div v-show="showPreview" class="md-preview active" v-html="renderedMarkdown"></div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -185,15 +220,26 @@
                 const loading = ref(false);
                 const newTask = ref('');
                 const newLabel = ref('Work');
-                const editingIssueId = ref(null);
-                const editingTitle = ref('');
-                const editInput = ref(null);
                 const isDark = ref(localStorage.getItem('theme') === 'dark');
                 const currentTab = ref(localStorage.getItem('currentTab') || 'todo');
+
+                // Editor State
+                const isEditorOpen = ref(false);
+                const editingIssue = ref(null);
+                const editingTitle = ref('');
+                const editingBody = ref('');
+                const showPreview = ref(false);
+
+                // Config
+                const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix'];
 
                 watch(currentTab, (val) => {
                     localStorage.setItem('currentTab', val);
                     newLabel.value = val === 'todo' ? 'Work' : 'Idea';
+                });
+
+                const renderedMarkdown = computed(() => {
+                    return editingBody.value ? marked.parse(editingBody.value) : '';
                 });
 
                 const api = axios.create({
@@ -205,22 +251,12 @@
                     const date = new Date(isoString);
                     const now = new Date();
                     const isThisYear = date.getFullYear() === now.getFullYear();
-                    
-                    if (isThisYear) {
-                        return `${date.getMonth() + 1}/${date.getDate()}`;
-                    }
-                    return date.toLocaleDateString('zh-CN', { year: '2-digit', month: 'numeric', day: 'numeric' });
+                    return isThisYear ? `${date.getMonth() + 1}/${date.getDate()}` : date.toLocaleDateString('zh-CN', { year: '2-digit', month: 'numeric', day: 'numeric' });
                 };
 
                 const getMetaOpacity = (isoString) => {
-                    const time = new Date(isoString).getTime();
-                    const now = new Date().getTime();
-                    const diffMs = now - time;
-                    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-                    
-                    if (diffDays <= 1) return 0.8;
-                    if (diffDays >= 7) return 0.2;
-                    return 0.8 - (diffDays - 1) * (0.6 / 6);
+                    const diffDays = (new Date() - new Date(isoString)) / (1000 * 60 * 60 * 24);
+                    return diffDays <= 1 ? 0.8 : (diffDays >= 7 ? 0.2 : 0.8 - (diffDays - 1) * 0.1);
                 };
 
                 const groupedIssues = computed(() => {
@@ -234,6 +270,9 @@
                         let placed = false;
                         if (issue.labels && issue.labels.length > 0) {
                             for (const label of issue.labels) {
+                                // Skip ignored labels
+                                if (ignoredLabels.includes(label.name.toLowerCase())) continue;
+
                                 if (groups[label.name]) {
                                     groups[label.name].push(issue);
                                     placed = true;
@@ -243,7 +282,6 @@
                         }
                         if (!placed) groups['Other'].push(issue);
                     });
-                    
                     return groups;
                 });
 
@@ -259,9 +297,45 @@
                             result[label] = groupedIssues.value[label];
                         }
                     });
-                    
                     return result;
                 });
+
+                // Editor Methods
+                const openEditor = (issue) => {
+                    if (issue.state === 'closed') return;
+                    editingIssue.value = issue;
+                    editingTitle.value = issue.title;
+                    editingBody.value = issue.body || '';
+                    showPreview.value = false;
+                    isEditorOpen.value = true;
+                };
+
+                const closeEditor = () => {
+                    isEditorOpen.value = false;
+                    setTimeout(() => {
+                        editingIssue.value = null;
+                        editingTitle.value = '';
+                        editingBody.value = '';
+                    }, 300);
+                };
+
+                const saveEditor = async () => {
+                    if (!editingTitle.value) return;
+                    try {
+                        const res = await api.patch(`/issues/${editingIssue.value.number}`, {
+                            title: editingTitle.value,
+                            body: editingBody.value
+                        }, { headers: { 'Authorization': `token ${token.value}` } });
+                        
+                        // Update local list
+                        const idx = issues.value.findIndex(i => i.id === editingIssue.value.id);
+                        if (idx !== -1) issues.value[idx] = res.data;
+                        
+                        closeEditor();
+                    } catch (e) {
+                        alert('Save failed: ' + e.message);
+                    }
+                };
 
                 const saveToken = () => {
                     if (!inputToken.value.startsWith('ghp_') && !inputToken.value.startsWith('github_pat_')) {
@@ -302,9 +376,7 @@
                         await api.patch(`/issues/${issue.number}`, { state: newState }, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
-                        if (newState === 'closed') {
-                            issues.value = issues.value.filter(i => i.id !== issue.id);
-                        }
+                        if (newState === 'closed') issues.value = issues.value.filter(i => i.id !== issue.id);
                     } catch (e) {
                         alert('Update failed');
                         issue.state = issue.state === 'open' ? 'closed' : 'open';
@@ -317,48 +389,10 @@
                         const res = await api.post('/issues', {
                             title: newTask.value,
                             labels: [newLabel.value]
-                        }, {
-                            headers: { 'Authorization': `token ${token.value}` }
-                        });
+                        }, { headers: { 'Authorization': `token ${token.value}` } });
                         issues.value.unshift(res.data);
                         newTask.value = '';
-                    } catch (e) {
-                        alert('Failed to create task');
-                    }
-                };
-
-                const startEdit = (issue) => {
-                    if (issue.state === 'closed') return;
-                    editingIssueId.value = issue.id;
-                    editingTitle.value = issue.title;
-                    nextTick(() => {
-                        if (editInput.value && editInput.value[0]) {
-                            editInput.value[0].focus();
-                        }
-                    });
-                };
-
-                const cancelEdit = () => {
-                    editingIssueId.value = null;
-                    editingTitle.value = '';
-                };
-
-                const saveEdit = async (issue) => {
-                    if (!editingTitle.value || editingTitle.value === issue.title) {
-                        cancelEdit();
-                        return;
-                    }
-                    const oldTitle = issue.title;
-                    issue.title = editingTitle.value;
-                    try {
-                        await api.patch(`/issues/${issue.number}`, { title: editingTitle.value }, {
-                            headers: { 'Authorization': `token ${token.value}` }
-                        });
-                        cancelEdit();
-                    } catch (e) {
-                        alert('Update title failed');
-                        issue.title = oldTitle;
-                    }
+                    } catch (e) { alert('Failed to create task'); }
                 };
 
                 const toggleTheme = () => {
@@ -370,25 +404,20 @@
 
                 onMounted(() => {
                     if (token.value) fetchIssues();
-                    
-                    // 初始化主题
                     const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                     isDark.value = savedTheme === 'dark';
                     document.documentElement.setAttribute('data-theme', savedTheme);
-                    
-                    // 每次回到页面（可见性改变为可见时）自动重新拉取数据
                     document.addEventListener('visibilitychange', () => {
-                        if (document.visibilityState === 'visible' && token.value) {
-                            fetchIssues();
-                        }
+                        if (document.visibilityState === 'visible' && token.value) fetchIssues();
                     });
                 });
 
                 return { 
                     token, inputToken, saveToken, logout, issues, loading, toggleIssue, 
                     newTask, newLabel, addTask, groupedIssues, filteredGroups,
-                    editingIssueId, editingTitle, startEdit, cancelEdit, saveEdit, editInput,
-                    isDark, toggleTheme, formatDate, getMetaOpacity, currentTab
+                    isDark, toggleTheme, formatDate, getMetaOpacity, currentTab,
+                    // Editor
+                    openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown
                 };
             }
         }).mount('#app');
