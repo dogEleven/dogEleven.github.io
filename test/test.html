@@ -245,21 +245,19 @@
             setup() {
                 const token = ref(localStorage.getItem('gh_token') || '');
                 const inputToken = ref('');
-                const issues = ref([]);
+                const allLabels = ref([]); // Store all repo labels
                 const loading = ref(false);
                 const newTask = ref('');
                 const newLabel = ref('Work');
                 const isDark = ref(localStorage.getItem('theme') === 'dark');
                 const currentTab = ref(localStorage.getItem('currentTab') || 'todo');
 
-                // Editor State
-                const isEditorOpen = ref(false);
-                const editingIssue = ref(null);
-                const editingTitle = ref('');
-                const editingBody = ref('');
-                const showPreview = ref(false);
+                // State for UI
+                const collapsedGroups = ref(JSON.parse(localStorage.getItem('collapsedGroups')) || {});
+                const showGroupModal = ref(false);
+                const newGroupName = ref('');
 
-                // Config
+                // Default Groups Configuration
                 const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix'];
 
                 watch(currentTab, (val) => {
@@ -365,6 +363,51 @@
                     }
                 };
 
+                const createGroup = async () => {
+                    const name = newGroupName.value.trim();
+                    if (!name) return;
+                    
+                    try {
+                        await api.post('/labels', {
+                            name: name,
+                            color: Math.floor(Math.random()*16777215).toString(16)
+                        }, { headers: { 'Authorization': `token ${token.value}` } });
+                        
+                        await fetchLabels();
+                        showGroupModal.value = false;
+                        newGroupName.value = '';
+                        newLabel.value = name;
+                    } catch (e) {
+                        alert('Create failed: ' + e.message);
+                    }
+                };
+
+                const deleteGroup = async (name) => {
+                    if (!confirm(`Delete group "${name}"?`)) return;
+                    try {
+                        await api.delete(`/labels/${name}`, { headers: { 'Authorization': `token ${token.value}` } });
+                        await fetchLabels();
+                    } catch (e) {
+                        alert('Delete failed: ' + e.message);
+                    }
+                };
+
+                const fetchLabels = async () => {
+                    if (!token.value) return;
+                    try {
+                        const res = await api.get('/labels', { headers: { 'Authorization': `token ${token.value}` } });
+                        allLabels.value = res.data;
+                    } catch (e) { console.error("Failed to fetch labels"); }
+                };
+
+                const isCustomGroup = (name) => {
+                    return !defaultTodoLabels.includes(name) && !defaultIdeaLabels.includes(name) && name !== 'Other';
+                };
+
+                const toggleGroup = (name) => {
+                    collapsedGroups.value[name] = !collapsedGroups.value[name];
+                };
+
                 const saveToken = () => {
                     if (!inputToken.value.startsWith('ghp_') && !inputToken.value.startsWith('github_pat_')) {
                         alert('Invalid Token format');
@@ -372,13 +415,18 @@
                     }
                     localStorage.setItem('gh_token', inputToken.value);
                     token.value = inputToken.value;
-                    fetchIssues();
+                    initData();
                 };
 
                 const logout = () => {
                     localStorage.removeItem('gh_token');
                     token.value = '';
                     issues.value = [];
+                };
+
+                const initData = () => {
+                    fetchIssues();
+                    fetchLabels();
                 };
 
                 const fetchIssues = async () => {
@@ -431,7 +479,7 @@
                 };
 
                 onMounted(() => {
-                    if (token.value) fetchIssues();
+                    if (token.value) initData();
                     const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                     isDark.value = savedTheme === 'dark';
                     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -445,7 +493,9 @@
                     newTask, newLabel, addTask, groupedIssues, filteredGroups,
                     isDark, toggleTheme, formatDate, getMetaOpacity, currentTab,
                     // Editor
-                    openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown
+                    openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown,
+                    // Groups
+                    showGroupModal, newGroupName, createGroup, deleteGroup, isCustomGroup, collapsedGroups, toggleGroup
                 };
             }
         }).mount('#app');
