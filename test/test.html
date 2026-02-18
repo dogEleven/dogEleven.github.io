@@ -260,7 +260,7 @@
                 // Config
                 const defaultTodoLabels = ['Work', 'Life', 'HellDrop', 'Zhutousan'];
                 const defaultIdeaLabels = ['Idea', 'Project', 'Reference'];
-                const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix'];
+                const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix', 'trash'];
 
                 // Axios
                 const api = axios.create({
@@ -297,6 +297,9 @@
                     const allSystemLabels = [...defaultTodoLabels, ...defaultIdeaLabels];
 
                     issues.value.forEach(issue => {
+                        // Skip Trash items entirely
+                        if (issue.labels.some(l => l.name.toLowerCase() === 'trash')) return;
+
                         let placed = false;
                         let hasSystemLabel = false;
 
@@ -429,15 +432,15 @@
                 };
                 
                 const deleteIssue = async (issue) => {
-                    if (!confirm('Are you sure you want to delete this issue?')) return;
+                    // Optimistic remove
+                    issues.value = issues.value.filter(i => i.id !== issue.id);
                     try {
-                        // Soft delete via label
-                        await api.post(`/issues/${issue.number}/labels`, { labels: ['deleted'] }, {
+                        // Move to Trash (Add 'Trash' label)
+                        await api.post(`/issues/${issue.number}/labels`, { labels: ['Trash'] }, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
-                        issues.value = issues.value.filter(i => i.id !== issue.id);
                     } catch (e) {
-                        alert('Could not delete. (GitHub API restricts deleting issues)');
+                        alert('Error moving to trash');
                     }
                 };
 
