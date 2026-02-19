@@ -107,10 +107,19 @@
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
         .btn-cancel { background: transparent; color: var(--subtext); border: 1px solid var(--border); width: auto; padding: 8px 16px; }
         .btn-create { width: auto; padding: 8px 16px; }
+        /* Menu Popover */
+        .menu-popover {
+            position: absolute; right: 40px; background: var(--card-bg); 
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+            z-index: 100; overflow: hidden; display: none; min-width: 100px;
+        }
+        .menu-popover.active { display: block; }
+        .menu-item { padding: 10px 15px; font-size: 14px; cursor: pointer; color: #ff3b30; display: flex; align-items: center; gap: 8px; }
+        .menu-item:active { background: var(--bg); }
     </style>
 </head>
 <body>
-    <div id="app">
+    <div id="app" @click="closeAllMenus">
         <!-- Login -->
         <div v-if="!token" class="login-box">
             <h1>🔐 TofuTodo</h1>
@@ -168,6 +177,13 @@
                                 <div class="title-container" style="flex-direction: column; gap:0;">
                                     <div class="title" style="font-weight:600; font-size:14px;">{{ issue.title }}</div>
                                     <div class="issue-meta" style="font-size:11px; margin-top:0;">{{ formatDate(issue.updated_at) }}</div>
+                                </div>
+                            </div>
+                            <!-- Kebab Menu -->
+                            <div style="position:relative;">
+                                <button @click.stop="toggleMenu(issue.id)" style="background:none; border:none; color:var(--subtext); font-size:18px; padding:0 8px;">⋮</button>
+                                <div class="menu-popover" :class="{ active: activeMenuId === issue.id }">
+                                    <div class="menu-item" @click.stop="deleteIssue(issue)">🗑️ 删除</div>
                                 </div>
                             </div>
                         </div>
@@ -250,6 +266,7 @@
                 const collapsedGroups = ref(JSON.parse(localStorage.getItem('collapsedGroups')) || {});
                 const showGroupModal = ref(false);
                 const newGroupName = ref('');
+                const activeMenuId = ref(null);
 
                 // Editor State
                 const isEditorOpen = ref(false);
@@ -477,6 +494,11 @@
 
                 const toggleGroup = (name) => { collapsedGroups.value[name] = !collapsedGroups.value[name]; };
                 
+                const toggleMenu = (id) => {
+                    activeMenuId.value = activeMenuId.value === id ? null : id;
+                };
+                const closeAllMenus = () => { activeMenuId.value = null; };
+
                 const isCustomGroup = (name) => !defaultTodoLabels.includes(name) && !defaultIdeaLabels.includes(name) && name !== 'Other';
 
                 // Editor
@@ -531,6 +553,8 @@
                     groupedIssues, sortedGroupNames, availableLabels, isDark, toggleTheme, formatDate, getMetaOpacity, currentTab,
                     // Groups
                     showGroupModal, newGroupName, createGroup, deleteGroup, isCustomGroup, collapsedGroups, toggleGroup,
+                    // Menu
+                    activeMenuId, toggleMenu, closeAllMenus,
                     // Editor
                     openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown,
                     // Delete
