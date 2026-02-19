@@ -436,12 +436,42 @@
                     // Optimistic remove
                     issues.value = issues.value.filter(i => i.id !== issue.id);
                     try {
-                        // Move to Trash (Add 'Trash' label)
+                        // Ensure 'Trash' label exists first (just in case)
+                        // Actually, just try to set the labels. GitHub usually requires the label to exist.
+                        // Let's try to REPLACE all labels with just 'Trash' (Move to Trash), 
+                        // OR append it. Appending is safer to keep history.
+                        // API: POST /repos/{owner}/{repo}/issues/{issue_number}/labels (Append)
+                        // API: PUT /repos/{owner}/{repo}/issues/{issue_number}/labels (Replace)
+                        
+                        // Let's try appending. If it fails, maybe 'Trash' doesn't exist.
+                        // We will try to create it first if the post fails, but for now let's just append.
+                        
                         await api.post(`/issues/${issue.number}/labels`, { labels: ['Trash'] }, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
+                        
+                        // Also CLOSE it if it's not closed, to be sure
+                        if (issue.state !== 'closed') {
+                            await api.patch(`/issues/${issue.number}`, { state: 'closed' }, {
+                                headers: { 'Authorization': `token ${token.value}` }
+                            });
+                        }
                     } catch (e) {
-                        alert('Error moving to trash');
+                        // If 404/422, maybe label doesn't exist. Try creating it.
+                        console.error("Failed to trash, trying to create label...", e);
+                        try {
+                            await api.post('/labels', { name: 'Trash', color: '000000' }, {
+                                headers: { 'Authorization': `token ${token.value}` }
+                            });
+                            // Retry adding label
+                            await api.post(`/issues/${issue.number}/labels`, { labels: ['Trash'] }, {
+                                headers: { 'Authorization': `token ${token.value}` }
+                            });
+                        } catch (err2) {
+                            alert('Failed to move to Trash. Please check network/permissions.');
+                            // Revert UI if failed
+                            fetchIssues(); 
+                        }
                     }
                 };
 
