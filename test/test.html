@@ -209,7 +209,13 @@
                                     <div class="issue-meta">{{ formatDate(issue.created_at) }}</div>
                                 </div>
                             </div>
-                            <button v-if="issue.state === 'closed'" @click.stop="deleteIssue(issue)" class="delete-btn" style="background:none; border:none; color:var(--subtext); padding:5px; margin-left:5px;">✕</button>
+                            <!-- Kebab Menu for Todo -->
+                            <div style="position:relative;">
+                                <button @click.stop="toggleMenu(issue.id)" style="background:none; border:none; color:var(--subtext); font-size:18px; padding:0 8px;">⋮</button>
+                                <div class="menu-popover" :class="{ active: activeMenuId === issue.id }">
+                                    <div class="menu-item" @click.stop="deleteIssue(issue)">🗑️ 删除</div>
+                                </div>
+                            </div>
                         </div>
                         <div v-if="(groupedIssues[groupName] || []).length === 0" style="padding:10px; font-size:12px; color:var(--subtext); text-align:center;">(Empty)</div>
                     </div>
