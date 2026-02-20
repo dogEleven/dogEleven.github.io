@@ -7,286 +7,356 @@
     <style>
         :root {
             --bg-color: #2c3e50;
-            --slot-bg: #ecf0f1;
+            --tile-bg: #ecf0f1;
             --text-color: #34495e;
-            --highlight: #e74c3c;
+            --highlight: #2ecc71;
             --gold: #f1c40f;
         }
 
         body {
-            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Verdana', sans-serif;
             background-color: var(--bg-color);
             color: white;
             margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             height: 100vh;
             overflow: hidden;
+            touch-action: none; /* Prevent browser scroll */
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 { margin: 0; font-size: 24px; letter-spacing: 2px; }
+        .score { font-size: 20px; color: var(--gold); font-weight: bold; margin-top: 5px; }
+
+        .game-board {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 60px;
+            /* Allow vertical dragging visual */
+            cursor: grab;
+            position: relative;
+        }
+
+        .tile {
+            width: 60px;
+            height: 60px;
+            background: var(--tile-bg);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 32px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+            transition: transform 0.2s, background-color 0.2s, opacity 0.3s;
             user-select: none;
         }
 
-        h1 { margin: 0 0 20px 0; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
-
-        .game-container {
-            position: relative;
-            background: #34495e;
-            padding: 10px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 4px solid #95a5a6;
-        }
-
-        /* The Slot Machine Window */
-        .slots-window {
-            display: flex;
-            gap: 10px;
-            background: #000;
-            padding: 10px;
-            border-radius: 10px;
-            position: relative;
-            overflow: hidden;
-            height: 240px; /* Visible height (3 rows * 80px) */
-        }
-
-        /* The Highlight/Payline Line */
-        .payline {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 80px;
-            transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.1);
-            border-top: 2px solid var(--highlight);
-            border-bottom: 2px solid var(--highlight);
-            pointer-events: none;
-            z-index: 10;
-            box-shadow: 0 0 10px rgba(231, 76, 60, 0.2);
-        }
-
-        /* Individual Reel Column */
-        .reel {
-            width: 80px;
-            background: var(--slot-bg);
-            border-radius: 5px;
-            text-align: center;
-            font-size: 40px;
-            font-weight: bold;
-            color: var(--text-color);
-            /* Scroll Snap Magic */
-            overflow-y: scroll;
-            scroll-snap-type: y mandatory;
-            height: 100%; /* Fill window */
-            scrollbar-width: none; /* Hide scrollbar Firefox */
-            -ms-overflow-style: none; /* Hide scrollbar IE */
-        }
-        .reel::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome */
-
-        /* Spacer for centering */
-        .spacer { height: 80px; scroll-snap-align: none; }
-
-        /* The Letter Box */
-        .symbol {
-            height: 80px;
-            line-height: 80px;
-            scroll-snap-align: center;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-            box-sizing: border-box;
-        }
-        
-        .score-board {
-            margin-top: 20px;
-            font-size: 24px;
-            color: var(--gold);
-            font-weight: bold;
-        }
-        
-        .message {
-            height: 30px;
-            margin-top: 10px;
-            color: #2ecc71;
-            font-weight: bold;
-        }
-
-        /* Animation */
-        @keyframes pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); color: var(--highlight); }
-            100% { transform: scale(1); }
-        }
-        .match {
-            animation: pop 0.3s ease-in-out;
-            background: #fff;
-        }
-
-        .check-btn {
-            margin-top: 20px;
-            padding: 15px 40px;
-            font-size: 20px;
-            background: var(--highlight);
+        .tile.matched {
+            background-color: var(--highlight);
             color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 5px 0 #c0392b;
-            transition: transform 0.1s, box-shadow 0.1s;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px var(--highlight);
+            z-index: 10;
         }
-        .check-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 1px 0 #c0392b;
+        
+        .tile.falling {
+            transition: transform 0.3s cubic-bezier(0.5, 0, 0.5, 1);
         }
 
+        /* Dragging state */
+        .column.dragging { cursor: grabbing; }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #bdc3c7;
+        }
     </style>
 </head>
 <body>
 
-    <h1>WORD BASH</h1>
-
-    <div class="game-container">
-        <div class="slots-window">
-            <div class="payline"></div>
-            <!-- Reels will be injected here -->
-            <div class="reel" id="reel0"></div>
-            <div class="reel" id="reel1"></div>
-            <div class="reel" id="reel2"></div>
-            <div class="reel" id="reel3"></div>
-        </div>
+    <div class="header">
+        <h1>WORD BASH</h1>
+        <div class="score">SCORE: <span id="scoreVal">0</span></div>
     </div>
 
-    <div class="message" id="msg">Spin the reels!</div>
-    <div class="score-board">Score: <span id="score">0</span></div>
+    <div class="game-board" id="board">
+        <!-- Columns generated by JS -->
+    </div>
 
-    <!-- <button class="check-btn" onclick="checkWord()">CHECK</button> -->
-    <!-- Auto check on scroll end is better UX for slot machine feel -->
+    <div class="controls">
+        <p>Drag columns vertically to form words across.</p>
+        <p>4-letter words only.</p>
+    </div>
 
     <script>
-        // --- Game Config ---
-        const REEL_COUNT = 4;
-        const SYMBOL_HEIGHT = 80; // px
-        // Common letters frequency distribution (roughly)
-        const ALPHABET = "EEEEEEEEAAAAAAAIIIIIIOOOOOOOUUUUURRRRRTTTTTLLLLLSSSSNNNNNDDDGGGBBCCMMPPFFHHVVWWYYKJXQZ"; 
+        // Config
+        const COLS = 4;
+        const ROWS = 6;
+        const TILE_SIZE = 68; // 60px + 8px gap
         
-        // Mini dictionary (4-letter words) - Expansion needed!
-        const DICTIONARY = new Set([
+        // Dictionary (Expanded for demo)
+        const COMMON_WORDS = [
             "WORD", "GAME", "PLAY", "COOL", "BASH", "GOOD", "LOVE", "HATE", 
             "TIME", "LIFE", "WORK", "HARD", "EASY", "LUCK", "SLOT", "SPIN",
             "CATS", "DOGS", "FISH", "BIRD", "BLUE", "PINK", "GOLD", "READ",
             "BOOK", "COOK", "LOOK", "TOOK", "MAKE", "CAKE", "LAKE", "FAKE",
             "TEAM", "BEAN", "MEAN", "LEAN", "CODE", "MODE", "NODE", "RIDE",
             "DATA", "BETA", "META", "ACID", "GRID", "IRON", "LION", "NEON",
-            "ZINC", "GOLD", "ATOM", "MOLE", "CELL", "GENE", "GERM", "SEED"
-        ]);
+            "ZINC", "ATOM", "MOLE", "CELL", "GENE", "GERM", "SEED", "TREE",
+            "LEAF", "ROOT", "STEM", "ROSE", "LILY", "CORN", "RICE", "FOOD",
+            "MEAT", "BEEF", "PORK", "LAMB", "FISH", "MILK", "SOUP", "SODA",
+            "SALT", "SOUR", "SWEET", "COLD", "WARM", "HOT", "FIRE", "ICE",
+            "RAIN", "SNOW", "WIND", "STORM", "HAIL", "MIST", "FOG", "DEW",
+            "SAND", "DUST", "MUD", "CLAY", "ROCK", "STONE", "HILL", "MTN",
+            "SEA", "BAY", "GULF", "COVE", "PORT", "PIER", "DOCK", "SHIP",
+            "BOAT", "SAIL", "MAST", "HULL", "DECK", "CREW", "CAPT", "MATE"
+        ];
+        const DICT = new Set(COMMON_WORDS);
+        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         
+        // State
+        let grid = []; // grid[col][row] -> char
         let score = 0;
-        const reels = [];
+        let isProcessing = false;
 
+        const boardEl = document.getElementById('board');
+        const scoreEl = document.getElementById('scoreVal');
+
+        // Init
         function init() {
-            for (let i = 0; i < REEL_COUNT; i++) {
-                const reel = document.getElementById(`reel${i}`);
-                reels.push(reel);
-                fillReel(reel);
+            // Create DOM Columns
+            for (let c = 0; c < COLS; c++) {
+                const colEl = document.createElement('div');
+                colEl.className = 'column';
+                colEl.id = `col-${c}`;
                 
-                // Random initial scroll
-                setTimeout(() => {
-                    const randomPos = Math.floor(Math.random() * 50) * SYMBOL_HEIGHT;
-                    reel.scrollTo({ top: randomPos, behavior: 'smooth' });
-                }, i * 100);
+                // Add drag listeners
+                setupDrag(colEl, c);
 
-                // Listen for scroll end
-                let isScrolling;
-                reel.addEventListener('scroll', () => {
-                    window.clearTimeout(isScrolling);
-                    isScrolling = setTimeout(() => {
-                        // Snap to grid manually if CSS snap fails or for logic check
-                        checkWord();
-                    }, 200); // 200ms after scroll stops
-                });
+                grid[c] = [];
+                for (let r = 0; r < ROWS; r++) {
+                    const char = getRandomChar();
+                    grid[c][r] = char;
+                    const tile = createTile(char);
+                    colEl.appendChild(tile);
+                }
+                boardEl.appendChild(colEl);
             }
+            checkMatches(); // Initial check
         }
 
-        function fillReel(reelElement) {
-            // Padding top
-            const spacerTop = document.createElement('div');
-            spacerTop.className = 'spacer';
-            reelElement.appendChild(spacerTop);
-
-            // Generate random strip of letters
-            // Make it long enough to scroll
-            for (let i = 0; i < 100; i++) {
-                const div = document.createElement('div');
-                div.className = 'symbol';
-                div.innerText = getRandomLetter();
-                reelElement.appendChild(div);
-            }
-
-            // Padding bottom
-            const spacerBottom = document.createElement('div');
-            spacerBottom.className = 'spacer';
-            reelElement.appendChild(spacerBottom);
+        function createTile(char) {
+            const div = document.createElement('div');
+            div.className = 'tile';
+            div.innerText = char;
+            return div;
         }
 
-        function getRandomLetter() {
+        function getRandomChar() {
+            // Weighted random could be better
             return ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
         }
 
-        function checkWord() {
-            const currentLetters = [];
-            
-            reels.forEach(reel => {
-                // Calculate which item is in the middle (payline)
-                // scrollTop + (WindowHeight/2) - (SymbolHeight/2) -> but we have top spacer
-                // Simply: scrollTop / 80 -> rounded
-                const index = Math.round(reel.scrollTop / SYMBOL_HEIGHT);
-                // The item at 'index' corresponds to child[index + 1] (due to spacer)
-                // Spacer is child 0. Letter 0 is child 1.
-                // So if scrollTop is 0 (index 0), we see spacer(partially) and Letter 0 centered?
-                // Wait. 
-                // Window height 240. Payline at 120.
-                // Spacer top is 80.
-                // Letter 0 starts at 80. Center of letter 0 is 80 + 40 = 120.
-                // So if scrollTop is 0, Letter 0 is exactly in middle. Correct.
+        // Drag Logic
+        function setupDrag(colEl, colIndex) {
+            let startY = 0;
+            let currentTranslateY = 0;
+            let isDragging = false;
+
+            const onStart = (e) => {
+                if (isProcessing) return;
+                isDragging = true;
+                startY = e.touches ? e.touches[0].clientY : e.clientY;
+                colEl.classList.add('dragging');
+                colEl.style.transition = 'none';
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                const y = e.touches ? e.touches[0].clientY : e.clientY;
+                const delta = y - startY;
+                currentTranslateY = delta;
                 
-                const letterEl = reel.children[index + 1];
-                if (letterEl && letterEl.classList.contains('symbol')) {
-                    currentLetters.push(letterEl.innerText);
-                } else {
-                    currentLetters.push("?");
+                // Visual feedback (limit drag to 1 tile distance for feel)
+                colEl.style.transform = `translateY(${delta}px)`;
+            };
+
+            const onEnd = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                colEl.classList.remove('dragging');
+                colEl.style.transition = 'transform 0.2s ease-out';
+                
+                // Determine snap
+                if (Math.abs(currentTranslateY) > TILE_SIZE / 2) {
+                    if (currentTranslateY > 0) {
+                        shiftColumnDown(colIndex);
+                    } else {
+                        shiftColumnUp(colIndex);
+                    }
                 }
-            });
+                
+                // Reset visual transform
+                colEl.style.transform = `translateY(0)`;
+                currentTranslateY = 0;
+            };
 
-            const word = currentLetters.join("");
-            if (word.length === REEL_COUNT) {
-                validate(word);
-            }
+            colEl.addEventListener('mousedown', onStart);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onEnd);
+            
+            colEl.addEventListener('touchstart', onStart);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onEnd);
         }
 
-        function validate(word) {
-            const msg = document.getElementById('msg');
-            const scoreEl = document.getElementById('score');
+        // Logic: Shift Column
+        function shiftColumnDown(c) {
+            // Move last item to top (Rotate) or Generate new?
+            // "Slot machine" usually rotates. "Falling block" generates new.
+            // Let's Rotate for now to keep board full easily, or Generate new for difficulty.
+            // Let's Generate New on Top, Remove Bottom.
+            
+            const colEl = document.getElementById(`col-${c}`);
+            
+            // Logic Update
+            grid[c].pop(); // remove last
+            const newChar = getRandomChar();
+            grid[c].unshift(newChar); // add new to top
+            
+            // DOM Update
+            colEl.lastElementChild.remove();
+            const newTile = createTile(newChar);
+            // newTile.style.height = '0'; // Animation prep
+            colEl.prepend(newTile);
+            
+            // Check
+            setTimeout(checkMatches, 250);
+        }
 
-            if (DICTIONARY.has(word)) {
-                msg.innerText = "MATCH: " + word + "!";
-                score += 100;
+        function shiftColumnUp(c) {
+            const colEl = document.getElementById(`col-${c}`);
+            
+            // Logic
+            grid[c].shift(); // remove first
+            const newChar = getRandomChar();
+            grid[c].push(newChar); // add to bottom
+            
+            // DOM
+            colEl.firstElementChild.remove();
+            colEl.appendChild(createTile(newChar));
+            
+            setTimeout(checkMatches, 250);
+        }
+
+        // Match Logic
+        function checkMatches() {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            let matchedCoords = new Set(); // "c,r" strings
+            let matchedWords = [];
+
+            // Check Rows
+            for (let r = 0; r < ROWS; r++) {
+                let word = "";
+                for (let c = 0; c < COLS; c++) {
+                    word += grid[c][r];
+                }
+                
+                if (DICT.has(word)) {
+                    matchedWords.push(word);
+                    for (let c = 0; c < COLS; c++) matchedCoords.add(`${c},${r}`);
+                }
+            }
+
+            if (matchedCoords.size > 0) {
+                // Highlight
+                matchedCoords.forEach(coord => {
+                    const [c, r] = coord.split(',').map(Number);
+                    const tile = document.getElementById(`col-${c}`).children[r];
+                    tile.classList.add('matched');
+                });
+                
+                score += matchedWords.length * 100;
                 scoreEl.innerText = score;
-                triggerWinEffect();
+
+                // Eliminate and Fall after delay
+                setTimeout(() => {
+                    eliminateAndRefill(matchedCoords);
+                }, 800);
             } else {
-                msg.innerText = "";
+                isProcessing = false;
             }
         }
 
-        function triggerWinEffect() {
-            // Highlight current row
-            reels.forEach(reel => {
-                const index = Math.round(reel.scrollTop / SYMBOL_HEIGHT);
-                const letterEl = reel.children[index + 1];
-                letterEl.classList.add('match');
-                setTimeout(() => letterEl.classList.remove('match'), 500);
-            });
+        function eliminateAndRefill(matchedCoords) {
+            // Organize matches by column
+            // For each column, find which rows matched, remove them, add new ones at top
+            
+            // This is tricky with DOM nodes index.
+            // Safest way: Re-render columns that changed?
+            // Or manipulate DOM carefully.
+            
+            for (let c = 0; c < COLS; c++) {
+                const colEl = document.getElementById(`col-${c}`);
+                const rowsToRemove = [];
+                
+                for (let r = 0; r < ROWS; r++) {
+                    if (matchedCoords.has(`${c},${r}`)) {
+                        rowsToRemove.push(r);
+                    }
+                }
+                
+                if (rowsToRemove.length > 0) {
+                    // Update Grid Logic: remove indices
+                    // Filter out matched chars from this column
+                    const newColChars = grid[c].filter((val, idx) => !matchedCoords.has(`${c},${idx}`));
+                    
+                    // Add new random chars to top to fill back to ROWS length
+                    const missingCount = ROWS - newColChars.length;
+                    for(let k=0; k<missingCount; k++) {
+                        newColChars.unshift(getRandomChar());
+                    }
+                    grid[c] = newColChars;
+                    
+                    // Update DOM completely for this column to be safe and simple
+                    colEl.innerHTML = '';
+                    grid[c].forEach(char => {
+                        colEl.appendChild(createTile(char));
+                    });
+                }
+            }
+            
+            // Check again for cascading matches
+            setTimeout(() => {
+                isProcessing = false; // Release lock for next check
+                checkMatches();
+            }, 300);
         }
 
-        // Init Game
         init();
 
     </script>
