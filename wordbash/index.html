@@ -35,37 +35,44 @@
             display: flex;
             justify-content: center;
             gap: 8px;
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            margin-top: 10px;
-            height: 400px; /* Visible height: 5 rows * 80px */
-            overflow: hidden;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-            border: 4px solid #7f8c8d;
+            /* Remove box constraints */
+            padding: 0;
+            background: transparent;
+            border-radius: 0;
+            margin-top: 20px;
+            height: 60vh; /* Use viewport height but allow overflow visual */
+            width: 100%;
+            overflow: visible; /* Let it bleed */
+            box-shadow: none;
+            border: none;
+            /* Add a fade mask at top/bottom only to smooth edges? Or full bleed */
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
         }
 
-        /* Payline Indicator */
+        /* Payline Indicator - Make it wider */
         .payline {
             position: absolute;
             top: 50%;
             left: 0;
             right: 0;
-            height: 80px; /* Tile height */
+            height: 80px; 
             transform: translateY(-50%);
             border-top: 2px solid rgba(231, 76, 60, 0.8);
             border-bottom: 2px solid rgba(231, 76, 60, 0.8);
             background: rgba(255, 255, 255, 0.05);
             pointer-events: none;
-            z-index: 10;
-            box-shadow: 0 0 15px rgba(231, 76, 60, 0.2);
+            z-index: 0; /* Behind tiles? Or front? Front is better for aim */
+            width: 100vw;
+            left: 50%;
+            margin-left: -50vw;
         }
 
         /* Column Wrapper */
         .column-container {
             width: 80px;
             height: 100%;
-            overflow: hidden; /* Hide overflow */
+            overflow: visible; /* Show tiles outside */
             position: relative;
         }
 
@@ -123,7 +130,7 @@
         <!-- Columns will be injected here -->
     </div>
 
-    <div class="controls">
+    <div class="controls" style="position:fixed; bottom:20px;">
         <p>Drag columns to align words.</p>
         <p>Words are checked on ALL rows!</p>
     </div>
@@ -131,8 +138,8 @@
     <script>
         const COLS = 4;
         const ROW_HEIGHT = 80;
-        const VISIBLE_ROWS = 5; // Height 400 / 80 = 5 rows
-        const BUFFER_COUNT = 30; // Extra tiles for scrolling
+        const VISIBLE_ROWS = 10; // Increased check range for larger view
+        const BUFFER_COUNT = 40; // More tiles
         
         const COMMON_WORDS = [
             "WORD", "GAME", "PLAY", "COOL", "BASH", "GOOD", "LOVE", "HATE", 
