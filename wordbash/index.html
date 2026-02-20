@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WordBash</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --slot-bg: #ecf0f1;
+            --text-color: #34495e;
+            --highlight: #e74c3c;
+            --gold: #f1c40f;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        h1 { margin: 0 0 20px 0; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
+
+        .game-container {
+            position: relative;
+            background: #34495e;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 4px solid #95a5a6;
+        }
+
+        /* The Slot Machine Window */
+        .slots-window {
+            display: flex;
+            gap: 10px;
+            background: #000;
+            padding: 10px;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            height: 240px; /* Visible height (3 rows * 80px) */
+        }
+
+        /* The Highlight/Payline Line */
+        .payline {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 80px;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border-top: 2px solid var(--highlight);
+            border-bottom: 2px solid var(--highlight);
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.2);
+        }
+
+        /* Individual Reel Column */
+        .reel {
+            width: 80px;
+            background: var(--slot-bg);
+            border-radius: 5px;
+            text-align: center;
+            font-size: 40px;
+            font-weight: bold;
+            color: var(--text-color);
+            /* Scroll Snap Magic */
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            height: 100%; /* Fill window */
+            scrollbar-width: none; /* Hide scrollbar Firefox */
+            -ms-overflow-style: none; /* Hide scrollbar IE */
+        }
+        .reel::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome */
+
+        /* Spacer for centering */
+        .spacer { height: 80px; scroll-snap-align: none; }
+
+        /* The Letter Box */
+        .symbol {
+            height: 80px;
+            line-height: 80px;
+            scroll-snap-align: center;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        
+        .score-board {
+            margin-top: 20px;
+            font-size: 24px;
+            color: var(--gold);
+            font-weight: bold;
+        }
+        
+        .message {
+            height: 30px;
+            margin-top: 10px;
+            color: #2ecc71;
+            font-weight: bold;
+        }
+
+        /* Animation */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); color: var(--highlight); }
+            100% { transform: scale(1); }
+        }
+        .match {
+            animation: pop 0.3s ease-in-out;
+            background: #fff;
+        }
+
+        .check-btn {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 20px;
+            background: var(--highlight);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #c0392b;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .check-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #c0392b;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>WORD BASH</h1>
+
+    <div class="game-container">
+        <div class="slots-window">
+            <div class="payline"></div>
+            <!-- Reels will be injected here -->
+            <div class="reel" id="reel0"></div>
+            <div class="reel" id="reel1"></div>
+            <div class="reel" id="reel2"></div>
+            <div class="reel" id="reel3"></div>
+        </div>
+    </div>
+
+    <div class="message" id="msg">Spin the reels!</div>
+    <div class="score-board">Score: <span id="score">0</span></div>
+
+    <!-- <button class="check-btn" onclick="checkWord()">CHECK</button> -->
+    <!-- Auto check on scroll end is better UX for slot machine feel -->
+
+    <script>
+        // --- Game Config ---
+        const REEL_COUNT = 4;
+        const SYMBOL_HEIGHT = 80; // px
+        // Common letters frequency distribution (roughly)
+        const ALPHABET = "EEEEEEEEAAAAAAAIIIIIIOOOOOOOUUUUURRRRRTTTTTLLLLLSSSSNNNNNDDDGGGBBCCMMPPFFHHVVWWYYKJXQZ"; 
+        
+        // Mini dictionary (4-letter words) - Expansion needed!
+        const DICTIONARY = new Set([
+            "WORD", "GAME", "PLAY", "COOL", "BASH", "GOOD", "LOVE", "HATE", 
+            "TIME", "LIFE", "WORK", "HARD", "EASY", "LUCK", "SLOT", "SPIN",
+            "CATS", "DOGS", "FISH", "BIRD", "BLUE", "PINK", "GOLD", "READ",
+            "BOOK", "COOK", "LOOK", "TOOK", "MAKE", "CAKE", "LAKE", "FAKE",
+            "TEAM", "BEAN", "MEAN", "LEAN", "CODE", "MODE", "NODE", "RIDE",
+            "DATA", "BETA", "META", "ACID", "GRID", "IRON", "LION", "NEON",
+            "ZINC", "GOLD", "ATOM", "MOLE", "CELL", "GENE", "GERM", "SEED"
+        ]);
+        
+        let score = 0;
+        const reels = [];
+
+        function init() {
+            for (let i = 0; i < REEL_COUNT; i++) {
+                const reel = document.getElementById(`reel${i}`);
+                reels.push(reel);
+                fillReel(reel);
+                
+                // Random initial scroll
+                setTimeout(() => {
+                    const randomPos = Math.floor(Math.random() * 50) * SYMBOL_HEIGHT;
+                    reel.scrollTo({ top: randomPos, behavior: 'smooth' });
+                }, i * 100);
+
+                // Listen for scroll end
+                let isScrolling;
+                reel.addEventListener('scroll', () => {
+                    window.clearTimeout(isScrolling);
+                    isScrolling = setTimeout(() => {
+                        // Snap to grid manually if CSS snap fails or for logic check
+                        checkWord();
+                    }, 200); // 200ms after scroll stops
+                });
+            }
+        }
+
+        function fillReel(reelElement) {
+            // Padding top
+            const spacerTop = document.createElement('div');
+            spacerTop.className = 'spacer';
+            reelElement.appendChild(spacerTop);
+
+            // Generate random strip of letters
+            // Make it long enough to scroll
+            for (let i = 0; i < 100; i++) {
+                const div = document.createElement('div');
+                div.className = 'symbol';
+                div.innerText = getRandomLetter();
+                reelElement.appendChild(div);
+            }
+
+            // Padding bottom
+            const spacerBottom = document.createElement('div');
+            spacerBottom.className = 'spacer';
+            reelElement.appendChild(spacerBottom);
+        }
+
+        function getRandomLetter() {
+            return ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+        }
+
+        function checkWord() {
+            const currentLetters = [];
+            
+            reels.forEach(reel => {
+                // Calculate which item is in the middle (payline)
+                // scrollTop + (WindowHeight/2) - (SymbolHeight/2) -> but we have top spacer
+                // Simply: scrollTop / 80 -> rounded
+                const index = Math.round(reel.scrollTop / SYMBOL_HEIGHT);
+                // The item at 'index' corresponds to child[index + 1] (due to spacer)
+                // Spacer is child 0. Letter 0 is child 1.
+                // So if scrollTop is 0 (index 0), we see spacer(partially) and Letter 0 centered?
+                // Wait. 
+                // Window height 240. Payline at 120.
+                // Spacer top is 80.
+                // Letter 0 starts at 80. Center of letter 0 is 80 + 40 = 120.
+                // So if scrollTop is 0, Letter 0 is exactly in middle. Correct.
+                
+                const letterEl = reel.children[index + 1];
+                if (letterEl && letterEl.classList.contains('symbol')) {
+                    currentLetters.push(letterEl.innerText);
+                } else {
+                    currentLetters.push("?");
+                }
+            });
+
+            const word = currentLetters.join("");
+            if (word.length === REEL_COUNT) {
+                validate(word);
+            }
+        }
+
+        function validate(word) {
+            const msg = document.getElementById('msg');
+            const scoreEl = document.getElementById('score');
+
+            if (DICTIONARY.has(word)) {
+                msg.innerText = "MATCH: " + word + "!";
+                score += 100;
+                scoreEl.innerText = score;
+                triggerWinEffect();
+            } else {
+                msg.innerText = "";
+            }
+        }
+
+        function triggerWinEffect() {
+            // Highlight current row
+            reels.forEach(reel => {
+                const index = Math.round(reel.scrollTop / SYMBOL_HEIGHT);
+                const letterEl = reel.children[index + 1];
+                letterEl.classList.add('match');
+                setTimeout(() => letterEl.classList.remove('match'), 500);
+            });
+        }
+
+        // Init Game
+        init();
+
+    </script>
+</body>
+</html>
