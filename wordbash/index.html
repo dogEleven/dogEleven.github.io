@@ -9,8 +9,9 @@
             --bg-color: #2c3e50;
             --tile-bg: #ecf0f1;
             --text-color: #34495e;
-            --highlight: #e74c3c;
+            --highlight: #2ecc71;
             --gold: #f1c40f;
+            --tile-size: 80px;
         }
 
         body {
@@ -26,7 +27,7 @@
             touch-action: none;
         }
 
-        .header { padding: 20px; text-align: center; z-index: 20; }
+        .header { padding: 20px; text-align: center; z-index: 20; height: 60px; box-sizing: border-box; }
         h1 { margin: 0; font-size: 24px; letter-spacing: 2px; }
         .score { font-size: 20px; color: var(--gold); font-weight: bold; margin-top: 5px; }
 
@@ -35,62 +36,48 @@
             display: flex;
             justify-content: center;
             gap: 8px;
-            /* Remove box constraints */
-            padding: 0;
-            background: transparent;
-            border-radius: 0;
-            margin-top: 20px;
-            height: 60vh; /* Use viewport height but allow overflow visual */
+            /* Use a fixed height that is an ODD multiple of tile size to ensure center is a tile */
+            /* 5 tiles * 80 = 400px. Center is 200px. */
+            height: 400px; 
             width: 100%;
-            overflow: visible; /* Let it bleed */
-            box-shadow: none;
-            border: none;
-            /* Add a fade mask at top/bottom only to smooth edges? Or full bleed */
-            -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
-            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+            margin-top: 20px;
+            /* Gradient mask for fade effect */
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
         }
 
-        /* Payline Indicator - Make it wider */
+        /* Payline Indicator */
         .payline {
             position: absolute;
             top: 50%;
             left: 0;
             right: 0;
-            height: 80px; 
+            height: var(--tile-size); 
             transform: translateY(-50%);
             border-top: 2px solid rgba(231, 76, 60, 0.8);
             border-bottom: 2px solid rgba(231, 76, 60, 0.8);
             background: rgba(255, 255, 255, 0.05);
             pointer-events: none;
-            z-index: 0; /* Behind tiles? Or front? Front is better for aim */
-            width: 100vw;
-            left: 50%;
-            margin-left: -50vw;
+            z-index: 0;
         }
 
-        /* Column Wrapper */
-        .column-container {
-            width: 80px;
+        /* Column (Scroll Container) */
+        .column {
+            width: var(--tile-size);
             height: 100%;
-            overflow: visible; /* Show tiles outside */
-            position: relative;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory; /* Native Snap */
+            scrollbar-width: none; /* Hide scrollbar */
+            -ms-overflow-style: none;
+            padding-top: calc(50% - var(--tile-size)/2); /* Center first item */
+            padding-bottom: calc(50% - var(--tile-size)/2);
+            box-sizing: border-box;
         }
-
-        /* The actual moving strip */
-        .reel-strip {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            /* Will translate this for scrolling */
-        }
+        .column::-webkit-scrollbar { display: none; }
 
         .tile {
-            width: 80px;
-            height: 80px;
+            width: var(--tile-size);
+            height: var(--tile-size);
             background: var(--tile-bg);
             color: var(--text-color);
             font-size: 40px;
@@ -98,24 +85,26 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-            box-sizing: border-box;
+            border-radius: 8px;
+            margin-bottom: 8px; /* Gap between tiles */
+            scroll-snap-align: center; /* Snap target */
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
             user-select: none;
         }
         
         .tile.matched {
             background-color: #2ecc71;
             color: white;
-            animation: pulse 0.5s;
+            animation: pop 0.4s ease-out;
         }
 
-        @keyframes pulse {
+        @keyframes pop {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
         }
 
-        .controls { margin-top: 20px; font-size: 14px; color: #bdc3c7; z-index: 20; text-align: center; }
+        .controls { position:fixed; bottom:20px; text-align:center; font-size:14px; color:#bdc3c7; }
     </style>
 </head>
 <body>
@@ -127,297 +116,167 @@
 
     <div class="game-board" id="board">
         <div class="payline"></div>
-        <!-- Columns will be injected here -->
+        <!-- Columns -->
     </div>
 
-    <div class="controls" style="position:fixed; bottom:20px;">
-        <p>Drag columns to align words.</p>
-        <p>Words are checked on ALL rows!</p>
+    <div class="controls">
+        <p>Scroll columns to bash words!</p>
     </div>
 
     <script>
         const COLS = 4;
-        const ROW_HEIGHT = 80;
-        const VISIBLE_ROWS = 10; // Increased check range for larger view
-        const BUFFER_COUNT = 40; // More tiles
+        const TILE_HEIGHT = 80;
+        const TILE_MARGIN = 8;
+        const TOTAL_ITEM_HEIGHT = TILE_HEIGHT + TILE_MARGIN;
         
+        // Massive 4-letter dictionary
         const COMMON_WORDS = [
-            "WORD", "GAME", "PLAY", "COOL", "BASH", "GOOD", "LOVE", "HATE", 
-            "TIME", "LIFE", "WORK", "HARD", "EASY", "LUCK", "SLOT", "SPIN",
-            "CATS", "DOGS", "FISH", "BIRD", "BLUE", "PINK", "GOLD", "READ",
-            "BOOK", "COOK", "LOOK", "TOOK", "MAKE", "CAKE", "LAKE", "FAKE",
-            "TEAM", "BEAN", "MEAN", "LEAN", "CODE", "MODE", "NODE", "RIDE",
-            "DATA", "BETA", "META", "ACID", "GRID", "IRON", "LION", "NEON",
-            "ZINC", "ATOM", "MOLE", "CELL", "GENE", "GERM", "SEED", "TREE",
-            "LEAF", "ROOT", "STEM", "ROSE", "LILY", "CORN", "RICE", "FOOD",
-            "MEAT", "BEEF", "PORK", "LAMB", "FISH", "MILK", "SOUP", "SODA",
-            "SALT", "SOUR", "SWEET", "COLD", "WARM", "HOT", "FIRE", "ICE",
-            "RAIN", "SNOW", "WIND", "STORM", "HAIL", "MIST", "FOG", "DEW",
-            "SAND", "DUST", "MUD", "CLAY", "ROCK", "STONE", "HILL", "MTN",
-            "SEA", "BAY", "GULF", "COVE", "PORT", "PIER", "DOCK", "SHIP",
-            "BOAT", "SAIL", "MAST", "HULL", "DECK", "CREW", "CAPT", "MATE",
-            "FROG", "WOLF", "DUCK", "DEER", "BEAR", "GOAT", "LION", "TIGER"
+"ABLE","ACID","AGED","ALSO","AREA","ARMY","AWAY","BABY","BACK","BALL","BAND","BANK","BASE","BATH","BEAR","BEAT","BEEN","BEER","BELL","BELT","BEST","BILL","BIRD","BLOW","BLUE","BOAT","BODY","BOMB","BOND","BONE","BOOK","BOOM","BORN","BOSS","BOTH","BOWL","BULK","BURN","BUSH","BUSY","CALL","CALM","CAME","CAMP","CARD","CARE","CASE","CASH","CAST","CELL","CHAT","CHIP","CITY","CLUB","COAL","COAT","CODE","COLD","COME","COOK","COOL","COPE","COPY","CORE","COST","CREW","CROP","DARK","DATA","DATE","DAWN","DAYS","DEAD","DEAL","DEAN","DEAR","DEBT","DEEP","DENY","DESK","DIAL","DIET","DISC","DISK","DOES","DONE","DOOR","DOSE","DOWN","DRAW","DREW","DROP","DRUG","DUAL","DUKE","DUST","DUTY","EACH","EARN","EARS","EASE","EAST","EASY","EDGE","ELSE","EVEN","EVER","EVIL","EXIT","FACE","FACT","FAIL","FAIR","FALL","FARM","FAST","FATE","FEAR","FEED","FEEL","FEET","FELL","FELT","FILE","FILL","FILM","FIND","FINE","FIRE","FIRM","FISH","FIVE","FLAT","FLOW","FOOD","FOOT","FORD","FORM","FORT","FOUR","FREE","FROM","FUEL","FULL","FUND","GAIN","GAME","GATE","GAVE","GEAR","GENE","GIFT","GIRL","GIVE","GLAD","GOAL","GOES","GOLD","GOLF","GONE","GOOD","GRAY","GREW","GREY","GROW","GULF","HAIR","HALF","HALL","HAND","HANG","HARD","HARM","HATE","HAVE","HEAD","HEAR","HEAT","HELL","HELP","HERE","HERO","HIGH","HILL","HIRE","HOLD","HOLE","HOLY","HOME","HOPE","HOST","HOUR","HUGE","HUNG","HUNT","HURT","IDEA","INCH","INTO","IRON","ITEM","JACK","JANE","JEAN","JOHN","JOIN","JUMP","JURY","JUST","KEEN","KEEP","KEPT","KICK","KILL","KIND","KING","KNEE","KNEW","KNOW","LACK","LADY","LAID","LAKE","LAND","LANE","LAST","LATE","LEAD","LEFT","LESS","LIFE","LIFT","LIKE","LINE","LINK","LIST","LIVE","LOAD","LOAN","LOCK","LOGO","LONG","LOOK","LORD","LOSE","LOSS","LOST","LOVE","LUCK","MADE","MAIL","MAIN","MAKE","MALE","MANY","MARK","MASS","MEAL","MEAN","MEAT","MEET","MENU","MERE","MILE","MILK","MILL","MIND","MINE","MISS","MODE","MOOD","MOON","MORE","MOST","MOVE","MUCH","MUST","NAME","NAVY","NEAR","NECK","NEED","NEWS","NEXT","NICE","NINE","NONE","NOSE","NOTE","OKAY","ONCE","ONLY","ONTO","OPEN","ORAL","OVER","PACE","PACK","PAGE","PAID","PAIN","PAIR","PALM","PARK","PART","PASS","PAST","PATH","PEAK","PICK","PILE","PINK","PIPE","PLAN","PLAY","PLOT","PLUG","PLUS","POLL","POOL","POOR","PORT","POST","PULL","PURE","PUSH","RACE","RAIL","RAIN","RANK","RARE","RATE","READ","REAL","REAR","RELY","RENT","REST","RICE","RICH","RIDE","RING","RISE","RISK","ROAD","ROCK","ROLE","ROLL","ROOF","ROOM","ROOT","ROSE","RULE","RUSH","RUTH","SAFE","SAID","SAKE","SALE","SALT","SAME","SAND","SAVE","SEAT","SEED","SEEK","SEEM","SEEN","SELF","SELL","SEND","SENT","SEPT","SHIP","SHOP","SHOT","SHOW","SHUT","SICK","SIDE","SIGN","SILK","SITE","SIZE","SKIN","SLIP","SLOW","SNOW","SOFT","SOIL","SOLD","SOLE","SOME","SONG","SOON","SORT","SOUL","SOUP","SPOT","STAR","STAY","STEP","STOP","SUCH","SUIT","SURE","TAKE","TALE","TALK","TALL","TANK","TAPE","TASK","TEAM","TECH","TELL","TEND","TERM","TEST","TEXT","THAT","THEM","THEN","THIN","THIS","THUS","TILL","TIME","TINY","TOLD","TOLL","TONE","TONY","TOOK","TOOL","TOUR","TOWN","TREE","TRIP","TRUE","TUBE","TURN","TWIN","TYPE","UNIT","UPON","USED","USER","VARY","VAST","VERY","VICE","VIEW","VOTE","WAGE","WAIT","WAKE","WALK","WALL","WANT","WARD","WARM","WASH","WAVE","WAYS","WEAK","WEAR","WEEK","WELL","WENT","WERE","WEST","WHAT","WHEN","WHOM","WIDE","WIFE","WILD","WILL","WIND","WINE","WING","WIRE","WISE","WISH","WITH","WOOD","WORD","WORK","YARD","YEAR","ZERO","ZONE","ZOO","ZOOM","ZINC","ZEST","YOGA","YOGI","YOLK","YAWN","YARN","WORM","WOOL","WOLF"
         ];
         const DICT = new Set(COMMON_WORDS);
-        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const ALPHABET = "EEEEAAAAIIIOOOUURRTLLSSNNDGBCMPFHVWYKJXQZ"; // Weighted for playability
         
-        // State
-        const reelData = []; // Array of arrays of chars
-        const reelOffsets = []; // Current Y offset (pixels) for each reel
         let score = 0;
-        let isAnimating = false;
-
-        const boardEl = document.getElementById('board');
+        const columns = [];
         const scoreEl = document.getElementById('scoreVal');
 
         function init() {
+            const board = document.getElementById('board');
+            
             for (let c = 0; c < COLS; c++) {
-                // DOM Structure
-                const container = document.createElement('div');
-                container.className = 'column-container';
+                const col = document.createElement('div');
+                col.className = 'column';
+                col.id = `col-${c}`;
                 
-                const strip = document.createElement('div');
-                strip.className = 'reel-strip';
-                strip.id = `strip-${c}`;
-                
-                container.appendChild(strip);
-                boardEl.appendChild(container);
-
-                // Data
-                reelData[c] = [];
-                // Fill buffer
-                for (let i = 0; i < BUFFER_COUNT; i++) {
-                    reelData[c].push(getRandomChar());
+                // Add lots of tiles for infinite scroll feel
+                for (let i = 0; i < 50; i++) {
+                    addTileToColumn(col);
                 }
                 
-                // Initial Offset: Start in the middle of the buffer roughly
-                // -1000px so we can scroll up and down
-                const startOffset = - (BUFFER_COUNT * ROW_HEIGHT) / 2;
-                reelOffsets[c] = snapToGrid(startOffset); 
+                // Infinite Scroll Logic: Append/Prepend
+                col.addEventListener('scroll', () => handleScroll(col, c));
                 
-                renderStrip(c);
-                updateStripPosition(c);
+                // Scroll End Detection (for checking matches)
+                let isScrolling;
+                col.addEventListener('scroll', () => {
+                    window.clearTimeout(isScrolling);
+                    isScrolling = setTimeout(() => {
+                        checkMatches();
+                    }, 200); // Check after scroll stops
+                });
+
+                board.appendChild(col);
+                columns.push(col);
                 
-                // Interaction
-                setupDrag(container, c);
+                // Initial random position (must be multiple of item height for snap)
+                // Using timeout to allow layout
+                setTimeout(() => {
+                    col.scrollTop = Math.floor(Math.random() * 20) * TOTAL_ITEM_HEIGHT;
+                }, 10);
             }
-            checkAllRows();
         }
 
         function getRandomChar() {
             return ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
         }
 
-        function renderStrip(c) {
-            const strip = document.getElementById(`strip-${c}`);
-            strip.innerHTML = '';
-            reelData[c].forEach(char => {
-                const tile = document.createElement('div');
-                tile.className = 'tile';
-                tile.innerText = char;
-                strip.appendChild(tile);
+        function addTileToColumn(col, prepend = false) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.innerText = getRandomChar();
+            if (prepend) col.prepend(tile);
+            else col.appendChild(tile);
+        }
+
+        function handleScroll(col, c) {
+            // If near bottom, add more to bottom
+            if (col.scrollHeight - col.scrollTop - col.clientHeight < 200) {
+                for(let i=0; i<5; i++) addTileToColumn(col);
+            }
+            // If near top, this is harder with native scroll because prepending shifts scrollTop.
+            // For simplicity in this demo, we just make the list very long initially.
+            // A true infinite scroll upwards requires adjusting scrollTop to maintain position.
+        }
+
+        function checkMatches() {
+            // Find visible rows
+            // Container height is 400. Center is 200.
+            // Payline is at 200.
+            // Item height 88 (80+8).
+            
+            // We want to check ~5 rows centered around the viewport.
+            // For each column, find the index of the tile closest to center.
+            
+            let colIndices = [];
+            
+            columns.forEach(col => {
+                // scrollTop is distance from top of content to top of view
+                // View center = scrollTop + 200
+                const centerY = col.scrollTop + (col.clientHeight / 2);
+                // Index = centerY / ItemHeight
+                // But we have padding-top (calc(50% - 40px)) = 160px
+                // So content starts at 160px.
+                // Tile 0 center = 160 + 40 = 200.
+                // Tile N center = 160 + N*88 + 40 = 200 + N*88.
+                // center Y = 200 + N*88.
+                // N = (centerY - 200) / 88.
+                
+                // Wait, scrollTop 0 means we are at top.
+                // If scrollTop = 0, CenterY = 200.
+                // Tile 0 center is at 200. So Index 0 is selected.
+                // Index = Math.round(col.scrollTop / TOTAL_ITEM_HEIGHT)
+                
+                const idx = Math.round(col.scrollTop / TOTAL_ITEM_HEIGHT);
+                colIndices.push(idx);
             });
-        }
 
-        function updateStripPosition(c) {
-            const strip = document.getElementById(`strip-${c}`);
-            strip.style.transform = `translateY(${reelOffsets[c]}px)`;
-        }
-        
-        function snapToGrid(y) {
-            return Math.round(y / ROW_HEIGHT) * ROW_HEIGHT;
-        }
-
-        // --- Drag & Snap Physics ---
-        function setupDrag(el, c) {
-            let startY = 0;
-            let startOffset = 0;
-            let isDragging = false;
-            let velocity = 0;
-            let lastY = 0;
-            let lastTime = 0;
-
-            const onStart = (e) => {
-                if (isAnimating) return;
-                isDragging = true;
-                startY = e.touches ? e.touches[0].clientY : e.clientY;
-                startOffset = reelOffsets[c];
-                lastY = startY;
-                lastTime = Date.now();
-                
-                const strip = document.getElementById(`strip-${c}`);
-                strip.style.transition = 'none'; // Disable transition for direct control
-            };
-
-            const onMove = (e) => {
-                if (!isDragging) return;
-                e.preventDefault();
-                const y = e.touches ? e.touches[0].clientY : e.clientY;
-                const delta = y - startY;
-                
-                reelOffsets[c] = startOffset + delta;
-                
-                // Circular Buffer Logic (Infinite Scroll Illusion)
-                // If we scroll too far up/down, we shift data and reset offset
-                checkBufferBounds(c);
-                
-                updateStripPosition(c);
-                
-                // Velocity calc
-                const now = Date.now();
-                const dt = now - lastTime;
-                if (dt > 0) {
-                    velocity = (y - lastY) / dt; // px per ms
-                    lastY = y;
-                    lastTime = now;
-                }
-            };
-
-            const onEnd = () => {
-                if (!isDragging) return;
-                isDragging = false;
-                
-                // Inertia & Snap
-                const strip = document.getElementById(`strip-${c}`);
-                strip.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)'; // Snap anim
-                
-                // Target destination based on velocity
-                let targetY = reelOffsets[c] + (velocity * 200); // Glide a bit
-                targetY = snapToGrid(targetY);
-                
-                reelOffsets[c] = targetY;
-                checkBufferBounds(c); // Ensure we land on data
-                updateStripPosition(c);
-                
-                // Check match after animation
-                setTimeout(() => {
-                    checkAllRows();
-                }, 500);
-            };
-
-            el.addEventListener('mousedown', onStart);
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onEnd);
-            
-            el.addEventListener('touchstart', onStart, {passive: false});
-            document.addEventListener('touchmove', onMove, {passive: false});
-            document.addEventListener('touchend', onEnd);
-        }
-
-        function checkBufferBounds(c) {
-            // Thresholds
-            const threshold = ROW_HEIGHT * 5;
-            const minHeight = -(reelData[c].length * ROW_HEIGHT) + threshold;
-            const maxHeight = -threshold;
-            
-            // If near top (offset is close to 0) -> Add to top, remove bottom
-            if (reelOffsets[c] > maxHeight) {
-                // Shift data: remove from bottom, add to top
-                for(let i=0; i<5; i++) {
-                    reelData[c].pop();
-                    reelData[c].unshift(getRandomChar());
-                }
-                reelOffsets[c] -= (5 * ROW_HEIGHT);
-                renderStrip(c);
-            }
-            
-            // If near bottom
-            else if (reelOffsets[c] < minHeight) {
-                // Shift data: remove top, add bottom
-                for(let i=0; i<5; i++) {
-                    reelData[c].shift();
-                    reelData[c].push(getRandomChar());
-                }
-                reelOffsets[c] += (5 * ROW_HEIGHT);
-                renderStrip(c);
-            }
-        }
-
-        // --- Match Logic ---
-        function checkAllRows() {
-            // Calculate which row index is at the top of the visible window
-            // Visible Window starts at Y=0 (relative to container)
-            // Strip is at `reelOffsets[c]`
-            // So index 0 of data is at `reelOffsets[c]`.
-            // We want index `k` where `reelOffsets[c] + k*ROW_HEIGHT` is visible.
-            
-            let matchedCoords = new Set();
+            // Check Row 0 (Center), Row -1 (Above), Row +1 (Below), etc.
+            // Let's check center row and +/- 2 rows
             let wordFound = false;
+            let matchedTiles = []; // {col, childIndex}
 
-            // Check each visible row (0 to 4)
-            for (let r = 0; r < VISIBLE_ROWS; r++) {
-                // Which data index corresponds to this visual row?
-                // Visual Y = r * 80
-                // Strip Y = offset + index * 80
-                // r * 80 = offset + index * 80  => index = (r*80 - offset) / 80
-                
-                let rowWord = "";
-                let rowIndices = []; // {c, dataIdx}
+            for (let offset = -2; offset <= 2; offset++) {
+                let word = "";
+                let rowTiles = [];
                 
                 for (let c = 0; c < COLS; c++) {
-                    // Logic: offset is negative.
-                    // Index of tile visually at row r:
-                    // TileY = offset + idx*H. 
-                    // We want TileY = r*H.
-                    // idx = r - (offset/H)
-                    const idx = r - Math.round(reelOffsets[c] / ROW_HEIGHT);
+                    const targetIdx = colIndices[c] + offset;
+                    const tile = columns[c].children[targetIdx];
                     
-                    if (idx >= 0 && idx < reelData[c].length) {
-                        rowWord += reelData[c][idx];
-                        rowIndices.push({c, idx});
+                    if (tile) {
+                        word += tile.innerText;
+                        rowTiles.push({c, idx: targetIdx, el: tile});
                     } else {
-                        rowWord += "?";
+                        word += "?";
                     }
                 }
                 
-                if (DICT.has(rowWord)) {
+                if (DICT.has(word)) {
                     wordFound = true;
-                    // Add to matches
-                    rowIndices.forEach(p => matchedCoords.add(`${p.c},${p.idx}`));
+                    matchedTiles.push(...rowTiles);
+                    // Bonus score
+                    score += 100;
                 }
             }
 
             if (wordFound) {
-                score += 100;
                 scoreEl.innerText = score;
-                highlightMatches(matchedCoords);
-                
-                // Eliminate logic (Optional: Remove matched tiles and shift others down?)
-                // For now, let's just Replace matched tiles with new ones to keep grid stable
-                setTimeout(() => {
-                    replaceMatches(matchedCoords);
-                }, 600);
+                matchedTiles.forEach(item => {
+                    item.el.classList.add('matched');
+                    // Replace logic: 
+                    // To keep native scroll stable, we just change text and remove class
+                    setTimeout(() => {
+                        item.el.classList.remove('matched');
+                        item.el.innerText = getRandomChar(); // "Eliminate" by replacing
+                        // Trigger check again?
+                        // setTimeout(checkMatches, 300); // Chain reaction
+                    }, 500);
+                });
             }
-        }
-
-        function highlightMatches(coords) {
-            coords.forEach(str => {
-                const [c, idx] = str.split(',').map(Number);
-                const strip = document.getElementById(`strip-${c}`);
-                // Find the child element at index
-                // Note: renderStrip creates tiles in order
-                if (strip.children[idx]) {
-                    strip.children[idx].classList.add('matched');
-                }
-            });
-        }
-
-        function replaceMatches(coords) {
-            coords.forEach(str => {
-                const [c, idx] = str.split(',').map(Number);
-                reelData[c][idx] = getRandomChar(); // Simple replacement
-            });
-            
-            // Re-render only affected columns? Or all.
-            for(let c=0; c<COLS; c++) {
-                renderStrip(c);
-            }
-            
-            // Check again for cascading matches (if lucky)
-            setTimeout(checkAllRows, 200);
         }
 
         init();
+
     </script>
 </body>
 </html>
