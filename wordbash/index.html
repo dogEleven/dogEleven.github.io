@@ -24,31 +24,35 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
-            /* touch-action: none;  <-- CAUSING SCROLL LOCK */
+            touch-action: none;
         }
 
         .header { 
+            position: fixed; top: 0; left: 0; right: 0;
             padding: 10px; text-align: center; z-index: 20; 
-            height: 50px; box-sizing: border-box; flex-shrink: 0;
+            height: 60px; box-sizing: border-box; 
+            background: linear-gradient(to bottom, var(--bg-color) 80%, transparent);
+            pointer-events: none; /* Let clicks pass through if needed, though title is interactive usually */
         }
-        h1 { margin: 0; font-size: 20px; letter-spacing: 2px; }
-        .score { font-size: 16px; color: var(--gold); font-weight: bold; margin-top: 2px; }
+        h1 { margin: 0; font-size: 20px; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .score { font-size: 16px; color: var(--gold); font-weight: bold; margin-top: 2px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
 
         .game-board {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            gap: 6px;
-            /* Full height - absolutely positioned to cover screen behind header */
-            position: fixed;
+            position: fixed; /* Fixed full screen */
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 6px;
             z-index: 10;
-            /* Remove mask as requested */
+            /* Remove mask */
             -webkit-mask-image: none;
             mask-image: none;
+            /* Padding top to push content down from header visually */
+            padding-top: 60px; 
+            box-sizing: border-box;
         }
 
         /* Payline Indicator */
@@ -74,13 +78,23 @@
             scroll-snap-type: y mandatory; /* Native Snap */
             scrollbar-width: none; /* Hide scrollbar */
             -ms-overflow-style: none;
-            /* Center alignment padding logic */
-            /* We want center of first tile to be at center of container */
-            /* Container height is 100vh. Payline is at 50vh. */
-            /* Tile height is var(--tile-size). */
-            /* Padding top = 50vh - (TileSize / 2) */
-            padding-top: calc(50vh - var(--tile-size)/2); 
-            padding-bottom: calc(50vh - var(--tile-size)/2);
+            
+            /* Center alignment padding logic REVISED */
+            /* Container has padding-top: 60px (Header). */
+            /* Available height = 100vh - 60px. */
+            /* Center of visible area is (100vh - 60px)/2 + 60px = 50vh + 30px. */
+            /* BUT Payline is at 50vh absolute. */
+            /* So we need the content center to align with 50vh. */
+            
+            /* Let's ignore container padding and just use internal padding */
+            /* Container top is at 60px. */
+            /* We want tile center at 50vh. */
+            /* 50vh is relative to screen top. Relative to container top (60px), it is 50vh - 60px. */
+            /* So first tile center should be at 50vh - 60px. */
+            /* Padding top = (50vh - 60px) - (TileSize / 2). */
+            
+            padding-top: calc(50vh - 60px - var(--tile-size)/2); 
+            padding-bottom: calc(50vh - var(--tile-size)/2); /* Bottom doesn't need header adjustment */
             box-sizing: border-box;
         }
         .column::-webkit-scrollbar { display: none; }
@@ -115,7 +129,7 @@
             100% { transform: scale(1); }
         }
 
-        .controls { position:fixed; bottom:20px; text-align:center; font-size:14px; color:#bdc3c7; }
+        .controls { position:fixed; bottom:20px; text-align:center; font-size:14px; color:#bdc3c7; z-index: 30; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -139,13 +153,13 @@
         const TILE_HEIGHT = 60; 
         const TILE_MARGIN = 6;
         const TOTAL_ITEM_HEIGHT = TILE_HEIGHT + TILE_MARGIN;
-        const VISIBLE_ROWS = 8; // Reduce check range
-        const BUFFER_COUNT = 6; // Reduce tile count further to 6
+        const VISIBLE_ROWS = 8; 
+        const BUFFER_COUNT = 6; 
         const COMMON_WORDS = [
 "ABLE","ACID","AGED","ALSO","AREA","ARMY","AWAY","BABY","BACK","BALL","BAND","BANK","BASE","BATH","BEAR","BEAT","BEEN","BEER","BELL","BELT","BEST","BILL","BIRD","BLOW","BLUE","BOAT","BODY","BOMB","BOND","BONE","BOOK","BOOM","BORN","BOSS","BOTH","BOWL","BULK","BURN","BUSH","BUSY","CALL","CALM","CAME","CAMP","CARD","CARE","CASE","CASH","CAST","CELL","CHAT","CHIP","CITY","CLUB","COAL","COAT","CODE","COLD","COME","COOK","COOL","COPE","COPY","CORE","COST","CREW","CROP","DARK","DATA","DATE","DAWN","DAYS","DEAD","DEAL","DEAN","DEAR","DEBT","DEEP","DENY","DESK","DIAL","DIET","DISC","DISK","DOES","DONE","DOOR","DOSE","DOWN","DRAW","DREW","DROP","DRUG","DUAL","DUKE","DUST","DUTY","EACH","EARN","EARS","EASE","EAST","EASY","EDGE","ELSE","EVEN","EVER","EVIL","EXIT","FACE","FACT","FAIL","FAIR","FALL","FARM","FAST","FATE","FEAR","FEED","FEEL","FEET","FELL","FELT","FILE","FILL","FILM","FIND","FINE","FIRE","FIRM","FISH","FIVE","FLAT","FLOW","FOOD","FOOT","FORD","FORM","FORT","FOUR","FREE","FROM","FUEL","FULL","FUND","GAIN","GAME","GATE","GAVE","GEAR","GENE","GIFT","GIRL","GIVE","GLAD","GOAL","GOES","GOLD","GOLF","GONE","GOOD","GRAY","GREW","GREY","GROW","GULF","HAIR","HALF","HALL","HAND","HANG","HARD","HARM","HATE","HAVE","HEAD","HEAR","HEAT","HELL","HELP","HERE","HERO","HIGH","HILL","HIRE","HOLD","HOLE","HOLY","HOME","HOPE","HOST","HOUR","HUGE","HUNG","HUNT","HURT","IDEA","INCH","INTO","IRON","ITEM","JACK","JANE","JEAN","JOHN","JOIN","JUMP","JURY","JUST","KEEN","KEEP","KEPT","KICK","KILL","KIND","KING","KNEE","KNEW","KNOW","LACK","LADY","LAID","LAKE","LAND","LANE","LAST","LATE","LEAD","LEFT","LESS","LIFE","LIFT","LIKE","LINE","LINK","LIST","LIVE","LOAD","LOAN","LOCK","LOGO","LONG","LOOK","LORD","LOSE","LOSS","LOST","LOVE","LUCK","MADE","MAIL","MAIN","MAKE","MALE","MANY","MARK","MASS","MEAL","MEAN","MEAT","MEET","MENU","MERE","MILE","MILK","MILL","MIND","MINE","MISS","MODE","MOOD","MOON","MORE","MOST","MOVE","MUCH","MUST","NAME","NAVY","NEAR","NECK","NEED","NEWS","NEXT","NICE","NINE","NONE","NOSE","NOTE","OKAY","ONCE","ONLY","ONTO","OPEN","ORAL","OVER","PACE","PACK","PAGE","PAID","PAIN","PAIR","PALM","PARK","PART","PASS","PAST","PATH","PEAK","PICK","PILE","PINK","PIPE","PLAN","PLAY","PLOT","PLUG","PLUS","POLL","POOL","POOR","PORT","POST","PULL","PURE","PUSH","RACE","RAIL","RAIN","RANK","RARE","RATE","READ","REAL","REAR","RELY","RENT","REST","RICE","RICH","RIDE","RING","RISE","RISK","ROAD","ROCK","ROLE","ROLL","ROOF","ROOM","ROOT","ROSE","RULE","RUSH","RUTH","SAFE","SAID","SAKE","SALE","SALT","SAME","SAND","SAVE","SEAT","SEED","SEEK","SEEM","SEEN","SELF","SELL","SEND","SENT","SEPT","SHIP","SHOP","SHOT","SHOW","SHUT","SICK","SIDE","SIGN","SILK","SITE","SIZE","SKIN","SLIP","SLOW","SNOW","SOFT","SOIL","SOLD","SOLE","SOME","SONG","SOON","SORT","SOUL","SOUP","SPOT","STAR","STAY","STEP","STOP","SUCH","SUIT","SURE","TAKE","TALE","TALK","TALL","TANK","TAPE","TASK","TEAM","TECH","TELL","TEND","TERM","TEST","TEXT","THAT","THEM","THEN","THIN","THIS","THUS","TILL","TIME","TINY","TOLD","TOLL","TONE","TONY","TOOK","TOOL","TOUR","TOWN","TREE","TRIP","TRUE","TUBE","TURN","TWIN","TYPE","UNIT","UPON","USED","USER","VARY","VAST","VERY","VICE","VIEW","VOTE","WAGE","WAIT","WAKE","WALK","WALL","WANT","WARD","WARM","WASH","WAVE","WAYS","WEAK","WEAR","WEEK","WELL","WENT","WERE","WEST","WHAT","WHEN","WHOM","WIDE","WIFE","WILD","WILL","WIND","WINE","WING","WIRE","WISE","WISH","WITH","WOOD","WORD","WORK","YARD","YEAR","ZERO","ZONE","ZOO","ZOOM","ZINC","ZEST","YOGA","YOGI","YOLK","YAWN","YARN","WORM","WOOL","WOLF"
         ];
         const DICT = new Set(COMMON_WORDS);
-        const ALPHABET = "EEEEAAAAIIIOOOUURRTLLSSNNDGBCMPFHVWYKJXQZ"; // Weighted for playability
+        const ALPHABET = "EEEEAAAAIIIOOOUURRTLLSSNNDGBCMPFHVWYKJXQZ"; 
         
         let score = 0;
         const columns = [];
@@ -164,27 +178,27 @@
                     addTileToColumn(col);
                 }
                 
-                // Keep Infinite Scroll Logic for gameplay (eliminate -> refill)
-                // But remove the scroll-triggered appending to keep list short and manageable
-                // col.addEventListener('scroll', () => handleScroll(col, c));
+                // Initial Scroll Force Alignment
+                // Wait for layout
+                setTimeout(() => {
+                    // Center the first tile visually to the payline
+                    // With our new padding logic, scrollTop=0 should be centered.
+                    // But let's scroll to a random position to start.
+                    // Random index * ItemHeight
+                    col.scrollTop = Math.floor(Math.random() * (BUFFER_COUNT - 4)) * TOTAL_ITEM_HEIGHT;
+                }, 10);
                 
-                // Scroll End Detection (for checking matches)
+                // Scroll End Detection
                 let isScrolling;
                 col.addEventListener('scroll', () => {
                     window.clearTimeout(isScrolling);
                     isScrolling = setTimeout(() => {
                         checkMatches();
-                    }, 200); // Check after scroll stops
+                    }, 200);
                 });
 
                 board.appendChild(col);
                 columns.push(col);
-                
-                // Initial random position (must be multiple of item height for snap)
-                // Using timeout to allow layout
-                setTimeout(() => {
-                    col.scrollTop = Math.floor(Math.random() * 20) * TOTAL_ITEM_HEIGHT;
-                }, 10);
             }
         }
 
@@ -200,67 +214,28 @@
             else col.appendChild(tile);
         }
 
-        function handleScroll(col, c) {
-            // If near bottom, add more to bottom
-            if (col.scrollHeight - col.scrollTop - col.clientHeight < 200) {
-                for(let i=0; i<5; i++) addTileToColumn(col);
-            }
-            // If near top, this is harder with native scroll because prepending shifts scrollTop.
-            // For simplicity in this demo, we just make the list very long initially.
-            // A true infinite scroll upwards requires adjusting scrollTop to maintain position.
-        }
-
         function checkMatches() {
-            // Find visible rows based on center of view
-            // Because height is dynamic (100vh), we need to check more rows.
-            // Let's assume max possible visible rows is ~15.
-            // We check center +/- 8 rows just to be safe.
+            // Updated Check Logic for Fixed Header Layout
             
             let colIndices = [];
             
             columns.forEach(col => {
-                const centerY = col.scrollTop + (col.clientHeight / 2);
-                // content starts at padding-top
-                // padding-top is dynamic.
-                // But native scroll logic: scrollTop=0 means you see content from top.
-                // However, our content is centered via padding.
-                // If scrollTop=0, we see the padding.
-                // Let's rely on getBoundingClientRect? No, too slow.
-                // Let's recalculate padding logic.
-                
-                // CSS Padding-top: calc(50vh - 30px - 30px) approx.
-                // Let's simplify:
-                // Index 0 is at Y = padding-top.
-                // Center of Index 0 is at Y = padding-top + TILE_SIZE/2.
-                // We want the index whose center is at (scrollTop + ClientHeight/2).
-                
-                // CenterOfView = scrollTop + ClientHeight/2
-                // CenterOfTile(i) = PaddingTop + i*TotalHeight + TileHeight/2
-                // scrollTop + CH/2 = PT + i*TH + TH/2
-                
-                // i = (scrollTop + CH/2 - PT - TH/2) / TH
-                // Since PT = CH/2 - TH/2 (roughly, see CSS calc)
-                // i = (scrollTop + CH/2 - (CH/2 - TH/2) - TH/2) / TH
-                // i = scrollTop / TotalHeight
-                
-                // This formula holds true if padding centers the first item!
-                
+                // Calculation matches the new CSS padding logic
+                // scrollTop / 66 (60+6) = index of tile at Payline
                 const idx = Math.round(col.scrollTop / TOTAL_ITEM_HEIGHT);
                 colIndices.push(idx);
             });
 
             let wordFound = false;
-            let matchedTiles = []; // {col, childIndex}
+            let matchedTiles = []; 
 
-            // Check range: Center row is 0 relative to colIndices.
-            // Screen fits roughly 10-12 rows. So check -6 to +6.
+            // Check center row (0) and surroundings
             for (let offset = -6; offset <= 6; offset++) {
                 let word = "";
                 let rowTiles = [];
                 
                 for (let c = 0; c < COLS; c++) {
                     const targetIdx = colIndices[c] + offset;
-                    // Check bounds
                     if (columns[c].children[targetIdx]) {
                         const tile = columns[c].children[targetIdx];
                         word += tile.innerText;
@@ -276,20 +251,14 @@
                     score += 100;
                 }
             }
-            
-            // ... (rest logic same)
 
             if (wordFound) {
                 scoreEl.innerText = score;
                 matchedTiles.forEach(item => {
                     item.el.classList.add('matched');
-                    // Replace logic: 
-                    // To keep native scroll stable, we just change text and remove class
                     setTimeout(() => {
                         item.el.classList.remove('matched');
-                        item.el.innerText = getRandomChar(); // "Eliminate" by replacing
-                        // Trigger check again?
-                        // setTimeout(checkMatches, 300); // Chain reaction
+                        item.el.innerText = getRandomChar();
                     }, 500);
                 });
             }
