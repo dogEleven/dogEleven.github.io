@@ -78,26 +78,17 @@
             scroll-snap-type: y mandatory; /* Native Snap */
             scrollbar-width: none; /* Hide scrollbar */
             -ms-overflow-style: none;
-            
-            /* Center alignment padding logic REVISED */
-            /* Container has padding-top: 60px (Header). */
-            /* Available height = 100vh - 60px. */
-            /* Center of visible area is (100vh - 60px)/2 + 60px = 50vh + 30px. */
-            /* BUT Payline is at 50vh absolute. */
-            /* So we need the content center to align with 50vh. */
-            
-            /* Let's ignore container padding and just use internal padding */
-            /* Container top is at 60px. */
-            /* We want tile center at 50vh. */
-            /* 50vh is relative to screen top. Relative to container top (60px), it is 50vh - 60px. */
-            /* So first tile center should be at 50vh - 60px. */
-            /* Padding top = (50vh - 60px) - (TileSize / 2). */
-            
-            padding-top: calc(50vh - 60px - var(--tile-size)/2); 
-            padding-bottom: calc(50vh - var(--tile-size)/2); /* Bottom doesn't need header adjustment */
             box-sizing: border-box;
         }
         .column::-webkit-scrollbar { display: none; }
+
+        /* Spacer to allow scrolling first/last items to center */
+        .spacer {
+            height: calc(50vh - var(--tile-size)/2);
+            width: 100%;
+            scroll-snap-align: none;
+            flex-shrink: 0;
+        }
 
         .tile {
             width: var(--tile-size);
@@ -111,7 +102,7 @@
             justify-content: center;
             border-radius: 6px;
             margin-bottom: 6px; /* Smaller gap */
-            scroll-snap-align: center; /* Snap target */
+            scroll-snap-align: center; /* Snap center to center */
             box-shadow: 0 2px 0 rgba(0,0,0,0.1);
             user-select: none;
             flex-shrink: 0;
@@ -159,7 +150,7 @@
 "ABLE","ACID","AGED","ALSO","AREA","ARMY","AWAY","BABY","BACK","BALL","BAND","BANK","BASE","BATH","BEAR","BEAT","BEEN","BEER","BELL","BELT","BEST","BILL","BIRD","BLOW","BLUE","BOAT","BODY","BOMB","BOND","BONE","BOOK","BOOM","BORN","BOSS","BOTH","BOWL","BULK","BURN","BUSH","BUSY","CALL","CALM","CAME","CAMP","CARD","CARE","CASE","CASH","CAST","CELL","CHAT","CHIP","CITY","CLUB","COAL","COAT","CODE","COLD","COME","COOK","COOL","COPE","COPY","CORE","COST","CREW","CROP","DARK","DATA","DATE","DAWN","DAYS","DEAD","DEAL","DEAN","DEAR","DEBT","DEEP","DENY","DESK","DIAL","DIET","DISC","DISK","DOES","DONE","DOOR","DOSE","DOWN","DRAW","DREW","DROP","DRUG","DUAL","DUKE","DUST","DUTY","EACH","EARN","EARS","EASE","EAST","EASY","EDGE","ELSE","EVEN","EVER","EVIL","EXIT","FACE","FACT","FAIL","FAIR","FALL","FARM","FAST","FATE","FEAR","FEED","FEEL","FEET","FELL","FELT","FILE","FILL","FILM","FIND","FINE","FIRE","FIRM","FISH","FIVE","FLAT","FLOW","FOOD","FOOT","FORD","FORM","FORT","FOUR","FREE","FROM","FUEL","FULL","FUND","GAIN","GAME","GATE","GAVE","GEAR","GENE","GIFT","GIRL","GIVE","GLAD","GOAL","GOES","GOLD","GOLF","GONE","GOOD","GRAY","GREW","GREY","GROW","GULF","HAIR","HALF","HALL","HAND","HANG","HARD","HARM","HATE","HAVE","HEAD","HEAR","HEAT","HELL","HELP","HERE","HERO","HIGH","HILL","HIRE","HOLD","HOLE","HOLY","HOME","HOPE","HOST","HOUR","HUGE","HUNG","HUNT","HURT","IDEA","INCH","INTO","IRON","ITEM","JACK","JANE","JEAN","JOHN","JOIN","JUMP","JURY","JUST","KEEN","KEEP","KEPT","KICK","KILL","KIND","KING","KNEE","KNEW","KNOW","LACK","LADY","LAID","LAKE","LAND","LANE","LAST","LATE","LEAD","LEFT","LESS","LIFE","LIFT","LIKE","LINE","LINK","LIST","LIVE","LOAD","LOAN","LOCK","LOGO","LONG","LOOK","LORD","LOSE","LOSS","LOST","LOVE","LUCK","MADE","MAIL","MAIN","MAKE","MALE","MANY","MARK","MASS","MEAL","MEAN","MEAT","MEET","MENU","MERE","MILE","MILK","MILL","MIND","MINE","MISS","MODE","MOOD","MOON","MORE","MOST","MOVE","MUCH","MUST","NAME","NAVY","NEAR","NECK","NEED","NEWS","NEXT","NICE","NINE","NONE","NOSE","NOTE","OKAY","ONCE","ONLY","ONTO","OPEN","ORAL","OVER","PACE","PACK","PAGE","PAID","PAIN","PAIR","PALM","PARK","PART","PASS","PAST","PATH","PEAK","PICK","PILE","PINK","PIPE","PLAN","PLAY","PLOT","PLUG","PLUS","POLL","POOL","POOR","PORT","POST","PULL","PURE","PUSH","RACE","RAIL","RAIN","RANK","RARE","RATE","READ","REAL","REAR","RELY","RENT","REST","RICE","RICH","RIDE","RING","RISE","RISK","ROAD","ROCK","ROLE","ROLL","ROOF","ROOM","ROOT","ROSE","RULE","RUSH","RUTH","SAFE","SAID","SAKE","SALE","SALT","SAME","SAND","SAVE","SEAT","SEED","SEEK","SEEM","SEEN","SELF","SELL","SEND","SENT","SEPT","SHIP","SHOP","SHOT","SHOW","SHUT","SICK","SIDE","SIGN","SILK","SITE","SIZE","SKIN","SLIP","SLOW","SNOW","SOFT","SOIL","SOLD","SOLE","SOME","SONG","SOON","SORT","SOUL","SOUP","SPOT","STAR","STAY","STEP","STOP","SUCH","SUIT","SURE","TAKE","TALE","TALK","TALL","TANK","TAPE","TASK","TEAM","TECH","TELL","TEND","TERM","TEST","TEXT","THAT","THEM","THEN","THIN","THIS","THUS","TILL","TIME","TINY","TOLD","TOLL","TONE","TONY","TOOK","TOOL","TOUR","TOWN","TREE","TRIP","TRUE","TUBE","TURN","TWIN","TYPE","UNIT","UPON","USED","USER","VARY","VAST","VERY","VICE","VIEW","VOTE","WAGE","WAIT","WAKE","WALK","WALL","WANT","WARD","WARM","WASH","WAVE","WAYS","WEAK","WEAR","WEEK","WELL","WENT","WERE","WEST","WHAT","WHEN","WHOM","WIDE","WIFE","WILD","WILL","WIND","WINE","WING","WIRE","WISE","WISH","WITH","WOOD","WORD","WORK","YARD","YEAR","ZERO","ZONE","ZOO","ZOOM","ZINC","ZEST","YOGA","YOGI","YOLK","YAWN","YARN","WORM","WOOL","WOLF"
         ];
         const DICT = new Set(COMMON_WORDS);
-        const ALPHABET = "EEEEAAAAIIIOOOUURRTLLSSNNDGBCMPFHVWYKJXQZ"; 
+        const ALPHABET = "EEEEAAAAIIIOOOUURRTLLSSNNDGBCMPFHVWYKJXQZ"; // Weighted for playability
         
         let score = 0;
         const columns = [];
@@ -173,20 +164,24 @@
                 col.className = 'column';
                 col.id = `col-${c}`;
                 
+                // Add Top Spacer
+                const spacerTop = document.createElement('div');
+                spacerTop.className = 'spacer';
+                col.appendChild(spacerTop);
+                
                 // Add initial tiles
                 for (let i = 0; i < BUFFER_COUNT; i++) {
                     addTileToColumn(col);
                 }
                 
-                // Initial Scroll Force Alignment
-                // Wait for layout
-                setTimeout(() => {
-                    // Center the first tile visually to the payline
-                    // With our new padding logic, scrollTop=0 should be centered.
-                    // But let's scroll to a random position to start.
-                    // Random index * ItemHeight
-                    col.scrollTop = Math.floor(Math.random() * (BUFFER_COUNT - 4)) * TOTAL_ITEM_HEIGHT;
-                }, 10);
+                // Add Bottom Spacer
+                const spacerBottom = document.createElement('div');
+                spacerBottom.className = 'spacer';
+                col.appendChild(spacerBottom);
+                
+                // Keep Infinite Scroll Logic for gameplay (eliminate -> refill)
+                // But remove the scroll-triggered appending to keep list short and manageable
+                // col.addEventListener('scroll', () => handleScroll(col, c));
                 
                 // Scroll End Detection
                 let isScrolling;
@@ -199,6 +194,16 @@
 
                 board.appendChild(col);
                 columns.push(col);
+                
+                // Initial Scroll Force Alignment
+                // Wait for layout
+                setTimeout(() => {
+                    // Center the first tile visually to the payline
+                    // With our new padding logic, scrollTop=0 should be centered.
+                    // But let's scroll to a random position to start.
+                    // Random index * ItemHeight
+                    col.scrollTop = Math.floor(Math.random() * (BUFFER_COUNT - 4)) * TOTAL_ITEM_HEIGHT;
+                }, 10);
             }
         }
 
@@ -210,8 +215,15 @@
             const tile = document.createElement('div');
             tile.className = 'tile';
             tile.innerText = getRandomChar();
-            if (prepend) col.prepend(tile);
-            else col.appendChild(tile);
+            
+            // Insert between spacers
+            if (prepend) {
+                // Prepend after top spacer
+                col.insertBefore(tile, col.children[1]);
+            } else {
+                // Append before bottom spacer
+                col.insertBefore(tile, col.lastElementChild);
+            }
         }
 
         function checkMatches() {
@@ -235,11 +247,21 @@
                 let rowTiles = [];
                 
                 for (let c = 0; c < COLS; c++) {
-                    const targetIdx = colIndices[c] + offset;
-                    if (columns[c].children[targetIdx]) {
-                        const tile = columns[c].children[targetIdx];
+                    const targetIdx = colIndices[c] + offset; // Index relative to top spacer?
+                    // Structure: Spacer(0), Tile(1), Tile(2)...
+                    // If scrollTop = 0, idx = 0.
+                    // Which child is visually at center? 
+                    // With Spacer method, Spacer is 50vh-30px.
+                    // ScrollTop=0 means Spacer top is at top. 
+                    // So Spacer takes top half. First Tile (Index 1) is at Center.
+                    // So idx=0 corresponds to Tile Child 1.
+                    
+                    const childIdx = targetIdx + 1; // +1 for Top Spacer
+                    
+                    if (columns[c].children[childIdx] && columns[c].children[childIdx].classList.contains('tile')) {
+                        const tile = columns[c].children[childIdx];
                         word += tile.innerText;
-                        rowTiles.push({c, idx: targetIdx, el: tile});
+                        rowTiles.push({c, idx: childIdx, el: tile});
                     } else {
                         word += "?";
                     }
