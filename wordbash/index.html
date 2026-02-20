@@ -50,8 +50,8 @@
             /* Remove mask */
             -webkit-mask-image: none;
             mask-image: none;
-            /* Padding top to push content down from header visually */
-            padding-top: 60px; 
+            /* Remove padding, we use Spacers for alignment now */
+            padding-top: 0; 
             box-sizing: border-box;
         }
 
@@ -83,8 +83,9 @@
         .column::-webkit-scrollbar { display: none; }
 
         /* Spacer to allow scrolling first/last items to center */
+        /* Dynamic Height using dvh to fix Safari address bar issue */
         .spacer {
-            height: calc(50vh - var(--tile-size)/2);
+            height: calc(50dvh - var(--tile-size)/2);
             width: 100%;
             scroll-snap-align: none;
             flex-shrink: 0;
