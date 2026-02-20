@@ -24,7 +24,8 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
-            touch-action: none;
+            /* Allow touch for scrolling */
+            touch-action: auto; 
         }
 
         .header { 
@@ -78,6 +79,8 @@
             scroll-snap-type: y mandatory; /* Native Snap */
             scrollbar-width: none; /* Hide scrollbar */
             -ms-overflow-style: none;
+            touch-action: pan-y; /* Explicitly allow vertical scroll */
+            -webkit-overflow-scrolling: touch; /* Momentum scroll on iOS */
             box-sizing: border-box;
         }
         .column::-webkit-scrollbar { display: none; }
