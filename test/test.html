@@ -164,7 +164,7 @@
         }
         .priority-btn:active { transform: scale(1.1); }
         .priority-p0 { background-color: #ff3b30; }
-        .priority-p1 { background-color: #ffcc00; }
+        .priority-p1 { background-color: #ff9500; } /* More Orange */
         .priority-p2 { background-color: #34c759; }
         .priority-p3 { background-color: #444446; } /* Darker Grey */
         .priority-none { background-color: #444446; } /* Fallback for legacy */
@@ -249,7 +249,7 @@
                         <span class="arrow" :class="{ collapsed: collapsedGroups[groupName] }">▼</span> 📂 {{ groupName }} 
                         <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ (groupedIssues[groupName] || []).length }}</span>
                         <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)" style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
-                        <span v-if="groupName === 'Trash'" @click.stop="emptyTrash" style="float:right; font-size:12px; margin-left:10px; color:#ff3b30;">🗑️ 清空</span>
+                        
                     </div>
                     <div class="todo-list" v-show="!collapsedGroups[groupName]">
                         <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item" @click="openEditor(issue)">
@@ -273,7 +273,7 @@
                         <span class="arrow" :class="{ collapsed: collapsedGroups[groupName] }">▼</span> {{ groupName }}
                         <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ (groupedIssues[groupName] || []).length }}</span>
                         <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)" style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
-                        <span v-if="groupName === 'Trash'" @click.stop="emptyTrash" style="float:right; font-size:12px; margin-left:10px; color:#ff3b30;">🗑️ 清空</span>
+                        
                     </div>
                     <div class="todo-list" v-show="!collapsedGroups[groupName]">
                         <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
@@ -470,7 +470,7 @@
                     if (!token.value) return;
                     loading.value = true;
                     try {
-                        const res = await api.get(`/issues?state=all&sort=updated&direction=desc&per_page=100&_=${Date.now()}`, {
+                        const res = await api.get(`issues?state=all&sort=updated&direction=desc&per_page=100&_=${Date.now()}`, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
                         
@@ -495,7 +495,8 @@
                 const fetchLabels = async () => {
                     if (!token.value) return;
                     try {
-                        const res = await api.get('/labels', { headers: { 'Authorization': `token ${token.value}` } });
+                        const res = await api.get(`labels`, {
+ headers: { 'Authorization': `token ${token.value}` } });
                         allLabels.value = res.data;
                     } catch (e) { console.error("Error labels"); }
                 };
@@ -529,7 +530,7 @@
                     const name = newGroupName.value.trim();
                     if (!name) return;
                     try {
-                        await api.post('/labels', {
+                        await api.post('labels', {
                             name: name,
                             color: Math.floor(Math.random()*16777215).toString(16)
                         }, { headers: { 'Authorization': `token ${token.value}` } });
@@ -541,11 +542,14 @@
                 };
 
                 const deleteGroup = async (name) => {
-                    if (!confirm(`Delete group "${name}"?`)) return;
+                    if (!confirm(`Delete group "${name}"? This will remove the label from all issues.`)) return;
                     try {
-                        await api.delete(`/labels/${name}`, { headers: { 'Authorization': `token ${token.value}` } });
+                        await api.delete(`labels/${encodeURIComponent(name)}`, { headers: { 'Authorization': `token ${token.value}` } });
                         await fetchLabels();
-                    } catch (e) { alert('Delete failed'); }
+                    } catch (e) { 
+                        console.error('Delete failed', e);
+                        alert('Delete failed: ' + (e.response?.data?.message || e.message)); 
+                    }
                 };
                 
                 const deleteIssue = async (issue) => {
@@ -564,7 +568,7 @@
                     
                     try {
                         // Explicitly overwrite ALL labels
-                        const res = await api.patch(`/issues/${issue.number}`, { 
+                        const res = await api.patch(`issues/${issue.number}`, { 
                             labels: newLabels.map(l => l.name),
                             state: 'closed' 
                         }, {
@@ -575,7 +579,7 @@
                         // If 404/422, maybe label doesn't exist. Try creating it.
                         console.error("Failed to trash, trying to create label...", e);
                         try {
-                            await api.post('/labels', { name: 'Trash', color: '000000' }, {
+                            await api.post('labels', { name: 'Trash', color: '000000' }, {
                                 headers: { 'Authorization': `token ${token.value}` }
                             });
                             // Retry adding label
@@ -588,32 +592,6 @@
                             issue.state = oldState;
                             fetchIssues(); 
                         }
-                    }
-                };
-
-                const emptyTrash = async () => {
-                    const trashIssues = groupedIssues.value['Trash'];
-                    if (!trashIssues || trashIssues.length === 0) return;
-                    if (!confirm(`确定要彻底清空回收站吗？\n（由于 GitHub 权限限制，系统将通过【归档/Archived】标签来隐藏这些任务，它们将不再出现在本应用中）`)) return;
-
-                    loading.value = true;
-                    try {
-                        // For each issue in trash, add 'Archived' label and remove 'Trash'
-                        for (const issue of trashIssues) {
-                            const currentLabels = issue.labels.map(l => l.name).filter(n => n !== 'Trash');
-                            currentLabels.push('Archived');
-                            
-                            await api.patch(`/issues/${issue.number}`, {
-                                labels: currentLabels
-                            }, { headers: { 'Authorization': `token ${token.value}` } });
-                        }
-                        await fetchIssues();
-                    } catch (e) {
-                        console.error("Archive failed", e);
-                        alert('清空失败，请尝试刷新。');
-                        await fetchIssues();
-                    } finally {
-                        loading.value = false;
                     }
                 };
 
@@ -659,7 +637,7 @@
                 };
                 const closeAllMenus = () => { activeMenuId.value = null; };
 
-                const isCustomGroup = (name) => !defaultTodoLabels.includes(name) && !defaultIdeaLabels.includes(name) && name !== 'Other';
+                const isCustomGroup = (name) => !defaultTodoLabels.includes(name) && !defaultIdeaLabels.includes(name) && name !== 'Other' && name !== 'Trash';
 
                 // Editor
                 const openEditor = (issue) => {
@@ -718,7 +696,7 @@
                     // Editor
                     openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown,
                     // Delete
-                    deleteIssue, emptyTrash,
+                    deleteIssue,
                     // Priority
                     cyclePriority, getPriorityClass, getPriorityText,
                     // Refresh
