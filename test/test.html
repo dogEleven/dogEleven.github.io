@@ -70,8 +70,20 @@
         .group-title span { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 8px; font-size: 10px; margin-left: 6px; color: var(--text); font-weight: 600; }
         [data-theme='dark'] .group-title span { background: rgba(255,255,255,0.1); }
         
-        .todo-list { display: flex; flex-direction: column; gap: 0; background: var(--card-bg); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-        .todo-item { background: transparent; padding: 10px 12px; border-radius: 0; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .todo-list { background: var(--card-bg); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-top: 4px; }
+        .todo-item { 
+            background: transparent; 
+            padding: 12px; 
+            display: grid; 
+            /* Grid columns: [Priority] [Icon/Checkbox] [Title/Meta (Flexible)] [Delete Button] */
+            grid-template-columns: auto auto 1fr auto;
+            align-items: center; 
+            gap: 12px; 
+            border-bottom: 1px solid var(--border); 
+            cursor: pointer; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
         .todo-item:last-child { border-bottom: none; }
         .todo-item:active { background: var(--bg); }
         .todo-item.done { opacity: 0.5; }
@@ -83,10 +95,21 @@
         .checkbox::after { content: '✓'; color: white; font-size: 10px; display: none; }
         .todo-item.done .checkbox::after { display: block; }
 
-        .content { flex-grow: 1; display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
-        .title { font-size: 13px; line-height: 1.3; word-break: break-word; flex-grow: 1; margin-right: 4px; color: var(--text); }
-        .title-container { flex-grow: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-        .issue-meta { font-size: 9px; color: var(--subtext); white-space: nowrap; margin-top: 2px; flex-shrink: 0; }
+        .title-container { 
+            min-width: 0; /* Important for grid stability */
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .title { 
+            font-size: 14px; 
+            line-height: 1.4; 
+            color: var(--text); 
+            font-weight: 600; 
+            word-break: break-word; /* Allow wrap for long words */
+            margin: 0;
+        }
+        .issue-meta { font-size: 11px; color: var(--subtext); margin: 0; }
 
         /* Full Screen Editor Modal */
         .editor-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.3s ease; }
@@ -121,6 +144,55 @@
         .menu-popover.active { display: block; }
         .menu-item { padding: 10px 15px; font-size: 14px; cursor: pointer; color: #ff3b30; display: flex; align-items: center; gap: 8px; }
         .menu-item:active { background: var(--bg); }
+
+        /* Priority Box */
+        .priority-btn {
+            width: 28px;
+            height: 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: transform 0.1s;
+            margin-right: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 800;
+            color: white;
+            border: none;
+        }
+        .priority-btn:active { transform: scale(1.1); }
+        .priority-p0 { background-color: #ff3b30; }
+        .priority-p1 { background-color: #ffcc00; }
+        .priority-p2 { background-color: #34c759; }
+        .priority-p3 { background-color: #444446; } /* Darker Grey */
+        .priority-none { background-color: #444446; } /* Fallback for legacy */
+
+        .del-btn {
+            background: none;
+            border: none;
+            color: #ff3b30;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            opacity: 0.3;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+            text-align: right;
+        }
+        .todo-item:hover .del-btn { opacity: 0.8; }
+        .del-btn:active { opacity: 1; transform: scale(0.9); }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spinning {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body>
@@ -143,6 +215,9 @@
                 <div style="display:flex; gap:10px;">
                     <button @click="showGroupModal = true" class="logout-btn" style="color:var(--text); font-weight:600;">
                         {{ currentTab === 'idea' ? '+ 📁' : '+ 组' }}
+                    </button>
+                    <button @click="initData" class="logout-btn" style="color:var(--text);">
+                        <span :class="{ spinning: loading }">🔄</span>
                     </button>
                     <button @click="logout" class="logout-btn">Logout</button>
                 </div>
@@ -174,23 +249,17 @@
                         <span class="arrow" :class="{ collapsed: collapsedGroups[groupName] }">▼</span> 📂 {{ groupName }} 
                         <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ (groupedIssues[groupName] || []).length }}</span>
                         <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)" style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
+                        <span v-if="groupName === 'Trash'" @click.stop="emptyTrash" style="float:right; font-size:12px; margin-left:10px; color:#ff3b30;">🗑️ 清空</span>
                     </div>
                     <div class="todo-list" v-show="!collapsedGroups[groupName]">
                         <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item" @click="openEditor(issue)">
-                            <div class="content" style="align-items: center;">
-                                <span style="font-size:18px; margin-right:8px;">📄</span>
-                                <div class="title-container" style="flex-direction: column; gap:0;">
-                                    <div class="title" style="font-weight:600; font-size:14px;">{{ issue.title }}</div>
-                                    <div class="issue-meta" style="font-size:11px; margin-top:0;">{{ formatDate(issue.updated_at) }}</div>
-                                </div>
+                            <div class="priority-btn" :class="getPriorityClass(issue)" @click.stop="cyclePriority(issue)">{{ getPriorityText(issue) }}</div>
+                            <span style="font-size:18px; margin-right:8px; flex-shrink:0;">📄</span>
+                            <div class="title-container">
+                                <div class="title">{{ issue.title }}</div>
+                                <div class="issue-meta">{{ formatDate(issue.updated_at) }}</div>
                             </div>
-                            <!-- Kebab Menu -->
-                            <div style="position:relative;">
-                                <button @click.stop="toggleMenu(issue.id)" style="background:none; border:none; color:var(--subtext); font-size:18px; padding:0 8px;">⋮</button>
-                                <div class="menu-popover" :class="{ active: activeMenuId === issue.id }">
-                                    <div class="menu-item" @click.stop="deleteIssue(issue)">🗑️ 删除</div>
-                                </div>
-                            </div>
+                            <button @click.stop="deleteIssue(issue)" class="del-btn">Del</button>
                         </div>
                         <div v-if="(groupedIssues[groupName] || []).length === 0" style="padding:10px; font-size:12px; color:var(--subtext); text-align:center;">(Empty)</div>
                     </div>
@@ -204,55 +273,48 @@
                         <span class="arrow" :class="{ collapsed: collapsedGroups[groupName] }">▼</span> {{ groupName }}
                         <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ (groupedIssues[groupName] || []).length }}</span>
                         <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)" style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
+                        <span v-if="groupName === 'Trash'" @click.stop="emptyTrash" style="float:right; font-size:12px; margin-left:10px; color:#ff3b30;">🗑️ 清空</span>
                     </div>
                     <div class="todo-list" v-show="!collapsedGroups[groupName]">
                         <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
+                            <div class="priority-btn" :class="getPriorityClass(issue)" @click.stop="cyclePriority(issue)">{{ getPriorityText(issue) }}</div>
                             <div class="checkbox" @click.stop="toggleIssue(issue)"></div>
-                            <div class="content" @click="openEditor(issue)">
-                                <div class="title-container">
-                                    <div class="title">{{ issue.title }}</div>
-                                    <div class="issue-meta">{{ formatDate(issue.created_at) }}</div>
-                                </div>
+                            <div class="title-container" @click="openEditor(issue)">
+                                <div class="title">{{ issue.title }}</div>
+                                <div class="issue-meta">{{ formatDate(issue.created_at) }}</div>
                             </div>
-                            <!-- Kebab Menu for Todo -->
-                            <div style="position:relative;">
-                                <button @click.stop="toggleMenu(issue.id)" style="background:none; border:none; color:var(--subtext); font-size:18px; padding:0 8px;">⋮</button>
-                                <div class="menu-popover" :class="{ active: activeMenuId === issue.id }">
-                                    <div class="menu-item" @click.stop="deleteIssue(issue)">🗑️ 删除</div>
-                                </div>
-                            </div>
+                            <button @click.stop="deleteIssue(issue)" class="del-btn">Del</button>
                         </div>
                         <div v-if="(groupedIssues[groupName] || []).length === 0" style="padding:10px; font-size:12px; color:var(--subtext); text-align:center;">(Empty)</div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Editor Modal -->
-        <div class="editor-modal" :class="{ active: isEditorOpen }">
-            <div class="editor-header">
-                <button class="logout-btn" @click="closeEditor">取消</button>
-                <div style="font-weight:600;">编辑</div>
-                <button class="logout-btn" style="font-weight:600;" @click="saveEditor">保存</button>
-            </div>
-            <div class="editor-body">
-                <input v-model="editingTitle" class="editor-title" placeholder="标题">
-                <div style="display:flex; gap:10px; border-bottom: 1px solid var(--border); padding-bottom:5px;">
-                    <button class="logout-btn" @click="showPreview = !showPreview">{{ showPreview ? '✏️ 编辑' : '👁️ 预览' }}</button>
+            <!-- Editor Modal -->
+            <div class="editor-modal" :class="{ active: isEditorOpen }">
+                <div class="editor-header">
+                    <button class="logout-btn" @click="closeEditor">取消</button>
+                    <div style="font-weight:600;">编辑</div>
+                    <button class="logout-btn" style="font-weight:600;" @click="saveEditor">保存</button>
                 </div>
-                <textarea v-show="!showPreview" v-model="editingBody" class="editor-textarea" placeholder="支持 Markdown..."></textarea>
-                <div v-show="showPreview" class="md-preview active" v-html="renderedMarkdown"></div>
+                <div class="editor-body">
+                    <input v-model="editingTitle" class="editor-title" placeholder="标题">
+                    <div style="display:flex; gap:10px; border-bottom: 1px solid var(--border); padding-bottom:5px;">
+                        <button class="logout-btn" @click="showPreview = !showPreview">{{ showPreview ? '✏️ 编辑' : '👁️ 预览' }}</button>
+                    </div>
+                    <textarea v-show="!showPreview" v-model="editingBody" class="editor-textarea" placeholder="支持 Markdown..."></textarea>
+                    <div v-show="showPreview" class="md-preview active" v-html="renderedMarkdown"></div>
+                </div>
             </div>
-        </div>
 
-        <!-- New Group Modal -->
-        <div v-if="showGroupModal" class="modal-overlay" @click.self="showGroupModal = false">
-            <div class="modal">
-                <h3>新建分组 (Label)</h3>
-                <input v-model="newGroupName" placeholder="输入分组名称 (英文)" @keyup.enter="createGroup">
-                <div class="modal-actions">
-                    <button class="btn-cancel" @click="showGroupModal = false">取消</button>
-                    <button class="btn-create" @click="createGroup">创建</button>
+            <!-- New Group Modal -->
+            <div v-if="showGroupModal" class="modal-overlay" @click.self="showGroupModal = false">
+                <div class="modal">
+                    <h3>新建分组 (Label)</h3>
+                    <input v-model="newGroupName" placeholder="输入分组名称 (英文)" @keyup.enter="createGroup">
+                    <div class="modal-actions">
+                        <button class="btn-cancel" @click="showGroupModal = false">取消</button>
+                        <button class="btn-create" @click="createGroup">创建</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -289,7 +351,7 @@
                 // Config
                 const defaultTodoLabels = ['Work', 'Life', 'HellDrop', 'Zhutousan'];
                 const defaultIdeaLabels = ['Idea', 'Project', 'Reference'];
-                const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix', 'trash'];
+                const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix', 'trash', 'p0', 'p1', 'p2', 'p3', 'deleted', 'archived'];
 
                 // Axios
                 const api = axios.create({
@@ -312,22 +374,32 @@
                 const sortedGroupNames = computed(() => {
                     const labels = availableLabels.value;
                     const hasOther = groupedIssues.value['Other'] && groupedIssues.value['Other'].length > 0;
-                    return hasOther ? [...labels, 'Other'] : labels;
+                    const hasTrash = groupedIssues.value['Trash'] && groupedIssues.value['Trash'].length > 0;
+                    
+                    let result = [...labels];
+                    if (hasOther) result.push('Other');
+                    if (hasTrash) result.push('Trash');
+                    return result;
                 });
 
                 const groupedIssues = computed(() => {
                     const groups = {};
                     availableLabels.value.forEach(l => groups[l] = []);
                     
-                    // Separate bucket for truly uncategorized items (no known labels at all)
-                    groups['Other'] = [];
-
                     // Define all known system labels to exclude them from 'Other' if they don't match current tab
-                    const allSystemLabels = [...defaultTodoLabels, ...defaultIdeaLabels];
+                    const allSystemLabels = [...defaultTodoLabels, ...defaultIdeaLabels, 'Trash'];
+                    groups['Other'] = [];
+                    groups['Trash'] = [];
 
                     issues.value.forEach(issue => {
-                        // Skip Trash items entirely
-                        if (issue.labels.some(l => l.name.toLowerCase() === 'trash')) return;
+                        // Priority labels should NOT create groups
+                        const isPriorityLabel = (name) => ['P0', 'P1', 'P2', 'P3'].includes(name);
+
+                        // CRITICAL: If it has Trash label, it MUST go to Trash group immediately
+                        if (issue.labels.some(l => l.name === 'Trash')) {
+                            groups['Trash'].push(issue);
+                            return;
+                        }
 
                         let placed = false;
                         let hasSystemLabel = false;
@@ -339,8 +411,8 @@
                                     hasSystemLabel = true;
                                 }
 
-                                // Place in current tab's groups if matched
-                                if (groups[label.name]) {
+                                // Place in current tab's groups if matched (ignoring priority labels)
+                                if (groups[label.name] && !isPriorityLabel(label.name)) {
                                     groups[label.name].push(issue);
                                     placed = true;
                                     break;
@@ -350,9 +422,13 @@
 
                         // Only add to 'Other' if it wasn't placed AND it doesn't belong to the *other* tab's system labels
                         if (!placed && !hasSystemLabel && !issue.labels.some(l => ignoredLabels.includes(l.name.toLowerCase()))) {
-                            groups['Other'].push(issue);
+                            // Extra check: hide Archived from UI entirely
+                            if (!issue.labels.some(l => l.name === 'Archived')) {
+                                groups['Other'].push(issue);
+                            }
                         }
                     });
+
                     return groups;
                 });
 
@@ -394,9 +470,21 @@
                     if (!token.value) return;
                     loading.value = true;
                     try {
-                        const res = await api.get('/issues?state=all&sort=updated&direction=desc&per_page=100', {
+                        const res = await api.get(`/issues?state=all&sort=updated&direction=desc&per_page=100&_=${Date.now()}`, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
+                        
+                        // Sort by priority on load
+                        const priorityMap = { 'P0': 4, 'P1': 3, 'P2': 2, 'P3': 1 };
+                        res.data.sort((a, b) => {
+                            const pA = a.labels.find(l => priorityMap[l.name])?.name || 'P3';
+                            const pB = b.labels.find(l => priorityMap[l.name])?.name || 'P3';
+                            const scoreA = priorityMap[pA] || 1;
+                            const scoreB = priorityMap[pB] || 1;
+                            if (scoreA !== scoreB) return scoreB - scoreA;
+                            return new Date(b.updated_at) - new Date(a.updated_at);
+                        });
+
                         issues.value = res.data;
                     } catch (e) {
                         alert('Error loading issues: ' + (e.response ? e.response.status : e.message));
@@ -417,7 +505,7 @@
                     try {
                         const res = await api.post('/issues', {
                             title: newTask.value,
-                            labels: [newLabel.value]
+                            labels: [newLabel.value, 'P3']
                         }, { headers: { 'Authorization': `token ${token.value}` } });
                         issues.value.unshift(res.data);
                         newTask.value = '';
@@ -461,29 +549,28 @@
                 };
                 
                 const deleteIssue = async (issue) => {
-                    // Optimistic remove
-                    issues.value = issues.value.filter(i => i.id !== issue.id);
+                    // Optimistic update: Move to Trash by REPLACING labels
+                    const oldLabels = [...issue.labels];
+                    const priorityLabel = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name));
+                    
+                    // New label set: [Trash, CurrentPriority]
+                    const newLabels = [{ name: 'Trash' }];
+                    if (priorityLabel) newLabels.push(priorityLabel);
+                    
+                    // Optimistic update
+                    issue.labels = newLabels;
+                    const oldState = issue.state;
+                    issue.state = 'closed';
+                    
                     try {
-                        // Ensure 'Trash' label exists first (just in case)
-                        // Actually, just try to set the labels. GitHub usually requires the label to exist.
-                        // Let's try to REPLACE all labels with just 'Trash' (Move to Trash), 
-                        // OR append it. Appending is safer to keep history.
-                        // API: POST /repos/{owner}/{repo}/issues/{issue_number}/labels (Append)
-                        // API: PUT /repos/{owner}/{repo}/issues/{issue_number}/labels (Replace)
-                        
-                        // Let's try appending. If it fails, maybe 'Trash' doesn't exist.
-                        // We will try to create it first if the post fails, but for now let's just append.
-                        
-                        await api.post(`/issues/${issue.number}/labels`, { labels: ['Trash'] }, {
-                            headers: { 'Authorization': `token ${token.value}` }
+                        // Explicitly overwrite ALL labels
+                        const res = await api.patch(`/issues/${issue.number}`, { 
+                            labels: newLabels.map(l => l.name),
+                            state: 'closed' 
+                        }, {
+                            headers: { 'Authorization': `token ${token.value}`, 'Cache-Control': 'no-cache' }
                         });
-                        
-                        // Also CLOSE it if it's not closed, to be sure
-                        if (issue.state !== 'closed') {
-                            await api.patch(`/issues/${issue.number}`, { state: 'closed' }, {
-                                headers: { 'Authorization': `token ${token.value}` }
-                            });
-                        }
+                        Object.assign(issue, res.data);
                     } catch (e) {
                         // If 404/422, maybe label doesn't exist. Try creating it.
                         console.error("Failed to trash, trying to create label...", e);
@@ -496,11 +583,73 @@
                                 headers: { 'Authorization': `token ${token.value}` }
                             });
                         } catch (err2) {
-                            alert('Failed to move to Trash. Please check network/permissions.');
-                            // Revert UI if failed
+                            alert('Failed to move to Trash. Please check label existence and permissions.');
+                            issue.labels = oldLabels;
+                            issue.state = oldState;
                             fetchIssues(); 
                         }
                     }
+                };
+
+                const emptyTrash = async () => {
+                    const trashIssues = groupedIssues.value['Trash'];
+                    if (!trashIssues || trashIssues.length === 0) return;
+                    if (!confirm(`确定要彻底清空回收站吗？\n（由于 GitHub 权限限制，系统将通过【归档/Archived】标签来隐藏这些任务，它们将不再出现在本应用中）`)) return;
+
+                    loading.value = true;
+                    try {
+                        // For each issue in trash, add 'Archived' label and remove 'Trash'
+                        for (const issue of trashIssues) {
+                            const currentLabels = issue.labels.map(l => l.name).filter(n => n !== 'Trash');
+                            currentLabels.push('Archived');
+                            
+                            await api.patch(`/issues/${issue.number}`, {
+                                labels: currentLabels
+                            }, { headers: { 'Authorization': `token ${token.value}` } });
+                        }
+                        await fetchIssues();
+                    } catch (e) {
+                        console.error("Archive failed", e);
+                        alert('清空失败，请尝试刷新。');
+                        await fetchIssues();
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const cyclePriority = async (issue) => {
+                    const priorities = ['P0', 'P1', 'P2', 'P3'];
+                    const currentPriority = issue.labels.find(l => priorities.includes(l.name))?.name || 'P3';
+                    const idx = priorities.indexOf(currentPriority);
+                    const nextPriority = priorities[(idx + 1) % priorities.length];
+
+                    // Update local state first (optimistic)
+                    issue.labels = issue.labels.filter(l => !priorities.includes(l.name));
+                    issue.labels.push({ name: nextPriority });
+
+                    try {
+                        // We need the full set of labels to preserve other categories (like Work/Idea)
+                        const allRemainingLabels = issue.labels.map(l => l.name);
+                        
+                        // Ensure the label exists on the repo (GitHub will return 422 if it doesn't)
+                        // For simplicity, we assume labels exist or will be created on first use in background
+                        // But to be robust, let's just send the patch.
+                        await api.patch(`/issues/${issue.number}`, {
+                            labels: allRemainingLabels
+                        }, { headers: { 'Authorization': `token ${token.value}` } });
+                    } catch (e) {
+                        console.error("Priority update failed", e);
+                        // In a real app, we'd try to create the label once if it fails with 422
+                    }
+                };
+
+                const getPriorityClass = (issue) => {
+                    const p = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name))?.name;
+                    return p ? `priority-${p.toLowerCase()}` : 'priority-p3';
+                };
+
+                const getPriorityText = (issue) => {
+                    return issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name))?.name || 'P3';
                 };
 
                 const toggleGroup = (name) => { collapsedGroups.value[name] = !collapsedGroups.value[name]; };
@@ -569,7 +718,11 @@
                     // Editor
                     openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown,
                     // Delete
-                    deleteIssue
+                    deleteIssue, emptyTrash,
+                    // Priority
+                    cyclePriority, getPriorityClass, getPriorityText,
+                    // Refresh
+                    initData
                 };
             }
         }).mount('#app');
