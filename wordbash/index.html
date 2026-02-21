@@ -11,7 +11,7 @@
             --text-color: #34495e;
             --highlight: #2ecc71;
             --gold: #f1c40f;
-            --tile-size: 60px; /* Smaller tiles */
+            --tile-size: 70px;
         }
 
         body {
@@ -22,109 +22,91 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
-            /* Allow touch for scrolling */
-            touch-action: auto; 
         }
 
         .header { 
-            position: fixed; top: 0; left: 0; right: 0;
-            padding: 10px; text-align: center; z-index: 20; 
+            padding: 10px; text-align: center; z-index: 100; 
             height: 60px; box-sizing: border-box; 
-            background: linear-gradient(to bottom, var(--bg-color) 80%, transparent);
-            pointer-events: none; /* Let clicks pass through if needed, though title is interactive usually */
-        }
-        h1 { margin: 0; font-size: 20px; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .score { font-size: 16px; color: var(--gold); font-weight: bold; margin-top: 2px; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
-
-        .game-board {
-            position: fixed; /* Fixed full screen */
-            top: 0;
-            left: 0;
+            background: var(--bg-color);
             width: 100%;
-            height: 100%;
+            flex-shrink: 0;
+        }
+        h1 { margin: 0; font-size: 20px; letter-spacing: 2px; }
+        .score { font-size: 16px; color: var(--gold); font-weight: bold; }
+
+        .game-viewport {
+            flex: 1;
+            width: 100%;
+            position: relative;
             display: flex;
             justify-content: center;
-            gap: 6px;
-            z-index: 10;
-            /* Remove mask */
-            -webkit-mask-image: none;
-            mask-image: none;
-            /* Remove padding, we use Spacers for alignment now */
-            padding-top: 0; 
-            box-sizing: border-box;
+            gap: 10px;
+            overflow: hidden;
         }
 
-        /* Payline Indicator */
+        /* The Center Marker */
         .payline {
             position: absolute;
             top: 50%;
             left: 0;
-            right: 0;
-            height: var(--tile-size); 
+            width: 100%;
+            height: var(--tile-size);
             transform: translateY(-50%);
-            border-top: 1px solid rgba(231, 76, 60, 0.6);
-            border-bottom: 1px solid rgba(231, 76, 60, 0.6);
-            background: rgba(255, 255, 255, 0.03);
+            border-top: 2px solid rgba(231, 76, 60, 0.8);
+            border-bottom: 2px solid rgba(231, 76, 60, 0.8);
+            background: rgba(255, 255, 255, 0.05);
             pointer-events: none;
-            z-index: 0;
+            z-index: 50;
         }
-        
-        /* Column (Scroll Container) */
+
         .column {
             width: var(--tile-size);
             height: 100%;
             overflow-y: scroll;
-            scroll-snap-type: y mandatory; /* Native Snap */
-            scrollbar-width: none; /* Hide scrollbar */
-            -ms-overflow-style: none;
-            touch-action: pan-y; /* Explicitly allow vertical scroll */
-            -webkit-overflow-scrolling: touch; /* Momentum scroll on iOS */
+            scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            display: flex;
+            flex-direction: column;
+            /* Scroll padding ensures snap align: center target is the center of the viewport */
+            scroll-padding-top: 50%;
+            scroll-padding-bottom: 50%;
+            padding: 50% 0; /* Add padding so items can reach center */
             box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
         }
         .column::-webkit-scrollbar { display: none; }
-
-        /* Spacer to allow scrolling first/last items to center */
-        /* Dynamic Height using dvh to fix Safari address bar issue */
-        .spacer {
-            height: calc(50dvh - var(--tile-size)/2);
-            width: 100%;
-            scroll-snap-align: none;
-            flex-shrink: 0;
-        }
 
         .tile {
             width: var(--tile-size);
             height: var(--tile-size);
+            flex-shrink: 0;
             background: var(--tile-bg);
             color: var(--text-color);
-            font-size: 32px; /* Smaller font */
+            font-size: 36px;
             font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 6px;
-            margin-bottom: 6px; /* Smaller gap */
-            scroll-snap-align: center; /* Snap center to center */
-            box-shadow: 0 2px 0 rgba(0,0,0,0.1);
+            border-radius: 10px;
+            margin-bottom: 10px; 
+            scroll-snap-align: center;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.15);
             user-select: none;
-            flex-shrink: 0;
+            transition: background-color 0.2s, color 0.2s, transform 0.2s;
         }
         
+        .tile:last-child { margin-bottom: 0; }
+
         .tile.matched {
-            background-color: #2ecc71;
+            background-color: var(--highlight);
             color: white;
-            animation: pop 0.4s ease-out;
+            transform: scale(1.1);
+            z-index: 60;
         }
 
-        @keyframes pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .controls { position:fixed; bottom:20px; text-align:center; font-size:14px; color:#bdc3c7; z-index: 30; pointer-events: none; }
+        .controls { padding: 10px; z-index: 100; color: #bdc3c7; font-size: 12px; flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -134,164 +116,82 @@
         <div class="score">SCORE: <span id="scoreVal">0</span></div>
     </div>
 
-    <div class="game-board" id="board">
+    <div class="game-viewport" id="board">
         <div class="payline"></div>
-        <!-- Columns -->
     </div>
 
     <div class="controls">
-        <p>Scroll columns to bash words!</p>
+        Scroll to align words in the red center line.
     </div>
 
     <script>
+        // Massive compressed dictionary
+        const RAW_DICT = "ABLE ACID AGED ALSO AREA ARMY AWAY BABY BACK BALL BAND BANK BASE BATH BEAR BEAT BEEN BEER BELL BELT BEST BILL BIRD BLOW BLUE BOAT BODY BOMB BOND BONE BOOK BOOM BORN BOSS BOTH BOWL BULK BURN BUSH BUSY CALL CALM CAME CAMP CARD CARE CASE CASH CAST CELL CHAT CHIP CITY CLUB COAL COAT CODE COLD COME COOK COOL COPE COPY CORE COST CREW CROP DARK DATA DATE DAWN DAYS DEAD DEAL DEAN DEAR DEBT DEEP DENY DESK DIAL DIET DISC DISK DOES DONE DOOR DOSE DOWN DRAW DREW DROP DRUG DUAL DUKE DUST DUTY EACH EARN EARS EASE EAST EASY EDGE ELSE EVEN EVER EVIL EXIT FACE FACT FAIL FAIR FALL FARM FAST FATE FEAR FEED FEEL FEET FELL FELT FILE FILL FILM FIND FINE FIRE FIRM FISH FIVE FLAT FLOW FOOD FOOT FORD FORM FORT FOUR FREE FROM FUEL FULL FUND GAIN GAME GATE GAVE GEAR GENE GIFT GIRL GIVE GLAD GOAL GOES GOLD GOLF GONE GOOD GRAY GREW GREY GROW GULF HAIR HALF HALL HAND HANG HARD HARM HATE HAVE HEAD HEAR HEAT HELD HELL HELP HERE HERO HIGH HILL HIRE HOLD HOLE HOLY HOME HOPE HOST HOUR HUGE HUNG HUNT HURT IDEA INCH INTO IRON ITEM JACK JANE JEAN JOHN JOIN JUMP JURY JUST KEEN KEEP KEPT KICK KILL KIND KING KNEE KNEW KNOW LACK LADY LAID LAKE LAND LANE LAST LATE LEAD LEFT LESS LIFE LIFT LIKE LINE LINK LIST LIVE LOAD LOAN LOCK LOGO LONG LOOK LORD LOSE LOSS LOST LOVE LUCK MADE MAIL MAIN MAKE MALE MANY MARK MASS MEAL MEAN MEAT MEET MENU MERE MILE MILK MILL MIND MINE MISS MODE MOOD MOON MORE MOST MOVE MUCH MUST NAME NAVY NEAR NECK NEED NEWS NEXT NICE NINE NONE NOSE NOTE OKAY ONCE ONLY ONTO OPEN ORAL OVER PACE PACK PAGE PAID PAIN PAIR PALM PARK PART PASS PAST PATH PEAK PICK PILE PINK PIPE PLAN PLAY PLOT PLUG PLUS POLL POOL POOR PORT POST PULL PURE PUSH RACE RAIL RAIN RANK RARE RATE READ REAL REAR RELY RENT REST RICE RICH RIDE RING RISE RISK ROAD ROCK ROLE ROLL ROOF ROOM ROOT ROSE RULE RUSH RUTH SAFE SAID SAKE SALE SALT SAME SAND SAVE SEAT SEED SEEK SEEM SEEN SELF SELL SEND SENT SEPT SHIP SHOP SHOT SHOW SHUT SICK SIDE SIGN SILK SITE SIZE SKIN SLIP SLOW SNOW SOFT SOIL SOLD SOLE SOME SONG SOON SORT SOUL SOUP SPOT STAR STAY STEP STOP SUCH SUIT SURE TAKE TALE TALK TALL TANK TAPE TASK TEAM TECH TELL TEND TERM TEST TEXT THAT THEM THEN THIN THIS THUS TILL TIME TINY TOLD TOLL TONE TONY TOOK TOOL TOUR TOWN TREE TRIP TRUE TUBE TURN TWIN TYPE UNIT UPON USED USER VARY VAST VERY VICE VIEW VOTE WAGE WAIT WAKE WALK WALL WANT WARD WARM WASH WAVE WAYS WEAK WEAR WEEK WELL WENT WERE WEST WHAT WHEN WHOM WIDE WIFE WILD WILL WIND WINE WING WIRE WISE WISH WITH WOOD WORD WORK YARD YEAR ZERO ZONE ZOO ZOOM ZINC ZEST YOGA YOGI YOLK YAWN YARN WORM WOOL WOLF DOGE FEAT";
+        const DICT = new Set(RAW_DICT.split(" "));
+        const ALPHABET = "EEEEAAAAIIIOOOUURRTLLSSNNDGBCMPFHVWYKJXQZ"; 
+
         const COLS = 4;
-        const TILE_HEIGHT = 60; 
-        const TILE_MARGIN = 6;
-        const TOTAL_ITEM_HEIGHT = TILE_HEIGHT + TILE_MARGIN;
-        const VISIBLE_ROWS = 8; 
-        const BUFFER_COUNT = 6; 
-        const COMMON_WORDS = [
-"ABLE","ACID","AGED","ALSO","AREA","ARMY","AWAY","BABY","BACK","BALL","BAND","BANK","BASE","BATH","BEAR","BEAT","BEEN","BEER","BELL","BELT","BEST","BILL","BIRD","BLOW","BLUE","BOAT","BODY","BOMB","BOND","BONE","BOOK","BOOM","BORN","BOSS","BOTH","BOWL","BULK","BURN","BUSH","BUSY","CALL","CALM","CAME","CAMP","CARD","CARE","CASE","CASH","CAST","CELL","CHAT","CHIP","CITY","CLUB","COAL","COAT","CODE","COLD","COME","COOK","COOL","COPE","COPY","CORE","COST","CREW","CROP","DARK","DATA","DATE","DAWN","DAYS","DEAD","DEAL","DEAN","DEAR","DEBT","DEEP","DENY","DESK","DIAL","DIET","DISC","DISK","DOES","DONE","DOOR","DOSE","DOWN","DRAW","DREW","DROP","DRUG","DUAL","DUKE","DUST","DUTY","EACH","EARN","EARS","EASE","EAST","EASY","EDGE","ELSE","EVEN","EVER","EVIL","EXIT","FACE","FACT","FAIL","FAIR","FALL","FARM","FAST","FATE","FEAR","FEED","FEEL","FEET","FELL","FELT","FILE","FILL","FILM","FIND","FINE","FIRE","FIRM","FISH","FIVE","FLAT","FLOW","FOOD","FOOT","FORD","FORM","FORT","FOUR","FREE","FROM","FUEL","FULL","FUND","GAIN","GAME","GATE","GAVE","GEAR","GENE","GIFT","GIRL","GIVE","GLAD","GOAL","GOES","GOLD","GOLF","GONE","GOOD","GRAY","GREW","GREY","GROW","GULF","HAIR","HALF","HALL","HAND","HANG","HARD","HARM","HATE","HAVE","HEAD","HEAR","HEAT","HELL","HELP","HERE","HERO","HIGH","HILL","HIRE","HOLD","HOLE","HOLY","HOME","HOPE","HOST","HOUR","HUGE","HUNG","HUNT","HURT","IDEA","INCH","INTO","IRON","ITEM","JACK","JANE","JEAN","JOHN","JOIN","JUMP","JURY","JUST","KEEN","KEEP","KEPT","KICK","KILL","KIND","KING","KNEE","KNEW","KNOW","LACK","LADY","LAID","LAKE","LAND","LANE","LAST","LATE","LEAD","LEFT","LESS","LIFE","LIFT","LIKE","LINE","LINK","LIST","LIVE","LOAD","LOAN","LOCK","LOGO","LONG","LOOK","LORD","LOSE","LOSS","LOST","LOVE","LUCK","MADE","MAIL","MAIN","MAKE","MALE","MANY","MARK","MASS","MEAL","MEAN","MEAT","MEET","MENU","MERE","MILE","MILK","MILL","MIND","MINE","MISS","MODE","MOOD","MOON","MORE","MOST","MOVE","MUCH","MUST","NAME","NAVY","NEAR","NECK","NEED","NEWS","NEXT","NICE","NINE","NONE","NOSE","NOTE","OKAY","ONCE","ONLY","ONTO","OPEN","ORAL","OVER","PACE","PACK","PAGE","PAID","PAIN","PAIR","PALM","PARK","PART","PASS","PAST","PATH","PEAK","PICK","PILE","PINK","PIPE","PLAN","PLAY","PLOT","PLUG","PLUS","POLL","POOL","POOR","PORT","POST","PULL","PURE","PUSH","RACE","RAIL","RAIN","RANK","RARE","RATE","READ","REAL","REAR","RELY","RENT","REST","RICE","RICH","RIDE","RING","RISE","RISK","ROAD","ROCK","ROLE","ROLL","ROOF","ROOM","ROOT","ROSE","RULE","RUSH","RUTH","SAFE","SAID","SAKE","SALE","SALT","SAME","SAND","SAVE","SEAT","SEED","SEEK","SEEM","SEEN","SELF","SELL","SEND","SENT","SEPT","SHIP","SHOP","SHOT","SHOW","SHUT","SICK","SIDE","SIGN","SILK","SITE","SIZE","SKIN","SLIP","SLOW","SNOW","SOFT","SOIL","SOLD","SOLE","SOME","SONG","SOON","SORT","SOUL","SOUP","SPOT","STAR","STAY","STEP","STOP","SUCH","SUIT","SURE","TAKE","TALE","TALK","TALL","TANK","TAPE","TASK","TEAM","TECH","TELL","TEND","TERM","TEST","TEXT","THAT","THEM","THEN","THIN","THIS","THUS","TILL","TIME","TINY","TOLD","TOLL","TONE","TONY","TOOK","TOOL","TOUR","TOWN","TREE","TRIP","TRUE","TUBE","TURN","TWIN","TYPE","UNIT","UPON","USED","USER","VARY","VAST","VERY","VICE","VIEW","VOTE","WAGE","WAIT","WAKE","WALK","WALL","WANT","WARD","WARM","WASH","WAVE","WAYS","WEAK","WEAR","WEEK","WELL","WENT","WERE","WEST","WHAT","WHEN","WHOM","WIDE","WIFE","WILD","WILL","WIND","WINE","WING","WIRE","WISE","WISH","WITH","WOOD","WORD","WORK","YARD","YEAR","ZERO","ZONE","ZOO","ZOOM","ZINC","ZEST","YOGA","YOGI","YOLK","YAWN","YARN","WORM","WOOL","WOLF"
-        ];
-        const DICT = new Set(COMMON_WORDS);
-        const ALPHABET = "EEEEAAAAIIIOOOUURRTLLSSNNDGBCMPFHVWYKJXQZ"; // Weighted for playability
-        
+        const FULL_ITEM_HEIGHT = 80; // 70 + 10 margin
         let score = 0;
         const columns = [];
         const scoreEl = document.getElementById('scoreVal');
 
         function init() {
             const board = document.getElementById('board');
-            
             for (let c = 0; c < COLS; c++) {
                 const col = document.createElement('div');
                 col.className = 'column';
-                col.id = `col-${c}`;
-                
-                // Add Top Spacer
-                const spacerTop = document.createElement('div');
-                spacerTop.className = 'spacer';
-                col.appendChild(spacerTop);
-                
-                // Add initial tiles
-                for (let i = 0; i < BUFFER_COUNT; i++) {
-                    addTileToColumn(col);
+                for (let i = 0; i < 20; i++) { 
+                    col.appendChild(createTile());
                 }
-                
-                // Add Bottom Spacer
-                const spacerBottom = document.createElement('div');
-                spacerBottom.className = 'spacer';
-                col.appendChild(spacerBottom);
-                
-                // Keep Infinite Scroll Logic for gameplay (eliminate -> refill)
-                // But remove the scroll-triggered appending to keep list short and manageable
-                // col.addEventListener('scroll', () => handleScroll(col, c));
-                
-                // Scroll End Detection
+                board.appendChild(col);
+                columns.push(col);
+
                 let isScrolling;
                 col.addEventListener('scroll', () => {
                     window.clearTimeout(isScrolling);
-                    isScrolling = setTimeout(() => {
-                        checkMatches();
-                    }, 200);
+                    isScrolling = setTimeout(checkAllWords, 150);
                 });
 
-                board.appendChild(col);
-                columns.push(col);
-                
-                // Initial Scroll Force Alignment
-                // Wait for layout
                 setTimeout(() => {
-                    // Center the first tile visually to the payline
-                    // With our new padding logic, scrollTop=0 should be centered.
-                    // But let's scroll to a random position to start.
-                    // Random index * ItemHeight
-                    col.scrollTop = Math.floor(Math.random() * (BUFFER_COUNT - 4)) * TOTAL_ITEM_HEIGHT;
-                }, 10);
+                    col.scrollTop = Math.floor(Math.random() * 10) * FULL_ITEM_HEIGHT;
+                }, 100);
             }
         }
 
-        function getRandomChar() {
-            return ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
-        }
-
-        function addTileToColumn(col, prepend = false) {
+        function createTile() {
             const tile = document.createElement('div');
             tile.className = 'tile';
-            tile.innerText = getRandomChar();
-            
-            // Insert between spacers
-            if (prepend) {
-                // Prepend after top spacer
-                col.insertBefore(tile, col.children[1]);
-            } else {
-                // Append before bottom spacer
-                col.insertBefore(tile, col.lastElementChild);
-            }
+            tile.innerText = ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+            return tile;
         }
 
-        function checkMatches() {
-            // Updated Check Logic for Fixed Header Layout
-            
-            let colIndices = [];
-            
+        function checkAllWords() {
+            let word = "";
+            let targetTiles = [];
             columns.forEach(col => {
-                // Calculation matches the new CSS padding logic
-                // scrollTop / 66 (60+6) = index of tile at Payline
-                const idx = Math.round(col.scrollTop / TOTAL_ITEM_HEIGHT);
-                colIndices.push(idx);
+                const idx = Math.round(col.scrollTop / FULL_ITEM_HEIGHT);
+                const tile = col.children[idx];
+                if (tile) {
+                    word += tile.innerText;
+                    targetTiles.push(tile);
+                }
             });
 
-            let wordFound = false;
-            let matchedTiles = []; 
-
-            // Check center row (0) and surroundings
-            for (let offset = -6; offset <= 6; offset++) {
-                let word = "";
-                let rowTiles = [];
-                
-                for (let c = 0; c < COLS; c++) {
-                    const targetIdx = colIndices[c] + offset; // Index relative to top spacer?
-                    // Structure: Spacer(0), Tile(1), Tile(2)...
-                    // If scrollTop = 0, idx = 0.
-                    // Which child is visually at center? 
-                    // With Spacer method, Spacer is 50vh-30px.
-                    // ScrollTop=0 means Spacer top is at top. 
-                    // So Spacer takes top half. First Tile (Index 1) is at Center.
-                    // So idx=0 corresponds to Tile Child 1.
-                    
-                    const childIdx = targetIdx + 1; // +1 for Top Spacer
-                    
-                    if (columns[c].children[childIdx] && columns[c].children[childIdx].classList.contains('tile')) {
-                        const tile = columns[c].children[childIdx];
-                        word += tile.innerText;
-                        rowTiles.push({c, idx: childIdx, el: tile});
-                    } else {
-                        word += "?";
-                    }
-                }
-                
-                if (DICT.has(word)) {
-                    wordFound = true;
-                    matchedTiles.push(...rowTiles);
-                    score += 100;
-                }
-            }
-
-            if (wordFound) {
+            if (DICT.has(word)) {
+                score += 100;
                 scoreEl.innerText = score;
-                matchedTiles.forEach(item => {
-                    item.el.classList.add('matched');
+                targetTiles.forEach(t => {
+                    t.classList.add('matched');
                     setTimeout(() => {
-                        item.el.classList.remove('matched');
-                        item.el.innerText = getRandomChar();
-                    }, 500);
+                        t.classList.remove('matched');
+                        t.innerText = ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+                    }, 1000);
                 });
             }
         }
 
         init();
-
     </script>
 </body>
 </html>
