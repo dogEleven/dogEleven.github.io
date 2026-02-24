@@ -553,45 +553,86 @@
                 };
                 
                 const deleteIssue = async (issue) => {
-                    // Optimistic update: Move to Trash by REPLACING labels
                     const oldLabels = [...issue.labels];
+                    const oldState = issue.state;
+                    
+                    // 1. 识别优先级标签
                     const priorityLabel = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name));
                     
-                    // New label set: [Trash, CurrentPriority]
-                    const newLabels = [{ name: 'Trash' }];
-                    if (priorityLabel) newLabels.push(priorityLabel);
+                    // 2. 构造新的标签列表：[Trash, 优先级]
+                    // 注意：GitHub API 接收 labels 数组时建议使用简单的字符串数组
+                    const nextLabels = ['Trash'];
+                    if (priorityLabel) nextLabels.push(priorityLabel.name);
                     
-                    // Optimistic update
-                    issue.labels = newLabels;
-                    const oldState = issue.state;
+                    // 乐观更新 UI
+                    issue.labels = nextLabels.map(name => ({ name }));
                     issue.state = 'closed';
                     
                     try {
-                        // Explicitly overwrite ALL labels
+                        console.log(`[TofuTodo] Attempting to trash issue #${issue.number}...`);
+                        
+                        // 直接尝试 Patch
                         const res = await api.patch(`issues/${issue.number}`, { 
-                            labels: newLabels.map(l => l.name),
+                            labels: nextLabels,
                             state: 'closed' 
                         }, {
-                            headers: { 'Authorization': `token ${token.value}`, 'Cache-Control': 'no-cache' }
+                            headers: { 'Authorization': `token ${token.value}` }
                         });
+                        
+                        console.log(`[TofuTodo] Issue #${issue.number} moved to trash successfully.`);
                         Object.assign(issue, res.data);
                     } catch (e) {
-                        // If 404/422, maybe label doesn't exist. Try creating it.
-                        console.error("Failed to trash, trying to create label...", e);
-                        try {
-                            await api.post('labels', { name: 'Trash', color: '000000' }, {
-                                headers: { 'Authorization': `token ${token.value}` }
-                            });
-                            // Retry adding label
-                            await api.post(`/issues/${issue.number}/labels`, { labels: ['Trash'] }, {
-                                headers: { 'Authorization': `token ${token.value}` }
-                            });
-                        } catch (err2) {
-                            alert('Failed to move to Trash. Please check label existence and permissions.');
-                            issue.labels = oldLabels;
-                            issue.state = oldState;
-                            fetchIssues(); 
+                        console.error("[TofuTodo] Delete attempt failed:", e);
+                        
+                        const status = e.response?.status;
+                        const errorMsg = e.response?.data?.message || "";
+
+                        // 情况 A：标签不存在 (422 Unprocessable Entity)
+                        if (status === 422 || errorMsg.includes("Label does not exist")) {
+                            console.log("[TofuTodo] Trash label missing, attempting to create...");
+                            try {
+                                await api.post('labels', { name: 'Trash', color: '000000' }, {
+                                    headers: { 'Authorization': `token ${token.value}` }
+                                });
+                                // 创建成功后重试
+                                const retryRes = await api.patch(`issues/${issue.number}`, { 
+                                    labels: nextLabels,
+                                    state: 'closed' 
+                                }, {
+                                    headers: { 'Authorization': `token ${token.value}` }
+                                });
+                                Object.assign(issue, retryRes.data);
+                                return;
+                            } catch (labelErr) {
+                                if (labelErr.response?.status === 422) {
+                                    // 即使报 422 (已存在)，也说明标签现在有了，再最后试一次 Patch
+                                    try {
+                                        const finalRes = await api.patch(`issues/${issue.number}`, { 
+                                            labels: nextLabels,
+                                            state: 'closed' 
+                                        }, {
+                                            headers: { 'Authorization': `token ${token.value}` }
+                                        });
+                                        Object.assign(issue, finalRes.data);
+                                        return;
+                                    } catch (fErr) {}
+                                }
+                                alert(`无法创建 "Trash" 标签。请检查您的 Token 权限（需包含 repo 作用域），或手动在 GitHub 仓库中创建一个名为 Trash 的标签。\n\n错误信息: ${labelErr.message}`);
+                            }
+                        } 
+                        // 情况 B：权限不足 (403/404)
+                        else if (status === 403 || status === 404) {
+                            alert('无权修改此条目。请检查：\n1. Token 是否勾选了 "repo" 权限。\n2. 您是否对 dogEleven/tofutodo 仓库有写权限。');
+                        } 
+                        // 其他情况
+                        else {
+                            alert('删除失败: ' + (e.response?.data?.message || e.message));
                         }
+
+                        // 回滚 UI
+                        issue.labels = oldLabels;
+                        issue.state = oldState;
+                        fetchIssues(); 
                     }
                 };
 
