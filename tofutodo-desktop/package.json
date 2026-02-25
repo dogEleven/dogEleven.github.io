@@ -1,0 +1,22 @@
+{
+    "name": "tofutodo-desktop",
+    "version": "1.0.0",
+    "description": "Desktop widget for TofuTodo",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "build": "electron-packager . TofuTodo-Widget --platform=win32 --arch=x64 --out=dist --overwrite"
+    },
+    "build": {
+        "appId": "com.dogeleven.tofutodo",
+        "productName": "TofuTodo-Widget",
+        "win": {
+            "target": "portable"
+        }
+    },
+    "devDependencies": {
+        "electron": "^28.2.0",
+        "electron-builder": "^24.9.1",
+        "electron-packager": "^17.1.2"
+    }
+}

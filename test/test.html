@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -20,130 +21,501 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
-        :root { 
-            --primary: #4a90e2; 
-            --bg: #f5f5f7; 
-            --card-bg: #ffffff; 
-            --text: #1c1c1e; 
-            --subtext: #8e8e93; 
+        :root {
+            --primary: #4a90e2;
+            --bg: #f5f5f7;
+            --card-bg: #ffffff;
+            --text: #1c1c1e;
+            --subtext: #8e8e93;
             --input-bg: #f9f9f9;
-            --border: rgba(0,0,0,0.05);
+            --border: rgba(0, 0, 0, 0.05);
         }
+
         [data-theme='dark'] {
             --bg: #1c1c1e;
             --card-bg: #2c2c2e;
             --text: #f2f2f7;
             --subtext: #8e8e93;
             --input-bg: #3a3a3c;
-            --border: rgba(255,255,255,0.1);
+            --border: rgba(255, 255, 255, 0.1);
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); padding: 12px; max-width: 600px; margin: 0 auto; color: var(--text); -webkit-font-smoothing: antialiased; transition: background 0.3s, color 0.3s; }
-        .login-box { background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; margin-top: 50px; }
-        input, textarea { width: 100%; box-sizing: border-box; padding: 12px 16px; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 16px; background: var(--input-bg); color: var(--text); transition: all 0.2s; font-family: inherit; }
-        [data-theme='dark'] input, [data-theme='dark'] textarea { border-color: #3a3a3c; }
-        input:focus, textarea:focus { border-color: var(--primary); outline: none; background: var(--card-bg); }
-        button { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 600; transition: opacity 0.2s; width: 100%; }
-        button:active { opacity: 0.8; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 4px; }
-        .header-left { display: flex; align-items: center; gap: 10px; }
-        h1 { font-size: 18px; font-weight: 700; margin: 0; }
-        .theme-toggle { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; width: auto; }
-        .logout-btn { background: none; color: var(--primary); font-weight: 400; padding: 4px 0; width: auto; font-size: 13px; border: none; cursor: pointer; }
 
-        .tabs { display: flex; gap: 4px; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 10px; margin-bottom: 12px; }
-        [data-theme='dark'] .tabs { background: rgba(255,255,255,0.05); }
-        .tab { flex: 1; text-align: center; padding: 6px; font-size: 13px; border-radius: 6px; cursor: pointer; color: var(--subtext); transition: all 0.2s; }
-        .tab.active { background: var(--card-bg); color: var(--text); font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background: var(--bg);
+            padding: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            transition: background 0.3s, color 0.3s;
+        }
 
-        .new-task { background: var(--card-bg); padding: 8px 10px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 8px; }
-        .new-task-row { display: flex; gap: 8px; }
-        .new-task input { margin: 0; border: none; background: transparent; padding: 0; font-size: 14px; }
-        .new-task select { padding: 6px; border-radius: 6px; border: 1px solid #e5e5ea; background: var(--bg); font-size: 13px; color: var(--text); }
-        [data-theme='dark'] .new-task select { border-color: #3a3a3c; }
-        .add-btn { width: auto; padding: 6px 12px; font-size: 13px; border-radius: 6px; }
+        .login-box {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            margin-top: 50px;
+        }
 
-        .groups-container { display: flex; flex-direction: column; gap: 8px; }
-        .group-title { font-size: 13px; font-weight: 700; margin: 0 0 4px 4px; display: flex; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; color: var(--subtext); cursor: pointer; }
-        .group-title .arrow { margin-right: 6px; font-size: 10px; transition: transform 0.2s; }
-        .group-title .arrow.collapsed { transform: rotate(-90deg); }
-        .group-title span { background: rgba(0,0,0,0.05); padding: 1px 6px; border-radius: 8px; font-size: 10px; margin-left: 6px; color: var(--text); font-weight: 600; }
-        [data-theme='dark'] .group-title span { background: rgba(255,255,255,0.1); }
-        
-        .todo-list { background: var(--card-bg); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-top: 4px; }
-        .todo-item { 
-            background: transparent; 
-            padding: 12px; 
-            display: grid; 
+        input,
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px 16px;
+            border: 1px solid #d1d1d6;
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--input-bg);
+            color: var(--text);
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        [data-theme='dark'] input,
+        [data-theme='dark'] textarea {
+            border-color: #3a3a3c;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--primary);
+            outline: none;
+            background: var(--card-bg);
+        }
+
+        button {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+            width: 100%;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            margin-top: 4px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            width: auto;
+        }
+
+        .logout-btn {
+            background: none;
+            color: var(--primary);
+            font-weight: 400;
+            padding: 4px 0;
+            width: auto;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        [data-theme='dark'] .tabs {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 6px;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--subtext);
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--card-bg);
+            color: var(--text);
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .new-task {
+            background: var(--card-bg);
+            padding: 8px 10px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .new-task-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .new-task input {
+            margin: 0;
+            border: none;
+            background: transparent;
+            padding: 0;
+            font-size: 14px;
+        }
+
+        .new-task select {
+            padding: 6px;
+            border-radius: 6px;
+            border: 1px solid #e5e5ea;
+            background: var(--bg);
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        [data-theme='dark'] .new-task select {
+            border-color: #3a3a3c;
+        }
+
+        .add-btn {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+
+        .groups-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .group-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin: 0 0 4px 4px;
+            display: flex;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+            color: var(--subtext);
+            cursor: pointer;
+        }
+
+        .group-title .arrow {
+            margin-right: 6px;
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+
+        .group-title .arrow.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .group-title span {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            margin-left: 6px;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        [data-theme='dark'] .group-title span {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .todo-list {
+            background: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            margin-top: 4px;
+        }
+
+        .todo-item {
+            background: transparent;
+            padding: 12px;
+            display: grid;
             /* Grid columns: [Priority] [Icon/Checkbox] [Title/Meta (Flexible)] [Delete Button] */
             grid-template-columns: auto auto 1fr auto;
-            align-items: center; 
-            gap: 12px; 
-            border-bottom: 1px solid var(--border); 
-            cursor: pointer; 
-            width: 100%; 
-            box-sizing: border-box; 
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
         }
-        .todo-item:last-child { border-bottom: none; }
-        .todo-item:active { background: var(--bg); }
-        .todo-item.done { opacity: 0.5; }
-        .todo-item.done .title { text-decoration: line-through; }
-        
-        /* Custom Checkbox */
-        .checkbox { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #c7c7cc; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; margin-top: 1px; }
-        .todo-item.done .checkbox { background: var(--primary); border-color: var(--primary); }
-        .checkbox::after { content: '✓'; color: white; font-size: 10px; display: none; }
-        .todo-item.done .checkbox::after { display: block; }
 
-        .title-container { 
-            min-width: 0; /* Important for grid stability */
+        .todo-item:last-child {
+            border-bottom: none;
+        }
+
+        .todo-item:active {
+            background: var(--bg);
+        }
+
+        .todo-item.done {
+            opacity: 0.5;
+        }
+
+        .todo-item.done .title {
+            text-decoration: line-through;
+        }
+
+        /* Custom Checkbox */
+        .checkbox {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #c7c7cc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .todo-item.done .checkbox {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .checkbox::after {
+            content: '✓';
+            color: white;
+            font-size: 10px;
+            display: none;
+        }
+
+        .todo-item.done .checkbox::after {
+            display: block;
+        }
+
+        .title-container {
+            min-width: 0;
+            /* Important for grid stability */
             display: flex;
             flex-direction: column;
             gap: 2px;
         }
-        .title { 
-            font-size: 14px; 
-            line-height: 1.4; 
-            color: var(--text); 
-            font-weight: 600; 
-            word-break: break-word; /* Allow wrap for long words */
+
+        .title {
+            font-size: 14px;
+            line-height: 1.4;
+            color: var(--text);
+            font-weight: 600;
+            word-break: break-word;
+            /* Allow wrap for long words */
             margin: 0;
         }
-        .issue-meta { font-size: 11px; color: var(--subtext); margin: 0; }
+
+        .issue-meta {
+            font-size: 11px;
+            color: var(--subtext);
+            margin: 0;
+        }
 
         /* Full Screen Editor Modal */
-        .editor-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.3s ease; }
-        .editor-modal.active { transform: translateY(0); }
-        .editor-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(var(--card-bg), 0.9); }
-        .editor-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .editor-title { font-size: 18px; font-weight: bold; border: none; background: transparent; outline: none; }
-        .editor-textarea { flex: 1; border: none; background: transparent; resize: none; font-size: 16px; line-height: 1.6; outline: none; font-family: inherit; }
-        .md-preview { display: none; padding: 10px 0; font-size: 16px; line-height: 1.6; }
-        .md-preview.active { display: block; }
-        .md-preview h1 { border-bottom: 1px solid var(--border); padding-bottom: 5px; }
-        .md-preview img { max-width: 100%; border-radius: 8px; }
+        .editor-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .editor-modal.active {
+            transform: translateY(0);
+        }
+
+        .editor-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(var(--card-bg), 0.9);
+        }
+
+        .editor-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .editor-title {
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            background: transparent;
+            outline: none;
+        }
+
+        .editor-textarea {
+            flex: 1;
+            border: none;
+            background: transparent;
+            resize: none;
+            font-size: 16px;
+            line-height: 1.6;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .md-preview {
+            display: none;
+            padding: 10px 0;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .md-preview.active {
+            display: block;
+        }
+
+        .md-preview h1 {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+        }
+
+        .md-preview img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
 
         /* New Group Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1100; display: flex; justify-content: center; align-items: center; }
-        .modal { background: var(--card-bg); padding: 20px; border-radius: 12px; width: 80%; max-width: 300px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .modal h3 { margin-top: 0; font-size: 16px; }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
-        .btn-cancel { background: transparent; color: var(--subtext); border: 1px solid var(--border); width: auto; padding: 8px 16px; }
-        .btn-create { width: auto; padding: 8px 16px; }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 300px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal h3 {
+            margin-top: 0;
+            font-size: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            color: var(--subtext);
+            border: 1px solid var(--border);
+            width: auto;
+            padding: 8px 16px;
+        }
+
+        .btn-create {
+            width: auto;
+            padding: 8px 16px;
+        }
+
         /* Menu Popover */
         .menu-popover {
-            position: absolute; right: 40px; background: var(--card-bg); 
-            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-            z-index: 100; overflow: hidden; display: none; min-width: 100px;
-            border: 1px solid rgba(128,128,128,0.2); /* Add border for visibility */
+            position: absolute;
+            right: 40px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            overflow: hidden;
+            display: none;
+            min-width: 100px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            /* Add border for visibility */
         }
+
         [data-theme='dark'] .menu-popover {
-            border: 1px solid rgba(255,255,255,0.2); /* Lighter border for dark mode */
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            /* Lighter border for dark mode */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
-        .menu-popover.active { display: block; }
-        .menu-item { padding: 10px 15px; font-size: 14px; cursor: pointer; color: #ff3b30; display: flex; align-items: center; gap: 8px; }
-        .menu-item:active { background: var(--bg); }
+
+        .menu-popover.active {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            color: #ff3b30;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-item:active {
+            background: var(--bg);
+        }
 
         /* Priority Box */
         .priority-btn {
@@ -162,12 +534,34 @@
             color: white;
             border: none;
         }
-        .priority-btn:active { transform: scale(1.1); }
-        .priority-p0 { background-color: #ff3b30; }
-        .priority-p1 { background-color: #ff9500; } /* More Orange */
-        .priority-p2 { background-color: #34c759; }
-        .priority-p3 { background-color: #444446; } /* Darker Grey */
-        .priority-none { background-color: #444446; } /* Fallback for legacy */
+
+        .priority-btn:active {
+            transform: scale(1.1);
+        }
+
+        .priority-p0 {
+            background-color: #ff3b30;
+        }
+
+        .priority-p1 {
+            background-color: #ff9500;
+        }
+
+        /* More Orange */
+        .priority-p2 {
+            background-color: #34c759;
+        }
+
+        .priority-p3 {
+            background-color: #444446;
+        }
+
+        /* Darker Grey */
+        .priority-none {
+            background-color: #444446;
+        }
+
+        /* Fallback for legacy */
 
         .del-btn {
             background: none;
@@ -182,19 +576,33 @@
             transition: opacity 0.2s;
             text-align: right;
         }
-        .todo-item:hover .del-btn { opacity: 0.8; }
-        .del-btn:active { opacity: 1; transform: scale(0.9); }
+
+        .todo-item:hover .del-btn {
+            opacity: 0.8;
+        }
+
+        .del-btn:active {
+            opacity: 1;
+            transform: scale(0.9);
+        }
 
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
+
         .spinning {
             display: inline-block;
             animation: spin 1s linear infinite;
         }
     </style>
 </head>
+
 <body>
     <div id="app" @click="closeAllMenus">
         <!-- Login -->
@@ -213,7 +621,11 @@
                     <button @click="toggleTheme" class="theme-toggle">{{ isDark ? '🌙' : '☀️' }}</button>
                 </div>
                 <div style="display:flex; gap:10px;">
-                    <button @click="showGroupModal = true" class="logout-btn" style="color:var(--text); font-weight:600;">
+                    <a href="TofuTodo-Widget.zip" download class="logout-btn"
+                        style="color:var(--primary); font-weight:600; text-decoration:none; display:flex; align-items:center;">💻
+                        桌面版下载</a>
+                    <button @click="showGroupModal = true" class="logout-btn"
+                        style="color:var(--text); font-weight:600;">
                         {{ currentTab === 'idea' ? '+ 📁' : '+ 组' }}
                     </button>
                     <button @click="initData" class="logout-btn" style="color:var(--text);">
@@ -230,7 +642,8 @@
 
             <div class="new-task">
                 <div class="new-task-row">
-                    <input v-model="newTask" :placeholder="currentTab === 'todo' ? 'Add task...' : 'New memo title...'" @keyup.enter="addTask" style="flex-grow: 1;">
+                    <input v-model="newTask" :placeholder="currentTab === 'todo' ? 'Add task...' : 'New memo title...'"
+                        @keyup.enter="addTask" style="flex-grow: 1;">
                 </div>
                 <div class="new-task-row" style="justify-content: space-between; align-items: center;">
                     <select v-model="newLabel">
@@ -246,14 +659,19 @@
             <div v-if="currentTab === 'idea'" class="groups-container">
                 <div v-for="groupName in sortedGroupNames" :key="groupName" class="group-section">
                     <div class="group-title" @click="toggleGroup(groupName)" :class="'text-' + groupName">
-                        <span class="arrow" :class="{ collapsed: collapsedGroups[groupName] }">▼</span> 📂 {{ groupName }} 
-                        <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ (groupedIssues[groupName] || []).length }}</span>
-                        <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)" style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
-                        
+                        <span class="arrow" :class="{ collapsed: collapsedGroups[groupName] }">▼</span> 📂 {{ groupName
+                        }}
+                        <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{
+                            (groupedIssues[groupName] || []).length }}</span>
+                        <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)"
+                            style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
+
                     </div>
                     <div class="todo-list" v-show="!collapsedGroups[groupName]">
-                        <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item" @click="openEditor(issue)">
-                            <div class="priority-btn" :class="getPriorityClass(issue)" @click.stop="cyclePriority(issue)">{{ getPriorityText(issue) }}</div>
+                        <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item"
+                            @click="openEditor(issue)">
+                            <div class="priority-btn" :class="getPriorityClass(issue)"
+                                @click.stop="cyclePriority(issue)">{{ getPriorityText(issue) }}</div>
                             <span style="font-size:18px; margin-right:8px; flex-shrink:0;">📄</span>
                             <div class="title-container">
                                 <div class="title">{{ issue.title }}</div>
@@ -261,7 +679,8 @@
                             </div>
                             <button @click.stop="deleteIssue(issue)" class="del-btn">Del</button>
                         </div>
-                        <div v-if="(groupedIssues[groupName] || []).length === 0" style="padding:10px; font-size:12px; color:var(--subtext); text-align:center;">(Empty)</div>
+                        <div v-if="(groupedIssues[groupName] || []).length === 0"
+                            style="padding:10px; font-size:12px; color:var(--subtext); text-align:center;">(Empty)</div>
                     </div>
                 </div>
             </div>
@@ -271,13 +690,17 @@
                 <div v-for="groupName in sortedGroupNames" :key="groupName" class="group-section">
                     <div class="group-title" @click="toggleGroup(groupName)" :class="'text-' + groupName">
                         <span class="arrow" :class="{ collapsed: collapsedGroups[groupName] }">▼</span> {{ groupName }}
-                        <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{ (groupedIssues[groupName] || []).length }}</span>
-                        <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)" style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
-                        
+                        <span style="font-weight:400; color:var(--subtext); font-size:12px; margin-left:6px;">{{
+                            (groupedIssues[groupName] || []).length }}</span>
+                        <span v-if="isCustomGroup(groupName)" @click.stop="deleteGroup(groupName)"
+                            style="float:right; font-size:12px; margin-left:10px;">🗑️</span>
+
                     </div>
                     <div class="todo-list" v-show="!collapsedGroups[groupName]">
-                        <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item" :class="{done: issue.state === 'closed'}">
-                            <div class="priority-btn" :class="getPriorityClass(issue)" @click.stop="cyclePriority(issue)">{{ getPriorityText(issue) }}</div>
+                        <div v-for="issue in (groupedIssues[groupName] || [])" :key="issue.id" class="todo-item"
+                            :class="{done: issue.state === 'closed'}">
+                            <div class="priority-btn" :class="getPriorityClass(issue)"
+                                @click.stop="cyclePriority(issue)">{{ getPriorityText(issue) }}</div>
                             <div class="checkbox" @click.stop="toggleIssue(issue)"></div>
                             <div class="title-container" @click="openEditor(issue)">
                                 <div class="title">{{ issue.title }}</div>
@@ -285,7 +708,8 @@
                             </div>
                             <button @click.stop="deleteIssue(issue)" class="del-btn">Del</button>
                         </div>
-                        <div v-if="(groupedIssues[groupName] || []).length === 0" style="padding:10px; font-size:12px; color:var(--subtext); text-align:center;">(Empty)</div>
+                        <div v-if="(groupedIssues[groupName] || []).length === 0"
+                            style="padding:10px; font-size:12px; color:var(--subtext); text-align:center;">(Empty)</div>
                     </div>
                 </div>
             </div>
@@ -299,9 +723,12 @@
                 <div class="editor-body">
                     <input v-model="editingTitle" class="editor-title" placeholder="标题">
                     <div style="display:flex; gap:10px; border-bottom: 1px solid var(--border); padding-bottom:5px;">
-                        <button class="logout-btn" @click="showPreview = !showPreview">{{ showPreview ? '✏️ 编辑' : '👁️ 预览' }}</button>
+                        <button class="logout-btn" @click="showPreview = !showPreview">
+                            {{ showPreview ? '✏️ 编辑' : '👁️ 预览' }}
+                        </button>
                     </div>
-                    <textarea v-show="!showPreview" v-model="editingBody" class="editor-textarea" placeholder="支持 Markdown..."></textarea>
+                    <textarea v-show="!showPreview" v-model="editingBody" class="editor-textarea"
+                        placeholder="支持 Markdown..."></textarea>
                     <div v-show="showPreview" class="md-preview active" v-html="renderedMarkdown"></div>
                 </div>
             </div>
@@ -330,7 +757,7 @@
                 const token = ref(localStorage.getItem('gh_token') || '');
                 const inputToken = ref('');
                 const issues = ref([]);
-                const allLabels = ref([]); 
+                const allLabels = ref([]);
                 const loading = ref(false);
                 const newTask = ref('');
                 const newLabel = ref('Work');
@@ -363,11 +790,11 @@
                 const availableLabels = computed(() => {
                     const defaults = currentTab.value === 'todo' ? defaultTodoLabels : defaultIdeaLabels;
                     const opposite = currentTab.value === 'todo' ? defaultIdeaLabels : defaultTodoLabels;
-                    
+
                     const custom = allLabels.value
                         .map(l => l.name)
                         .filter(n => !defaults.includes(n) && !opposite.includes(n) && n !== 'Other' && !ignoredLabels.includes(n.toLowerCase()));
-                    
+
                     return [...defaults, ...custom];
                 });
 
@@ -375,7 +802,7 @@
                     const labels = availableLabels.value;
                     const hasOther = groupedIssues.value['Other'] && groupedIssues.value['Other'].length > 0;
                     const hasTrash = groupedIssues.value['Trash'] && groupedIssues.value['Trash'].length > 0;
-                    
+
                     let result = [...labels];
                     if (hasOther) result.push('Other');
                     if (hasTrash) result.push('Trash');
@@ -385,7 +812,7 @@
                 const groupedIssues = computed(() => {
                     const groups = {};
                     availableLabels.value.forEach(l => groups[l] = []);
-                    
+
                     // Define all known system labels to exclude them from 'Other' if they don't match current tab
                     const allSystemLabels = [...defaultTodoLabels, ...defaultIdeaLabels, 'Trash'];
                     groups['Other'] = [];
@@ -473,7 +900,7 @@
                         const res = await api.get(`issues?state=all&sort=updated&direction=desc&per_page=100&_=${Date.now()}`, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
-                        
+
                         // Sort by priority on load
                         const priorityMap = { 'P0': 4, 'P1': 3, 'P2': 2, 'P3': 1 };
                         res.data.sort((a, b) => {
@@ -496,7 +923,8 @@
                     if (!token.value) return;
                     try {
                         const res = await api.get(`labels`, {
- headers: { 'Authorization': `token ${token.value}` } });
+                            headers: { 'Authorization': `token ${token.value}` }
+                        });
                         allLabels.value = res.data;
                     } catch (e) { console.error("Error labels"); }
                 };
@@ -532,7 +960,7 @@
                     try {
                         await api.post('labels', {
                             name: name,
-                            color: Math.floor(Math.random()*16777215).toString(16)
+                            color: Math.floor(Math.random() * 16777215).toString(16)
                         }, { headers: { 'Authorization': `token ${token.value}` } });
                         await fetchLabels();
                         showGroupModal.value = false;
@@ -546,44 +974,44 @@
                     try {
                         await api.delete(`labels/${encodeURIComponent(name)}`, { headers: { 'Authorization': `token ${token.value}` } });
                         await fetchLabels();
-                    } catch (e) { 
+                    } catch (e) {
                         console.error('Delete failed', e);
-                        alert('Delete failed: ' + (e.response?.data?.message || e.message)); 
+                        alert('Delete failed: ' + (e.response?.data?.message || e.message));
                     }
                 };
-                
+
                 const deleteIssue = async (issue) => {
                     const oldLabels = [...issue.labels];
                     const oldState = issue.state;
-                    
+
                     // 1. 识别优先级标签
                     const priorityLabel = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name));
-                    
+
                     // 2. 构造新的标签列表：[Trash, 优先级]
                     // 注意：GitHub API 接收 labels 数组时建议使用简单的字符串数组
                     const nextLabels = ['Trash'];
                     if (priorityLabel) nextLabels.push(priorityLabel.name);
-                    
+
                     // 乐观更新 UI
                     issue.labels = nextLabels.map(name => ({ name }));
                     issue.state = 'closed';
-                    
+
                     try {
                         console.log(`[TofuTodo] Attempting to trash issue #${issue.number}...`);
-                        
+
                         // 直接尝试 Patch
-                        const res = await api.patch(`issues/${issue.number}`, { 
+                        const res = await api.patch(`issues/${issue.number}`, {
                             labels: nextLabels,
-                            state: 'closed' 
+                            state: 'closed'
                         }, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
-                        
+
                         console.log(`[TofuTodo] Issue #${issue.number} moved to trash successfully.`);
                         Object.assign(issue, res.data);
                     } catch (e) {
                         console.error("[TofuTodo] Delete attempt failed:", e);
-                        
+
                         const status = e.response?.status;
                         const errorMsg = e.response?.data?.message || "";
 
@@ -595,9 +1023,9 @@
                                     headers: { 'Authorization': `token ${token.value}` }
                                 });
                                 // 创建成功后重试
-                                const retryRes = await api.patch(`issues/${issue.number}`, { 
+                                const retryRes = await api.patch(`issues/${issue.number}`, {
                                     labels: nextLabels,
-                                    state: 'closed' 
+                                    state: 'closed'
                                 }, {
                                     headers: { 'Authorization': `token ${token.value}` }
                                 });
@@ -607,23 +1035,23 @@
                                 if (labelErr.response?.status === 422) {
                                     // 即使报 422 (已存在)，也说明标签现在有了，再最后试一次 Patch
                                     try {
-                                        const finalRes = await api.patch(`issues/${issue.number}`, { 
+                                        const finalRes = await api.patch(`issues/${issue.number}`, {
                                             labels: nextLabels,
-                                            state: 'closed' 
+                                            state: 'closed'
                                         }, {
                                             headers: { 'Authorization': `token ${token.value}` }
                                         });
                                         Object.assign(issue, finalRes.data);
                                         return;
-                                    } catch (fErr) {}
+                                    } catch (fErr) { }
                                 }
                                 alert(`无法创建 "Trash" 标签。请检查您的 Token 权限（需包含 repo 作用域），或手动在 GitHub 仓库中创建一个名为 Trash 的标签。\n\n错误信息: ${labelErr.message}`);
                             }
-                        } 
+                        }
                         // 情况 B：权限不足 (403/404)
                         else if (status === 403 || status === 404) {
                             alert('无权修改此条目。请检查：\n1. Token 是否勾选了 "repo" 权限。\n2. 您是否对 dogEleven/tofutodo 仓库有写权限。');
-                        } 
+                        }
                         // 其他情况
                         else {
                             alert('删除失败: ' + (e.response?.data?.message || e.message));
@@ -632,7 +1060,7 @@
                         // 回滚 UI
                         issue.labels = oldLabels;
                         issue.state = oldState;
-                        fetchIssues(); 
+                        fetchIssues();
                     }
                 };
 
@@ -649,7 +1077,7 @@
                     try {
                         // We need the full set of labels to preserve other categories (like Work/Idea)
                         const allRemainingLabels = issue.labels.map(l => l.name);
-                        
+
                         // Ensure the label exists on the repo (GitHub will return 422 if it doesn't)
                         // For simplicity, we assume labels exist or will be created on first use in background
                         // But to be robust, let's just send the patch.
@@ -672,7 +1100,7 @@
                 };
 
                 const toggleGroup = (name) => { collapsedGroups.value[name] = !collapsedGroups.value[name]; };
-                
+
                 const toggleMenu = (id) => {
                     activeMenuId.value = activeMenuId.value === id ? null : id;
                 };
@@ -704,8 +1132,8 @@
                 // UI Helpers
                 const formatDate = (isoString) => {
                     const date = new Date(isoString);
-                    return date.getFullYear() === new Date().getFullYear() 
-                        ? `${date.getMonth() + 1}/${date.getDate()}` 
+                    return date.getFullYear() === new Date().getFullYear()
+                        ? `${date.getMonth() + 1}/${date.getDate()}`
                         : date.toLocaleDateString();
                 };
                 const getMetaOpacity = (isoString) => {
@@ -727,8 +1155,8 @@
                     document.documentElement.setAttribute('data-theme', theme);
                 });
 
-                return { 
-                    token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask, 
+                return {
+                    token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask,
                     groupedIssues, sortedGroupNames, availableLabels, isDark, toggleTheme, formatDate, getMetaOpacity, currentTab,
                     // Groups
                     showGroupModal, newGroupName, createGroup, deleteGroup, isCustomGroup, collapsedGroups, toggleGroup,
@@ -747,4 +1175,5 @@
         }).mount('#app');
     </script>
 </body>
+
 </html>
