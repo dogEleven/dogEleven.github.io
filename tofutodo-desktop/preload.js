@@ -1,12 +1,12 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  expand: () => ipcRenderer.send('expand-window'),
-  collapse: () => ipcRenderer.send('collapse-window')
+contextBridge.exposeInMainWorld("electronAPI", {
+  expand: () => ipcRenderer.send("expand-window"),
+  collapse: () => ipcRenderer.send("collapse-window"),
 });
 
-window.addEventListener('DOMContentLoaded', () => {
-  const style = document.createElement('style');
+window.addEventListener("DOMContentLoaded", () => {
+  const style = document.createElement("style");
   style.textContent = `
     html, body {
       background-color: transparent !important;
@@ -39,6 +39,13 @@ window.addEventListener('DOMContentLoaded', () => {
       bottom: 30px !important;
       border-radius: 26px 0 0 26px !important;
       box-sizing: border-box;
+      transform: translateX(100%) !important; /* Start off-screen to the right by default */
+    }
+    #app .editor-modal.active {
+      transform: translateX(0) !important; /* Slide in from the right */
+    }
+    #app .editor-modal:not(.active) {
+      transform: translateX(calc(100% + 30px)) !important; /* Ensure it stays fully hidden off-screen to the right */
     }
     
     #widget-bubble {
@@ -69,35 +76,35 @@ window.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(style);
 
-  const appEl = document.getElementById('app');
+  const appEl = document.getElementById("app");
   if (appEl) {
-    appEl.style.margin = '0';
-    appEl.style.maxWidth = 'none';
+    appEl.style.margin = "0";
+    appEl.style.maxWidth = "none";
   }
 
-  const bubble = document.createElement('div');
-  bubble.id = 'widget-bubble';
-  bubble.innerText = 'TofuSoup';
+  const bubble = document.createElement("div");
+  bubble.id = "widget-bubble";
+  bubble.innerText = "TofuSoup";
   document.documentElement.appendChild(bubble);
 
   let isExpanded = false;
 
-  bubble.addEventListener('click', () => {
+  bubble.addEventListener("click", () => {
     isExpanded = !isExpanded;
-    const appEl = document.getElementById('app');
+    const appEl = document.getElementById("app");
     if (isExpanded) {
-      ipcRenderer.send('expand-window');
+      ipcRenderer.send("expand-window");
       // Wait a tiny bit for the OS window bounds to actually enlarge before showing shadow
       setTimeout(() => {
-        if (appEl) appEl.style.opacity = '1';
+        if (appEl) appEl.style.opacity = "1";
       }, 50);
     } else {
-      if (appEl) appEl.style.opacity = '0';
+      if (appEl) appEl.style.opacity = "0";
 
       // Delay collapsing window by 0.15s to allow shadow to fade out
       // so it doesn't suddenly cut off when the window boundary instantly snaps shut.
       setTimeout(() => {
-        ipcRenderer.send('collapse-window');
+        ipcRenderer.send("collapse-window");
       }, 150);
     }
   });

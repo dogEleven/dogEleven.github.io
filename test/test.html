@@ -364,12 +364,12 @@
             z-index: 1000;
             display: flex;
             flex-direction: column;
-            transform: translateY(100%);
-            transition: transform 0.3s ease;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
         .editor-modal.active {
-            transform: translateY(0);
+            transform: translateX(0);
         }
 
         .editor-header {
