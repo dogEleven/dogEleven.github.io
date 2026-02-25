@@ -33,6 +33,13 @@ window.addEventListener('DOMContentLoaded', () => {
       opacity: 0; /* Hide when collapsed so shadow doesn't bleed */
       transition: opacity 0.2s ease;
     }
+    #app .editor-modal {
+      left: 24px !important;
+      top: 30px !important;
+      bottom: 30px !important;
+      border-radius: 26px 0 0 26px !important;
+      box-sizing: border-box;
+    }
     
     #widget-bubble {
       position: fixed;
