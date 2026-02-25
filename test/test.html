@@ -718,7 +718,11 @@
                 <div class="editor-header">
                     <button class="logout-btn" @click="closeEditor">取消</button>
                     <div style="font-weight:600;">编辑</div>
-                    <button class="logout-btn" style="font-weight:600;" @click="saveEditor">保存</button>
+                    <div>
+                        <button class="logout-btn" style="font-weight:600; margin-right: 5px;"
+                            @click="saveEditor(false)">保存</button>
+                        <button class="logout-btn" style="font-weight:600;" @click="saveEditor(true)">保存返回</button>
+                    </div>
                 </div>
                 <div class="editor-body">
                     <input v-model="editingTitle" class="editor-title" placeholder="标题">
@@ -1117,7 +1121,7 @@
                     isEditorOpen.value = true;
                 };
                 const closeEditor = () => { isEditorOpen.value = false; };
-                const saveEditor = async () => {
+                const saveEditor = async (closeAfterSave = true) => {
                     if (!editingTitle.value) return;
                     try {
                         const res = await api.patch(`/issues/${editingIssue.value.number}`, {
@@ -1125,9 +1129,29 @@
                         }, { headers: { 'Authorization': `token ${token.value}` } });
                         const idx = issues.value.findIndex(i => i.id === editingIssue.value.id);
                         if (idx !== -1) issues.value[idx] = res.data;
-                        closeEditor();
+
+                        // Show a small UI feedback indicating it saved successfully if we don't close
+                        if (!closeAfterSave) {
+                            const originalTitle = editingTitle.value;
+                            editingTitle.value = '✓ Saved: ' + originalTitle;
+                            setTimeout(() => editingTitle.value = originalTitle, 1000);
+                        } else {
+                            closeEditor();
+                        }
                     } catch (e) { alert('Save failed'); }
                 };
+
+                // Keyboard Shortcuts
+                onMounted(() => {
+                    window.addEventListener('keydown', (e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                            if (isEditorOpen.value) {
+                                e.preventDefault();
+                                saveEditor(false); // Save but don't close
+                            }
+                        }
+                    });
+                });
 
                 // UI Helpers
                 const formatDate = (isoString) => {
