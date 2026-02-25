@@ -34,8 +34,12 @@ function createWindow() {
         }
     });
 
-    // Load the online page directly
-    win.loadURL('https://dogeleven.github.io/test/test.html');
+    // Clear cache forcefully to ensure the latest Github pages deployment is loaded
+    win.webContents.session.clearCache().then(() => {
+        win.loadURL('https://dogeleven.github.io/test/test.html?timestamp=' + new Date().getTime(), {
+            extraHeaders: 'pragma: no-cache\n'
+        });
+    });
 
     ipcMain.on('expand-window', () => {
         win.setBounds({ x: X_EXPANDED, y: Y_POS, width: V_WIDTH, height: V_HEIGHT });

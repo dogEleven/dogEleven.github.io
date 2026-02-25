@@ -1,0 +1,5 @@
+node_modules/
+dist/
+dist-src/
+test/TofuTodo-Widget/
+desktop.ini
