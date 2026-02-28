@@ -976,6 +976,8 @@
                         }
                     }
                     await fetchLabels();
+                    // Optional: fetch issues as well to make sure everything is clean, but labels alone should be enough 
+                    // if the computed property correctly maps empty labels.
                     showGroupModal.value = false;
                     newGroupName.value = '';
                     newLabel.value = name;
