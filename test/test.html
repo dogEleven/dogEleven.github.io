@@ -926,7 +926,7 @@
                 const fetchLabels = async () => {
                     if (!token.value) return;
                     try {
-                        const res = await api.get(`labels`, {
+                        const res = await api.get(`labels?per_page=100`, {
                             headers: { 'Authorization': `token ${token.value}` }
                         });
                         allLabels.value = res.data;
@@ -964,13 +964,21 @@
                     try {
                         await api.post('labels', {
                             name: name,
-                            color: Math.floor(Math.random() * 16777215).toString(16)
+                            color: Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
                         }, { headers: { 'Authorization': `token ${token.value}` } });
-                        await fetchLabels();
-                        showGroupModal.value = false;
-                        newGroupName.value = '';
-                        newLabel.value = name;
-                    } catch (e) { alert('Create failed: ' + e.message); }
+                    } catch (e) {
+                        // 422 means Unprocessable Entity (e.g. Label already exists on GitHub API)
+                        if (e.response && e.response.status === 422) {
+                            console.log('Label likely already exists in Github repo.');
+                        } else {
+                            alert('Create failed: ' + (e.response?.data?.message || e.message));
+                            return;
+                        }
+                    }
+                    await fetchLabels();
+                    showGroupModal.value = false;
+                    newGroupName.value = '';
+                    newLabel.value = name;
                 };
 
                 const deleteGroup = async (name) => {

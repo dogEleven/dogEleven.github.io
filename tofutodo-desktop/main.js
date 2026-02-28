@@ -28,6 +28,7 @@ function createWindow() {
         skipTaskbar: true,
         resizable: false,
         webPreferences: {
+            partition: 'persist:tofutodo',
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true
@@ -41,6 +42,13 @@ function createWindow() {
         });
     });
 
+    // Make sure localStorage modifications are persisted to disk periodically to avoid dataloss
+    setInterval(() => {
+        if (win && !win.isDestroyed()) {
+            win.webContents.session.flushStorageData();
+        }
+    }, 15000);
+
     ipcMain.on('expand-window', () => {
         win.setBounds({ x: X_EXPANDED, y: Y_POS, width: V_WIDTH, height: V_HEIGHT });
     });
@@ -50,10 +58,24 @@ function createWindow() {
     });
 }
 
-app.whenReady().then(createWindow);
+const gotTheLock = app.requestSingleInstanceLock();
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        // Someone tried to run a second instance, we should focus our window.
+        if (win) {
+            if (win.isMinimized()) win.restore();
+            win.focus();
+        }
+    });
+
+    app.whenReady().then(createWindow);
+
+    app.on('window-all-closed', () => {
+        if (process.platform !== 'darwin') {
+            app.quit();
+        }
+    });
+}
