@@ -796,8 +796,19 @@
                     const opposite = currentTab.value === 'todo' ? defaultIdeaLabels : defaultTodoLabels;
 
                     const custom = allLabels.value
-                        .map(l => l.name)
-                        .filter(n => !defaults.includes(n) && !opposite.includes(n) && n !== 'Other' && n !== 'Trash' && !ignoredLabels.includes(n.toLowerCase()));
+                        .filter(l => {
+                            const n = l.name;
+                            if (defaults.includes(n) || opposite.includes(n) || n === 'Other' || n === 'Trash' || ignoredLabels.includes(n.toLowerCase())) return false;
+
+                            const desc = l.description || '';
+                            // Old labels without description will show up in Todo by default to avoid losing them
+                            if (currentTab.value === 'todo') {
+                                return desc === 'tab:todo' || desc === '';
+                            } else {
+                                return desc === 'tab:idea';
+                            }
+                        })
+                        .map(l => l.name);
 
                     return [...defaults, ...custom];
                 });
@@ -964,12 +975,14 @@
                     try {
                         await api.post('labels', {
                             name: name,
-                            color: Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+                            color: Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
+                            description: `tab:${currentTab.value}`
                         }, { headers: { 'Authorization': `token ${token.value}` } });
                     } catch (e) {
                         // 422 means Unprocessable Entity (e.g. Label already exists on GitHub API)
                         if (e.response && e.response.status === 422) {
-                            console.log('Label likely already exists in Github repo.');
+                            alert('⚠️ 分组名称已存在，请使用其他名称！');
+                            return;
                         } else {
                             alert('Create failed: ' + (e.response?.data?.message || e.message));
                             return;
