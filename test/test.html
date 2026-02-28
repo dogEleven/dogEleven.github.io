@@ -797,7 +797,7 @@
 
                     const custom = allLabels.value
                         .map(l => l.name)
-                        .filter(n => !defaults.includes(n) && !opposite.includes(n) && n !== 'Other' && !ignoredLabels.includes(n.toLowerCase()));
+                        .filter(n => !defaults.includes(n) && !opposite.includes(n) && n !== 'Other' && n !== 'Trash' && !ignoredLabels.includes(n.toLowerCase()));
 
                     return [...defaults, ...custom];
                 });
@@ -843,7 +843,7 @@
                                 }
 
                                 // Place in current tab's groups if matched (ignoring priority labels)
-                                if (groups[label.name] && !isPriorityLabel(label.name)) {
+                                if (groups[label.name] !== undefined && !isPriorityLabel(label.name)) {
                                     groups[label.name].push(issue);
                                     placed = true;
                                     break;
