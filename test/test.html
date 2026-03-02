@@ -355,7 +355,7 @@
 
         /* Full Screen Editor Modal */
         .editor-modal {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
@@ -366,7 +366,6 @@
             flex-direction: column;
             transform: translateX(100%);
             transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            border-radius: inherit;
         }
 
         .editor-modal.active {
@@ -433,7 +432,7 @@
 
         /* New Group Modal */
         .modal-overlay {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
@@ -443,7 +442,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            border-radius: inherit;
         }
 
         .modal {
