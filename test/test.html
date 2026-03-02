@@ -837,7 +837,7 @@
 
                     issues.value.forEach(issue => {
                         // Priority labels should NOT create groups
-                        const isPriorityLabel = (name) => ['P0', 'P1', 'P2', 'P3'].includes(name);
+                        const isPriorityLabel = (name) => ['P0', 'P1', 'P2', 'P3'].includes(name.toUpperCase());
 
                         // CRITICAL: If it has Trash label, it MUST go to Trash group immediately
                         if (issue.labels.some(l => l.name === 'Trash')) {
@@ -921,8 +921,8 @@
                         // Sort by priority on load
                         const priorityMap = { 'P0': 4, 'P1': 3, 'P2': 2, 'P3': 1 };
                         res.data.sort((a, b) => {
-                            const pA = a.labels.find(l => priorityMap[l.name])?.name || 'P3';
-                            const pB = b.labels.find(l => priorityMap[l.name])?.name || 'P3';
+                            const pA = a.labels.find(l => priorityMap[l.name.toUpperCase()])?.name.toUpperCase() || 'P3';
+                            const pB = b.labels.find(l => priorityMap[l.name.toUpperCase()])?.name.toUpperCase() || 'P3';
                             const scoreA = priorityMap[pA] || 1;
                             const scoreB = priorityMap[pB] || 1;
                             if (scoreA !== scoreB) return scoreB - scoreA;
@@ -1014,10 +1014,9 @@
                     const oldState = issue.state;
 
                     // 1. 识别优先级标签
-                    const priorityLabel = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name));
+                    const priorityLabel = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3', 'p0', 'p1', 'p2', 'p3'].includes(l.name));
 
-                    // 2. 构造新的标签列表：[Trash, 优先级]
-                    // 注意：GitHub API 接收 labels 数组时建议使用简单的字符串数组
+                    // 2. 构造新的标签列表
                     const nextLabels = ['Trash'];
                     if (priorityLabel) nextLabels.push(priorityLabel.name);
 
@@ -1026,7 +1025,7 @@
                     issue.state = 'closed';
 
                     try {
-                        console.log(`[TofuTodo] Attempting to trash issue #${issue.number}...`);
+                        console.log(`[TofuTodo] Trashing issue #${issue.number}...`);
 
                         // 直接尝试 Patch
                         const res = await api.patch(`issues/${issue.number}`, {
@@ -1036,22 +1035,30 @@
                             headers: { 'Authorization': `token ${token.value}` }
                         });
 
-                        console.log(`[TofuTodo] Issue #${issue.number} moved to trash successfully.`);
                         Object.assign(issue, res.data);
+                        console.log(`[TofuTodo] Issue #${issue.number} deleted successfully.`);
                     } catch (e) {
                         console.error("[TofuTodo] Delete attempt failed:", e);
 
                         const status = e.response?.status;
-                        const errorMsg = e.response?.data?.message || "";
-
-                        // 情况 A：标签不存在 (422 Unprocessable Entity)
-                        if (status === 422 || errorMsg.includes("Label does not exist")) {
-                            console.log("[TofuTodo] Trash label missing, attempting to create...");
+                        if (status === 404) {
+                            alert('删除失败 (404)。可能原因：\n1. 仓库是私有的，但您的 Token 没有勾选 "repo" 权限。\n2. 您没有该仓库的写权限。');
+                        }
+                        else if (status === 422) {
+                            console.log("[TofuTodo] Label missing, attempting to create 'Trash' label...");
                             try {
                                 await api.post('labels', { name: 'Trash', color: '000000' }, {
                                     headers: { 'Authorization': `token ${token.value}` }
                                 });
-                                // 创建成功后重试
+                            } catch (lErr) {
+                                if (lErr.response?.status !== 422) {
+                                    alert('创建 "Trash" 标签失败，请检查 Token 权限。');
+                                    throw lErr;
+                                }
+                            }
+
+                            // 重试 Patch
+                            try {
                                 const retryRes = await api.patch(`issues/${issue.number}`, {
                                     labels: nextLabels,
                                     state: 'closed'
@@ -1060,33 +1067,14 @@
                                 });
                                 Object.assign(issue, retryRes.data);
                                 return;
-                            } catch (labelErr) {
-                                if (labelErr.response?.status === 422) {
-                                    // 即使报 422 (已存在)，也说明标签现在有了，再最后试一次 Patch
-                                    try {
-                                        const finalRes = await api.patch(`issues/${issue.number}`, {
-                                            labels: nextLabels,
-                                            state: 'closed'
-                                        }, {
-                                            headers: { 'Authorization': `token ${token.value}` }
-                                        });
-                                        Object.assign(issue, finalRes.data);
-                                        return;
-                                    } catch (fErr) { }
-                                }
-                                alert(`无法创建 "Trash" 标签。请检查您的 Token 权限（需包含 repo 作用域），或手动在 GitHub 仓库中创建一个名为 Trash 的标签。\n\n错误信息: ${labelErr.message}`);
+                            } catch (rErr) {
+                                alert('标签已补全但删除依然失败，请刷新重试。');
                             }
-                        }
-                        // 情况 B：权限不足 (403/404)
-                        else if (status === 403 || status === 404) {
-                            alert('无权修改此条目。请检查：\n1. Token 是否勾选了 "repo" 权限。\n2. 您是否对 dogEleven/tofutodo 仓库有写权限。');
-                        }
-                        // 其他情况
-                        else {
+                        } else {
                             alert('删除失败: ' + (e.response?.data?.message || e.message));
                         }
 
-                        // 回滚 UI
+                        // 失败回滚
                         issue.labels = oldLabels;
                         issue.state = oldState;
                         fetchIssues();
@@ -1095,12 +1083,12 @@
 
                 const cyclePriority = async (issue) => {
                     const priorities = ['P0', 'P1', 'P2', 'P3'];
-                    const currentPriority = issue.labels.find(l => priorities.includes(l.name))?.name || 'P3';
+                    const currentPriority = issue.labels.find(l => priorities.includes(l.name.toUpperCase()))?.name.toUpperCase() || 'P3';
                     const idx = priorities.indexOf(currentPriority);
                     const nextPriority = priorities[(idx + 1) % priorities.length];
 
                     // Update local state first (optimistic)
-                    issue.labels = issue.labels.filter(l => !priorities.includes(l.name));
+                    issue.labels = issue.labels.filter(l => !priorities.includes(l.name.toUpperCase()));
                     issue.labels.push({ name: nextPriority });
 
                     try {
@@ -1120,12 +1108,12 @@
                 };
 
                 const getPriorityClass = (issue) => {
-                    const p = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name))?.name;
+                    const p = issue.labels.find(l => ['P0', 'P1', 'P2', 'P3', 'p0', 'p1', 'p2', 'p3'].includes(l.name))?.name;
                     return p ? `priority-${p.toLowerCase()}` : 'priority-p3';
                 };
 
                 const getPriorityText = (issue) => {
-                    return issue.labels.find(l => ['P0', 'P1', 'P2', 'P3'].includes(l.name))?.name || 'P3';
+                    return issue.labels.find(l => ['P0', 'P1', 'P2', 'P3', 'p0', 'p1', 'p2', 'p3'].includes(l.name))?.name.toUpperCase() || 'P3';
                 };
 
                 const toggleGroup = (name) => { collapsedGroups.value[name] = !collapsedGroups.value[name]; };
