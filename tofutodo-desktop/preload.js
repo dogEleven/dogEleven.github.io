@@ -11,9 +11,16 @@ window.addEventListener("DOMContentLoaded", () => {
     html, body {
       background-color: transparent !important;
       overflow: hidden !important;
-      margin: 0;
-      padding: 0;
-      pointer-events: none; /* Let clicks pass through transparent parts of the screen */
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      pointer-events: none !important; /* Let clicks pass through transparent parts of the screen */
+    }
+    *::-webkit-scrollbar { 
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
     }
     #widget-bubble, #app {
       pointer-events: auto; /* Re-enable clicks on visible parts */
