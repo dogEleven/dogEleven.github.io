@@ -34,7 +34,7 @@ window.addEventListener("DOMContentLoaded", () => {
       background-color: var(--bg, #f5f5f7);
       border-radius: 26px 0 0 26px;
       box-shadow: -6px 0 20px rgba(0, 0, 0, 0.2);
-      overflow-y: auto;
+      overflow: hidden !important; /* Force hide outer scrollbars, let inner content in test.html scroll */
       padding: 20px;
       box-sizing: border-box;
       opacity: 0; /* Hide when collapsed so shadow doesn't bleed */
