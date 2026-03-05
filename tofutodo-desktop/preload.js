@@ -40,20 +40,6 @@ window.addEventListener("DOMContentLoaded", () => {
       opacity: 0; /* Hide when collapsed so shadow doesn't bleed */
       transition: opacity 0.2s ease;
     }
-    #app .editor-modal {
-      left: 24px !important;
-      top: 30px !important;
-      bottom: 30px !important;
-      border-radius: 26px 0 0 26px !important;
-      box-sizing: border-box;
-      transform: translateX(100%) !important; /* Start off-screen to the right by default */
-    }
-    #app .editor-modal.active {
-      transform: translateX(0) !important; /* Slide in from the right */
-    }
-    #app .editor-modal:not(.active) {
-      transform: translateX(calc(100% + 30px)) !important; /* Ensure it stays fully hidden off-screen to the right */
-    }
     
     #widget-bubble {
       position: fixed;
