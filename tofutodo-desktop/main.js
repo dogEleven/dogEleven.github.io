@@ -35,8 +35,9 @@ function createWindow() {
         }
     });
 
-    // Clear cache forcefully to ensure the latest Github pages deployment is loaded
-    win.webContents.session.clearCache().then(() => {
+    // Clear cache forcefully to ensure the latest Github pages deployment is loaded, 
+    // but only clear HTTP cache so we DO NOT clear localStorage or other persistent data
+    win.webContents.session.clearCache({ storages: ['appcache', 'http'] }).then(() => {
         win.loadURL('https://dogeleven.github.io/test/test.html?timestamp=' + new Date().getTime(), {
             extraHeaders: 'pragma: no-cache\n'
         });
