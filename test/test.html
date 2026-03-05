@@ -620,20 +620,35 @@
             <div class="header">
                 <div class="header-left">
                     <h1>📋 待办清单</h1>
-                    <button @click="toggleTheme" class="theme-toggle">{{ isDark ? '🌙' : '☀️' }}</button>
                 </div>
-                <div style="display:flex; gap:10px;">
-                    <a href="TofuTodo-Widget.zip" download class="logout-btn"
-                        style="color:var(--primary); font-weight:600; text-decoration:none; display:flex; align-items:center;">💻
-                        桌面版下载</a>
+                <div style="display:flex; gap:10px; align-items:center;">
                     <button @click="showGroupModal = true" class="logout-btn"
                         style="color:var(--text); font-weight:600;">
                         {{ currentTab === 'idea' ? '+ 📁' : '+ 组' }}
                     </button>
-                    <button @click="initData" class="logout-btn" style="color:var(--text);">
-                        <span :class="{ spinning: loading }">🔄</span>
+                    <button @click="initData" class="logout-btn"
+                        style="color:var(--text); font-weight:600; display:flex; align-items:center;">
+                        <span v-if="loading" :class="{ spinning: loading }"
+                            style="display:inline-block; margin-right:4px; font-size:12px;">🔄</span>
+                        刷新
                     </button>
-                    <button @click="logout" class="logout-btn">Logout</button>
+                    <div style="position: relative;">
+                        <button @click.stop="showSettingsMenu = !showSettingsMenu; activeMenuId = null"
+                            class="logout-btn" style="color:var(--text); font-weight:600;">⚙️ 设置</button>
+                        <div class="menu-popover" :class="{ active: showSettingsMenu }"
+                            style="right: 0; top: 100%; margin-top: 5px; min-width: 140px;">
+                            <div class="menu-item" @click="toggleTheme" style="color:var(--text);">
+                                {{ isDark ? '🌙 明暗模式' : '☀️ 明暗模式' }}
+                            </div>
+                            <a href="TofuTodo-Widget.zip" download class="menu-item"
+                                style="color:var(--primary); text-decoration:none;">
+                                💻 桌面版下载
+                            </a>
+                            <div class="menu-item" @click="logout" style="border-top: 1px solid var(--border);">
+                                🚪 登出
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -773,6 +788,7 @@
                 const showGroupModal = ref(false);
                 const newGroupName = ref('');
                 const activeMenuId = ref(null);
+                const showSettingsMenu = ref(false);
 
                 // Editor State
                 const isEditorOpen = ref(false);
@@ -1120,8 +1136,9 @@
 
                 const toggleMenu = (id) => {
                     activeMenuId.value = activeMenuId.value === id ? null : id;
+                    showSettingsMenu.value = false;
                 };
-                const closeAllMenus = () => { activeMenuId.value = null; };
+                const closeAllMenus = () => { activeMenuId.value = null; showSettingsMenu.value = false; };
 
                 const isCustomGroup = (name) => !defaultTodoLabels.includes(name) && !defaultIdeaLabels.includes(name) && name !== 'Other' && name !== 'Trash';
 
@@ -1198,7 +1215,7 @@
                     // Groups
                     showGroupModal, newGroupName, createGroup, deleteGroup, isCustomGroup, collapsedGroups, toggleGroup,
                     // Menu
-                    activeMenuId, toggleMenu, closeAllMenus,
+                    activeMenuId, toggleMenu, closeAllMenus, showSettingsMenu,
                     // Editor
                     openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown,
                     // Delete
