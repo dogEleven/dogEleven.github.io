@@ -624,13 +624,11 @@
                 <div style="display:flex; gap:10px; align-items:center;">
                     <button @click="showGroupModal = true" class="logout-btn"
                         style="color:var(--text); font-weight:600;">
-                        {{ currentTab === 'idea' ? '+ 📁' : '+ 组' }}
+                        加组
                     </button>
                     <button @click="initData" class="logout-btn"
                         style="color:var(--text); font-weight:600; display:flex; align-items:center;">
-                        <span v-if="loading" :class="{ spinning: loading }"
-                            style="display:inline-block; margin-right:4px; font-size:12px;">🔄</span>
-                        刷新
+                        {{ loading ? '刷新中...' : '刷新' }}
                     </button>
                     <div style="position: relative;">
                         <button @click.stop="showSettingsMenu = !showSettingsMenu; activeMenuId = null"
