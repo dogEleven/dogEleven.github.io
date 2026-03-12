@@ -602,6 +602,40 @@
             display: inline-block;
             animation: spin 1s linear infinite;
         }
+
+        .md-toolbar {
+            display: flex;
+            gap: 4px;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .md-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text);
+            padding: 4px 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            width: auto;
+            transition: all 0.2s;
+        }
+
+        .md-btn:hover {
+            background: var(--input-bg);
+            border-color: var(--border);
+        }
+
+        .md-divider {
+            width: 1px;
+            height: 16px;
+            background: var(--border);
+            margin: 0 4px;
+        }
     </style>
 </head>
 
@@ -746,7 +780,21 @@
                             {{ showPreview ? '✏️ 编辑' : '👁️ 预览' }}
                         </button>
                     </div>
-                    <textarea v-show="!showPreview" v-model="editingBody" class="editor-textarea"
+                    <div v-show="!showPreview" class="md-toolbar">
+                        <button class="md-btn" @click="insertMarkdown('h1')" title="一级标题">H1</button>
+                        <button class="md-btn" @click="insertMarkdown('h2')" title="二级标题">H2</button>
+                        <button class="md-btn" @click="insertMarkdown('h3')" title="三级标题">H3</button>
+                        <div class="md-divider"></div>
+                        <button class="md-btn" @click="insertMarkdown('bold')" title="加粗">B</button>
+                        <button class="md-btn" @click="insertMarkdown('italic')" title="斜体">I</button>
+                        <button class="md-btn" @click="insertMarkdown('strike')" title="删除线">S</button>
+                        <div class="md-divider"></div>
+                        <button class="md-btn" @click="insertMarkdown('ul')" title="无序列表">•</button>
+                        <button class="md-btn" @click="insertMarkdown('ol')" title="有序列表">1.</button>
+                        <div class="md-divider"></div>
+                        <button class="md-btn" @click="insertMarkdown('code')" title="代码块">&lt;/&gt;</button>
+                    </div>
+                    <textarea ref="mdTextarea" v-show="!showPreview" v-model="editingBody" class="editor-textarea"
                         placeholder="支持 Markdown..."></textarea>
                     <div v-show="showPreview" class="md-preview active" v-html="renderedMarkdown"></div>
                 </div>
@@ -794,6 +842,7 @@
                 const editingTitle = ref('');
                 const editingBody = ref('');
                 const showPreview = ref(false);
+                const mdTextarea = ref(null);
 
                 // Config
                 const defaultTodoLabels = ['Work', 'Life', 'HellDrop', 'Zhutousan'];
@@ -1169,6 +1218,52 @@
                     } catch (e) { alert('Save failed'); }
                 };
 
+                const insertMarkdown = (type) => {
+                    const textarea = mdTextarea.value;
+                    if (!textarea) return;
+
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const text = editingBody.value;
+                    const selected = text.substring(start, end);
+
+                    let prefix = '';
+                    let suffix = '';
+                    let insertText = selected || '文本';
+
+                    switch (type) {
+                        case 'h1': prefix = '# '; insertText = selected || '一级标题'; break;
+                        case 'h2': prefix = '## '; insertText = selected || '二级标题'; break;
+                        case 'h3': prefix = '### '; insertText = selected || '三级标题'; break;
+                        case 'bold': prefix = '**'; suffix = '**'; insertText = selected || '加粗'; break;
+                        case 'italic': prefix = '*'; suffix = '*'; insertText = selected || '斜体'; break;
+                        case 'strike': prefix = '~~'; suffix = '~~'; insertText = selected || '删除线'; break;
+                        case 'code':
+                            if (selected.includes('\n')) {
+                                prefix = '```\n'; suffix = '\n```';
+                                insertText = selected || '代码块';
+                            } else {
+                                prefix = '`'; suffix = '`';
+                                insertText = selected || '代码';
+                            }
+                            break;
+                        case 'ul': prefix = '- '; insertText = selected || '列表项'; break;
+                        case 'ol': prefix = '1. '; insertText = selected || '列表项'; break;
+                    }
+
+                    const newText = text.substring(0, start) + prefix + insertText + suffix + text.substring(end);
+                    editingBody.value = newText;
+
+                    nextTick(() => {
+                        textarea.focus();
+                        if (start === end) {
+                            textarea.setSelectionRange(start + prefix.length, start + prefix.length + insertText.length);
+                        } else {
+                            textarea.setSelectionRange(start + prefix.length, start + prefix.length + insertText.length);
+                        }
+                    });
+                };
+
                 // Keyboard Shortcuts
                 onMounted(() => {
                     window.addEventListener('keydown', (e) => {
@@ -1215,7 +1310,7 @@
                     // Menu
                     activeMenuId, toggleMenu, closeAllMenus, showSettingsMenu,
                     // Editor
-                    openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown,
+                    openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown, mdTextarea, insertMarkdown,
                     // Delete
                     deleteIssue,
                     // Priority
