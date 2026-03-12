@@ -798,9 +798,9 @@
                         <button class="md-btn" @click="insertMarkdown('code')" title="代码块">&lt;/&gt;</button>
                     </div>
                     <textarea ref="mdTextarea" v-show="!showPreview" v-model="editingBody" class="editor-textarea"
-                        placeholder="支持 Markdown..."></textarea>
+                        placeholder="支持 Markdown..." spellcheck="false"></textarea>
                     <div ref="previewDiv" v-show="showPreview" class="md-preview active" contenteditable="true"
-                        @input="handlePreviewInput" placeholder="直接在这里输入内容..."></div>
+                        @input="handlePreviewInput" placeholder="直接在这里输入内容..." spellcheck="false"></div>
                 </div>
             </div>
 
