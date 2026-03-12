@@ -777,7 +777,7 @@
                     <input v-model="editingTitle" class="editor-title" placeholder="标题">
                     <div style="display:flex; gap:10px; border-bottom: 1px solid var(--border); padding-bottom:5px;">
                         <button class="logout-btn" @click="showPreview = !showPreview">
-                            {{ showPreview ? '✏️ 编辑' : '👁️ 预览' }}
+                            {{ showPreview ? '📝 源数据' : '👁️ 预览' }}
                         </button>
                     </div>
                     <div v-show="!showPreview" class="md-toolbar">
@@ -1194,7 +1194,7 @@
                     editingIssue.value = issue;
                     editingTitle.value = issue.title;
                     editingBody.value = issue.body || '';
-                    showPreview.value = false;
+                    showPreview.value = true;
                     isEditorOpen.value = true;
                 };
                 const closeEditor = () => { isEditorOpen.value = false; };
