@@ -434,6 +434,33 @@
             border-radius: 8px;
         }
 
+        .md-preview code {
+            background: rgba(150, 150, 150, 0.2);
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 85%;
+            color: #d14;
+        }
+
+        [data-theme='dark'] .md-preview code {
+            color: #ff7b72;
+        }
+
+        .md-preview pre {
+            background: rgba(150, 150, 150, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+        }
+
+        .md-preview pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+
         /* New Group Modal */
         .modal-overlay {
             position: absolute;
