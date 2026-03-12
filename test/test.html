@@ -19,6 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.2/dist/turndown.js"></script>
 
     <style>
         :root {
@@ -415,6 +416,8 @@
             padding: 10px 0;
             font-size: 16px;
             line-height: 1.6;
+            outline: none;
+            /* remove focus outline for WYSIWYG */
         }
 
         .md-preview.active {
@@ -780,7 +783,7 @@
                             {{ showPreview ? '📝 源数据' : '👁️ 预览' }}
                         </button>
                     </div>
-                    <div v-show="!showPreview" class="md-toolbar">
+                    <div class="md-toolbar">
                         <button class="md-btn" @click="insertMarkdown('h1')" title="一级标题">H1</button>
                         <button class="md-btn" @click="insertMarkdown('h2')" title="二级标题">H2</button>
                         <button class="md-btn" @click="insertMarkdown('h3')" title="三级标题">H3</button>
@@ -796,7 +799,8 @@
                     </div>
                     <textarea ref="mdTextarea" v-show="!showPreview" v-model="editingBody" class="editor-textarea"
                         placeholder="支持 Markdown..."></textarea>
-                    <div v-show="showPreview" class="md-preview active" v-html="renderedMarkdown"></div>
+                    <div ref="previewDiv" v-show="showPreview" class="md-preview active" contenteditable="true"
+                        @input="handlePreviewInput" placeholder="直接在这里输入内容..."></div>
                 </div>
             </div>
 
@@ -843,6 +847,19 @@
                 const editingBody = ref('');
                 const showPreview = ref(false);
                 const mdTextarea = ref(null);
+                const previewDiv = ref(null);
+
+                // Initialize Turndown
+                const turndownService = new TurndownService({
+                    headingStyle: 'atx',
+                    codeBlockStyle: 'fenced'
+                });
+                turndownService.addRule('strikethrough', {
+                    filter: ['del', 's', 'strike'],
+                    replacement: function (content) {
+                        return '~~' + content + '~~'
+                    }
+                });
 
                 // Config
                 const defaultTodoLabels = ['Work', 'Life', 'HellDrop', 'Zhutousan'];
@@ -943,6 +960,15 @@
                     return editingBody.value ? marked.parse(editingBody.value) : '';
                 });
 
+                // Manual sync for Preview to avoid cursor jumping
+                const syncPreviewFromMarkdown = () => {
+                    nextTick(() => {
+                        if (previewDiv.value) {
+                            previewDiv.value.innerHTML = renderedMarkdown.value;
+                        }
+                    });
+                };
+
                 // Watchers
                 watch(currentTab, (val) => {
                     localStorage.setItem('currentTab', val);
@@ -954,6 +980,12 @@
                     }
                 }, { immediate: true });
                 watch(collapsedGroups, (val) => localStorage.setItem('collapsedGroups', JSON.stringify(val)), { deep: true });
+
+                watch(showPreview, (val) => {
+                    if (val) {
+                        syncPreviewFromMarkdown();
+                    }
+                });
 
                 // Methods
                 const saveToken = () => {
@@ -1196,6 +1228,9 @@
                     editingBody.value = issue.body || '';
                     showPreview.value = true;
                     isEditorOpen.value = true;
+                    if (showPreview.value) {
+                        syncPreviewFromMarkdown();
+                    }
                 };
                 const closeEditor = () => { isEditorOpen.value = false; };
                 const saveEditor = async (closeAfterSave = true) => {
@@ -1218,7 +1253,40 @@
                     } catch (e) { alert('Save failed'); }
                 };
 
+                const handlePreviewInput = (e) => {
+                    // Convert contenteditable HTML back to Markdown silently
+                    if (previewDiv.value) {
+                        editingBody.value = turndownService.turndown(previewDiv.value.innerHTML);
+                    }
+                };
+
                 const insertMarkdown = (type) => {
+                    if (showPreview.value) {
+                        // WYSIWYG mode using native execCommand
+                        if (previewDiv.value) previewDiv.value.focus();
+                        let command = '';
+                        let value = null;
+
+                        switch (type) {
+                            case 'bold': document.execCommand('bold', false, null); break;
+                            case 'italic': document.execCommand('italic', false, null); break;
+                            case 'strike': document.execCommand('strikeThrough', false, null); break;
+                            case 'h1': document.execCommand('formatBlock', false, 'H1'); break;
+                            case 'h2': document.execCommand('formatBlock', false, 'H2'); break;
+                            case 'h3': document.execCommand('formatBlock', false, 'H3'); break;
+                            case 'ul': document.execCommand('insertUnorderedList', false, null); break;
+                            case 'ol': document.execCommand('insertOrderedList', false, null); break;
+                            case 'code':
+                                document.execCommand('formatBlock', false, 'PRE');
+                                break;
+                        }
+
+                        // Sync markdown after execCommand
+                        handlePreviewInput();
+                        return;
+                    }
+
+                    // Source Mode (Textarea)
                     const textarea = mdTextarea.value;
                     if (!textarea) return;
 
@@ -1310,7 +1378,7 @@
                     // Menu
                     activeMenuId, toggleMenu, closeAllMenus, showSettingsMenu,
                     // Editor
-                    openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown, mdTextarea, insertMarkdown,
+                    openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown, mdTextarea, previewDiv, insertMarkdown, handlePreviewInput,
                     // Delete
                     deleteIssue,
                     // Priority
