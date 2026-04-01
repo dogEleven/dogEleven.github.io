@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("electronAPI", {
   expand: () => ipcRenderer.send("expand-window"),
   collapse: () => ipcRenderer.send("collapse-window"),
+  exit: () => ipcRenderer.send("exit-app"),
 });
 
 window.addEventListener("DOMContentLoaded", () => {

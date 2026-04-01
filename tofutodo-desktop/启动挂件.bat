@@ -19,4 +19,5 @@ if not exist "node_modules\" (
 )
 
 echo 依赖正常，开始启动...
-call npm start
+start "" ".\node_modules\electron\dist\electron.exe" .
+exit

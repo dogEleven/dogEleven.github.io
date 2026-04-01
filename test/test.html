@@ -709,6 +709,9 @@
                             <div class="menu-item" @click="logout" style="border-top: 1px solid var(--border);">
                                 🚪 登出
                             </div>
+                            <div class="menu-item" @click="exitApp" style="border-top: 1px solid var(--border);">
+                                ❌ 退出挂件
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1028,6 +1031,14 @@
                     localStorage.removeItem('gh_token');
                     token.value = '';
                     issues.value = [];
+                };
+
+                const exitApp = () => {
+                    if (window.electronAPI && window.electronAPI.exit) {
+                        window.electronAPI.exit();
+                    } else {
+                        alert('当前非桌面挂件环境，请直接关闭页面。');
+                    }
                 };
 
                 const initData = () => { fetchIssues(); fetchLabels(); };
@@ -1403,7 +1414,7 @@
                     // Groups
                     showGroupModal, newGroupName, createGroup, deleteGroup, isCustomGroup, collapsedGroups, toggleGroup,
                     // Menu
-                    activeMenuId, toggleMenu, closeAllMenus, showSettingsMenu,
+                    activeMenuId, toggleMenu, closeAllMenus, showSettingsMenu, exitApp,
                     // Editor
                     openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown, mdTextarea, previewDiv, insertMarkdown, handlePreviewInput,
                     // Delete

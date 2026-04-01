@@ -57,6 +57,10 @@ function createWindow() {
     ipcMain.on('collapse-window', () => {
         win.setBounds({ x: X_COLLAPSED, y: Y_COLLAPSED, width: BUBBLE_W, height: BUBBLE_H });
     });
+
+    ipcMain.on('exit-app', () => {
+        app.quit();
+    });
 }
 
 const gotTheLock = app.requestSingleInstanceLock();
