@@ -362,6 +362,7 @@
             right: 0;
             bottom: 0;
             background: var(--bg);
+            overscroll-behavior: none;
             z-index: 1000;
             display: flex;
             flex-direction: column;
@@ -387,6 +388,7 @@
             flex: 1;
             padding: 20px;
             overflow-y: auto;
+            overscroll-behavior: none;
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -1014,6 +1016,27 @@
                 watch(showPreview, (val) => {
                     if (val) {
                         syncPreviewFromMarkdown();
+                    }
+                });
+
+                watch(isEditorOpen, (val) => {
+                    const appEl = document.getElementById('app');
+                    if (val) {
+                        if (appEl) {
+                            const modal = document.querySelector('.editor-modal');
+                            if (modal) modal.style.top = appEl.scrollTop + 'px';
+                            appEl.style.setProperty('overflow-y', 'hidden', 'important');
+                        }
+                        document.body.style.setProperty('overflow', 'hidden', 'important');
+                    } else {
+                        if (appEl) {
+                            appEl.style.setProperty('overflow-y', 'auto', 'important');
+                            setTimeout(() => {
+                                const modal = document.querySelector('.editor-modal');
+                                if (modal) modal.style.top = '0px';
+                            }, 300);
+                        }
+                        document.body.style.removeProperty('overflow');
                     }
                 });
 
