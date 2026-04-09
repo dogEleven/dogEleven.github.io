@@ -51,6 +51,7 @@ window.addEventListener("DOMContentLoaded", () => {
       width: calc(100% - 24px) !important;
       border-radius: 26px 0 0 26px !important;
       box-sizing: border-box !important;
+      overflow: hidden !important;
     }
     
     #widget-bubble {
