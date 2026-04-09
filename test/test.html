@@ -356,7 +356,7 @@
 
         /* Full Screen Editor Modal */
         .editor-modal {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
@@ -1020,22 +1020,9 @@
                 });
 
                 watch(isEditorOpen, (val) => {
-                    const appEl = document.getElementById('app');
                     if (val) {
-                        if (appEl) {
-                            const modal = document.querySelector('.editor-modal');
-                            if (modal) modal.style.top = appEl.scrollTop + 'px';
-                            appEl.style.setProperty('overflow-y', 'hidden', 'important');
-                        }
                         document.body.style.setProperty('overflow', 'hidden', 'important');
                     } else {
-                        if (appEl) {
-                            appEl.style.setProperty('overflow-y', 'auto', 'important');
-                            setTimeout(() => {
-                                const modal = document.querySelector('.editor-modal');
-                                if (modal) modal.style.top = '0px';
-                            }, 300);
-                        }
                         document.body.style.removeProperty('overflow');
                     }
                 });
