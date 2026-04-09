@@ -42,6 +42,17 @@ window.addEventListener("DOMContentLoaded", () => {
       transition: opacity 0.2s ease;
     }
     
+    .editor-modal, .modal-overlay {
+      position: fixed !important;
+      left: 24px !important;
+      top: 30px !important;
+      bottom: 30px !important;
+      right: auto !important;
+      width: calc(100% - 24px) !important;
+      border-radius: 26px 0 0 26px !important;
+      box-sizing: border-box !important;
+    }
+    
     #widget-bubble {
       position: fixed;
       left: 0;
