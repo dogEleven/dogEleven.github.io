@@ -1057,13 +1057,22 @@
                     if (!token.value) return;
                     loading.value = true;
                     try {
-                        const res = await api.get(`issues?state=all&sort=updated&direction=desc&per_page=100&_=${Date.now()}`, {
-                            headers: { 'Authorization': `token ${token.value}` }
-                        });
+                        // 分页拉取所有 Issues，突破单次 100 条上限
+                        let allIssues = [];
+                        let page = 1;
+                        while (true) {
+                            const res = await api.get(`issues?state=all&sort=updated&direction=desc&per_page=100&page=${page}&_=${Date.now()}`, {
+                                headers: { 'Authorization': `token ${token.value}` }
+                            });
+                            if (!res.data || res.data.length === 0) break;
+                            allIssues = allIssues.concat(res.data);
+                            if (res.data.length < 100) break;
+                            page++;
+                        }
 
                         // Sort by priority on load
                         const priorityMap = { 'P0': 4, 'P1': 3, 'P2': 2, 'P3': 1 };
-                        res.data.sort((a, b) => {
+                        allIssues.sort((a, b) => {
                             const pA = a.labels.find(l => priorityMap[l.name.toUpperCase()])?.name.toUpperCase() || 'P3';
                             const pB = b.labels.find(l => priorityMap[l.name.toUpperCase()])?.name.toUpperCase() || 'P3';
                             const scoreA = priorityMap[pA] || 1;
@@ -1072,7 +1081,7 @@
                             return new Date(b.updated_at) - new Date(a.updated_at);
                         });
 
-                        issues.value = res.data;
+                        issues.value = allIssues;
                     } catch (e) {
                         alert('Error loading issues: ' + (e.response ? e.response.status : e.message));
                         if (e.response && e.response.status === 401) logout();
