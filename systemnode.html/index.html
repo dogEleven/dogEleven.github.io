@@ -1,0 +1,3639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统导图画布</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      color: #1f2328;
+      background: #f7f3eb;
+      user-select: none;
+    }
+
+    #canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: #f7f3eb;
+    }
+
+    .name-editor {
+      position: fixed;
+      z-index: 20;
+      min-width: 150px;
+      height: 34px;
+      border: 2px solid #d44a30;
+      border-radius: 7px;
+      padding: 0 10px;
+      outline: none;
+      color: #1f2328;
+      background: #fffdfa;
+      font: 700 15px "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      box-shadow: 0 10px 28px rgba(31, 35, 40, 0.14);
+    }
+
+    .menu {
+      position: fixed;
+      z-index: 30;
+      width: 148px;
+      padding: 6px;
+      border: 1px solid rgba(31, 35, 40, 0.13);
+      border-radius: 8px;
+      background: rgba(255, 252, 246, 0.97);
+      box-shadow: 0 16px 40px rgba(31, 35, 40, 0.18);
+    }
+
+    .menu[hidden] {
+      display: none;
+    }
+
+    .menu button {
+      display: block;
+      width: 100%;
+      height: 32px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 10px;
+      color: #1f2328;
+      background: transparent;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .menu button:hover {
+      background: #ebe3d6;
+    }
+
+    .menu button:disabled {
+      color: #a3a09b;
+      cursor: default;
+    }
+
+    .menu button:disabled:hover {
+      background: transparent;
+    }
+
+    .filebar {
+      position: fixed;
+      left: 16px;
+      top: 14px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid rgba(31, 35, 40, 0.1);
+      border-radius: 7px;
+      background: rgba(255, 252, 246, 0.78);
+      box-shadow: 0 10px 24px rgba(31, 35, 40, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .filebar button {
+      height: 32px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 11px;
+      color: #1f2328;
+      background: transparent;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .filebar button:hover {
+      background: #ebe3d6;
+    }
+
+    .file-status {
+      max-width: 360px;
+      overflow: hidden;
+      color: #65615c;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .viewbar {
+      position: fixed;
+      right: 16px;
+      top: 14px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid rgba(31, 35, 40, 0.1);
+      border-radius: 7px;
+      background: rgba(255, 252, 246, 0.78);
+      box-shadow: 0 10px 24px rgba(31, 35, 40, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .viewbar button {
+      height: 32px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 11px;
+      color: #1f2328;
+      background: transparent;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .viewbar button:hover {
+      background: #ebe3d6;
+    }
+
+    .viewbar button:disabled {
+      color: #a3a09b;
+      cursor: default;
+    }
+
+    .viewbar button:disabled:hover {
+      background: transparent;
+    }
+
+    .viewbar button.active {
+      color: #fff;
+      background: #d44a30;
+    }
+
+    .zoom-status {
+      position: fixed;
+      right: 16px;
+      bottom: 14px;
+      z-index: 10;
+      padding: 7px 9px;
+      border: 1px solid rgba(31, 35, 40, 0.1);
+      border-radius: 7px;
+      color: #65615c;
+      background: rgba(255, 252, 246, 0.78);
+      box-shadow: 0 10px 24px rgba(31, 35, 40, 0.08);
+      font-size: 12px;
+      backdrop-filter: blur(12px);
+      pointer-events: none;
+    }
+
+    .snap-toggle {
+      position: fixed;
+      right: 74px;
+      bottom: 14px;
+      z-index: 10;
+      height: 31px;
+      border: 1px solid rgba(31, 35, 40, 0.1);
+      border-radius: 7px;
+      padding: 0 10px;
+      color: #65615c;
+      background: rgba(255, 252, 246, 0.78);
+      box-shadow: 0 10px 24px rgba(31, 35, 40, 0.08);
+      font: inherit;
+      font-size: 12px;
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+    }
+
+    .snap-toggle.active {
+      color: #fff;
+      background: #d44a30;
+    }
+
+    .direction-toggle {
+      position: fixed;
+      left: 16px;
+      bottom: 58px;
+      z-index: 10;
+      height: 31px;
+      border: 1px solid rgba(31, 35, 40, 0.1);
+      border-radius: 7px;
+      padding: 0 10px;
+      color: #65615c;
+      background: rgba(255, 252, 246, 0.78);
+      box-shadow: 0 10px 24px rgba(31, 35, 40, 0.08);
+      font: inherit;
+      font-size: 12px;
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+    }
+
+    .direction-toggle.active {
+      color: #fff;
+      background: #d44a30;
+    }
+
+    .colorbar {
+      position: fixed;
+      left: 16px;
+      bottom: 14px;
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid rgba(31, 35, 40, 0.1);
+      border-radius: 7px;
+      background: rgba(255, 252, 246, 0.78);
+      box-shadow: 0 10px 24px rgba(31, 35, 40, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .colorbar[hidden] {
+      display: none;
+    }
+
+    .colorbar button {
+      height: 28px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 9px;
+      color: #65615c;
+      background: transparent;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .colorbar button:hover {
+      background: #ebe3d6;
+    }
+
+    .colorbar button.active {
+      color: #fff;
+      background: #1f2328;
+    }
+
+    .layout-progress {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      background: rgba(247, 243, 235, 0.28);
+      backdrop-filter: blur(3px);
+    }
+
+    .layout-progress[hidden] {
+      display: none;
+    }
+
+    .layout-progress-panel {
+      width: 320px;
+      padding: 18px;
+      border: 1px solid rgba(31, 35, 40, 0.13);
+      border-radius: 8px;
+      background: rgba(255, 252, 246, 0.96);
+      box-shadow: 0 20px 54px rgba(31, 35, 40, 0.18);
+    }
+
+    .layout-progress-title {
+      margin-bottom: 12px;
+      color: #1f2328;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .layout-progress-track {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #ebe3d6;
+    }
+
+    .layout-progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: #d44a30;
+      transition: width 0.16s ease;
+    }
+
+    .layout-progress-text {
+      margin-top: 9px;
+      color: #65615c;
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="filebar">
+    <button id="newBtn">新建</button>
+    <button id="openBtn">打开</button>
+    <button id="saveBtn">保存</button>
+    <button id="saveAsBtn">另存为</button>
+    <span id="fileStatus" class="file-status">本地自动保存</span>
+  </div>
+  <div class="viewbar">
+    <button id="relationViewBtn">关系视图</button>
+    <button id="centerViewBtn">中心视图</button>
+    <button id="autoLayoutBtn">自动整理</button>
+    <button id="undoBtn">撤销</button>
+  </div>
+  <button id="snapToggleBtn" class="snap-toggle" type="button">网格吸附</button>
+  <button id="directionToggleBtn" class="direction-toggle" type="button">方向</button>
+  <div id="zoomStatus" class="zoom-status">100%</div>
+  <div class="colorbar" id="colorbar">
+    <button type="button" data-scheme="default">默认</button>
+    <button type="button" data-scheme="color">黑白</button>
+    <button type="button" data-scheme="redblue">红蓝</button>
+  </div>
+  <div id="layoutProgress" class="layout-progress" hidden>
+    <div class="layout-progress-panel">
+      <div class="layout-progress-title">正在整理画布</div>
+      <div class="layout-progress-track">
+        <div id="layoutProgressBar" class="layout-progress-bar"></div>
+      </div>
+      <div id="layoutProgressText" class="layout-progress-text">准备中</div>
+    </div>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div id="menu" class="menu" hidden>
+    <button data-action="rename">重命名</button>
+    <button data-action="copy">复制</button>
+    <button data-action="cut">剪切</button>
+    <button data-action="paste">粘贴</button>
+    <button data-action="group">创建分组</button>
+    <button data-action="set-center">设为中心</button>
+    <button data-action="reverse-edge">改变方向</button>
+    <button data-action="delete">删除</button>
+    <button data-action="open">打开</button>
+    <button data-action="save">保存</button>
+    <button data-action="save-as">另存为</button>
+    <button data-action="export">导出 JSON</button>
+    <button data-action="clear">清空画布</button>
+  </div>
+
+  <script>
+    const canvas = document.querySelector("#canvas");
+    const ctx = canvas.getContext("2d");
+    const menu = document.querySelector("#menu");
+    const newBtn = document.querySelector("#newBtn");
+    const openBtn = document.querySelector("#openBtn");
+    const saveBtn = document.querySelector("#saveBtn");
+    const saveAsBtn = document.querySelector("#saveAsBtn");
+    const relationViewBtn = document.querySelector("#relationViewBtn");
+    const centerViewBtn = document.querySelector("#centerViewBtn");
+    const autoLayoutBtn = document.querySelector("#autoLayoutBtn");
+    const undoBtn = document.querySelector("#undoBtn");
+    const fileStatus = document.querySelector("#fileStatus");
+    const colorbar = document.querySelector("#colorbar");
+    const directionToggleBtn = document.querySelector("#directionToggleBtn");
+    const snapToggleBtn = document.querySelector("#snapToggleBtn");
+    const zoomStatus = document.querySelector("#zoomStatus");
+    const layoutProgress = document.querySelector("#layoutProgress");
+    const layoutProgressBar = document.querySelector("#layoutProgressBar");
+    const layoutProgressText = document.querySelector("#layoutProgressText");
+    const STORAGE_KEY = "simple-system-map-canvas-v2";
+    const FILE_DB_NAME = "simple-system-map-files";
+    const FILE_DB_STORE = "handles";
+    const FILE_HANDLE_KEY = "current";
+    const HIGHLIGHT_COLOR = "#fff";
+    let highlightAnimationFrame = null;
+    const EDGE_HANDLE_INSET = 4;
+    const EDGE_HANDLE_OUTSET = 16;
+    const BEZIER_HANDLE_RADIUS = 7;
+    const BEZIER_HANDLE_HIT_RADIUS = 13;
+    const NODE_ACTION_RADIUS = 15;
+    const NODE_ACTION_GAP = 7;
+    const GROUP_PADDING = 26;
+    const GROUP_LABEL_HEIGHT = 22;
+    const GROUP_BORDER_HIT = 12;
+    const DISABLED_NODE_FILL = "#f0f1f3";
+    const DISABLED_TEXT_COLOR = "#b8bec6";
+    const DISABLED_EDGE_COLOR = "rgba(139, 146, 156, 0.36)";
+    const WORLD_WIDTH = 4200;
+    const WORLD_HEIGHT = 3000;
+    const MIN_ZOOM = 0.28;
+    const MAX_ZOOM = 2.4;
+    const GRID_SIZE = 32;
+    const COLOR_SCHEMES = {
+      default: [
+        "#7b3fb2",
+        "#d43d2f",
+        "#e87722",
+        "#e2b72f",
+        "#58a947",
+        "#28a7a1",
+        "#2f6fc8",
+        "#687f9f",
+        "#9aa0a6",
+        "#fffdfa"
+      ],
+      color: [
+        "#121416",
+        "#272c31",
+        "#3f474f",
+        "#59636d",
+        "#747f8a",
+        "#909aa4",
+        "#abb4bd",
+        "#c6cdd4",
+        "#e0e5e9",
+        "#fffdfa"
+      ],
+      redblue: [
+        "#b4232a",
+        "#d84a3a",
+        "#ee7856",
+        "#f4a06f",
+        "#c9dff0",
+        "#8fbfe2",
+        "#5d97d1",
+        "#3f7fc5",
+        "#24509a",
+        "#fffdfa"
+      ]
+    };
+
+    const state = {
+      nodes: [],
+      edges: [],
+      groups: [],
+      selectedNodeId: null,
+      selectedNodeIds: [],
+      selectedEdgeId: null,
+      selectedGroupId: null,
+      dragging: null,
+      selectionBox: null,
+      edgeControlDrag: null,
+      linking: null,
+      hoverNodeId: null,
+      hoverEdgeId: null,
+      hoverNodeAction: null,
+      nodeToolbarId: null,
+      clipboard: null,
+      menuPoint: { x: 0, y: 0 },
+      fileHandle: null,
+      fileDirty: false,
+      relationView: true,
+      centerView: false,
+      centerNodeId: null,
+      snapToGrid: false,
+      showDirection: false,
+      colorScheme: "default",
+      view: { x: 0, y: 0, zoom: 1 },
+      panning: null,
+      spaceDown: false,
+      undoStack: [],
+      nextNodeNumber: 1,
+      nextGroupNumber: 1
+    };
+
+    function normalizeColorScheme(scheme) {
+      if (scheme === "mono") return "default";
+      return COLOR_SCHEMES[scheme] ? scheme : "default";
+    }
+
+    function load() {
+      const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("simple-system-map-canvas-v1");
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.nodes) && Array.isArray(data.edges)) {
+          state.nodes = data.nodes;
+          state.edges = data.edges.map(edge => ({ id: edge.id || makeId(), from: edge.from, to: edge.to, curve: edge.curve || 0, bidirectional: Boolean(edge.bidirectional) }));
+          state.groups = normalizeGroups(data.groups);
+          state.nextNodeNumber = data.nextNodeNumber || state.nodes.length + 1;
+          state.nextGroupNumber = data.nextGroupNumber || state.groups.length + 1;
+          state.snapToGrid = Boolean(data.snapToGrid);
+          state.showDirection = Boolean(data.showDirection);
+          state.relationView = data.relationView !== false;
+          state.centerView = Boolean(data.centerView);
+          state.centerNodeId = findNode(data.centerNodeId) ? data.centerNodeId : state.nodes[0]?.id || null;
+          if (state.centerView) state.relationView = false;
+          state.colorScheme = normalizeColorScheme(data.colorScheme);
+          state.fileDirty = Boolean(data.fileDirty);
+          if (data.view) state.view = { x: data.view.x || 0, y: data.view.y || 0, zoom: data.view.zoom || 1 };
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    function save(markDirty = true) {
+      if (markDirty) state.fileDirty = true;
+      updateAllGroupRects();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        nodes: state.nodes,
+        edges: state.edges,
+        groups: state.groups,
+        relationView: state.relationView,
+        centerView: state.centerView,
+        centerNodeId: state.centerNodeId,
+        snapToGrid: state.snapToGrid,
+        showDirection: state.showDirection,
+        colorScheme: state.colorScheme,
+        fileDirty: state.fileDirty,
+        view: state.view,
+        nextNodeNumber: state.nextNodeNumber,
+        nextGroupNumber: state.nextGroupNumber
+      }));
+      updateFileStatus();
+    }
+
+    function snapshot() {
+      return {
+        nodes: JSON.parse(JSON.stringify(state.nodes)),
+        edges: JSON.parse(JSON.stringify(state.edges)),
+        groups: JSON.parse(JSON.stringify(state.groups)),
+        nextNodeNumber: state.nextNodeNumber,
+        nextGroupNumber: state.nextGroupNumber,
+        relationView: state.relationView,
+        centerView: state.centerView,
+        centerNodeId: state.centerNodeId,
+        snapToGrid: state.snapToGrid,
+        showDirection: state.showDirection,
+        colorScheme: state.colorScheme,
+        view: { ...state.view },
+        selectedNodeId: state.selectedNodeId,
+        selectedNodeIds: [...state.selectedNodeIds],
+        selectedEdgeId: state.selectedEdgeId,
+        selectedGroupId: state.selectedGroupId
+      };
+    }
+
+    function pushUndo() {
+      state.undoStack.push(snapshot());
+      if (state.undoStack.length > 60) state.undoStack.shift();
+      draw();
+    }
+
+    function undo() {
+      const previous = state.undoStack.pop();
+      if (!previous) return;
+      state.nodes = previous.nodes;
+      state.edges = previous.edges;
+      state.groups = previous.groups || [];
+      state.nextNodeNumber = previous.nextNodeNumber;
+      state.nextGroupNumber = previous.nextGroupNumber || state.groups.length + 1;
+      state.relationView = previous.relationView !== false;
+      state.centerView = Boolean(previous.centerView);
+      state.centerNodeId = findNode(previous.centerNodeId) ? previous.centerNodeId : state.nodes[0]?.id || null;
+      if (state.centerView) state.relationView = false;
+      state.snapToGrid = Boolean(previous.snapToGrid);
+      state.showDirection = Boolean(previous.showDirection);
+      state.colorScheme = normalizeColorScheme(previous.colorScheme);
+      state.view = previous.view;
+      state.selectedNodeId = previous.selectedNodeId;
+      state.selectedNodeIds = previous.selectedNodeIds || (previous.selectedNodeId ? [previous.selectedNodeId] : []);
+      state.selectedEdgeId = previous.selectedEdgeId;
+      state.selectedGroupId = previous.selectedGroupId || null;
+      state.dragging = null;
+      state.selectionBox = null;
+      state.edgeControlDrag = null;
+      state.linking = null;
+      state.panning = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+      save();
+      draw();
+    }
+
+    function makeId() {
+      return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+    }
+
+    function resize() {
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * scale);
+      canvas.height = Math.floor(window.innerHeight * scale);
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      if (!state.nodes.length && state.view.x === 0 && state.view.y === 0) centerWorld();
+      draw();
+    }
+
+    function screenPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function worldPoint(event) {
+      return screenToWorld(screenPoint(event));
+    }
+
+    function screenToWorld(point) {
+      return {
+        x: (point.x - state.view.x) / state.view.zoom,
+        y: (point.y - state.view.y) / state.view.zoom
+      };
+    }
+
+    function worldToScreen(point) {
+      return {
+        x: point.x * state.view.zoom + state.view.x,
+        y: point.y * state.view.zoom + state.view.y
+      };
+    }
+
+    function centerWorld() {
+      state.view.x = window.innerWidth / 2 - WORLD_WIDTH / 2;
+      state.view.y = window.innerHeight / 2 - WORLD_HEIGHT / 2;
+      state.view.zoom = 1;
+    }
+
+    function clampView() {
+      const minX = window.innerWidth - WORLD_WIDTH * state.view.zoom - 420;
+      const minY = window.innerHeight - WORLD_HEIGHT * state.view.zoom - 320;
+      state.view.x = Math.min(420, Math.max(minX, state.view.x));
+      state.view.y = Math.min(320, Math.max(minY, state.view.y));
+      state.view.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.view.zoom));
+    }
+
+    function focusRect(rect) {
+      const padding = 180;
+      const width = Math.max(120, rect.maxX - rect.minX);
+      const height = Math.max(120, rect.maxY - rect.minY);
+      const zoom = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, Math.min(
+          window.innerWidth / (width + padding),
+          window.innerHeight / (height + padding)
+        ))
+      );
+      const cx = (rect.minX + rect.maxX) / 2;
+      const cy = (rect.minY + rect.maxY) / 2;
+      state.view.zoom = zoom;
+      state.view.x = window.innerWidth / 2 - cx * zoom;
+      state.view.y = window.innerHeight / 2 - cy * zoom;
+      clampView();
+      save();
+      draw();
+    }
+
+    function focusSelectionOrAll() {
+      if (state.selectedNodeIds.length > 1) {
+        const nodes = state.nodes.filter(node => state.selectedNodeIds.includes(node.id));
+        if (nodes.length) {
+          focusRect({
+            minX: Math.min(...nodes.map(node => node.x - node.r)),
+            minY: Math.min(...nodes.map(node => node.y - node.r)),
+            maxX: Math.max(...nodes.map(node => node.x + node.r)),
+            maxY: Math.max(...nodes.map(node => node.y + node.r))
+          });
+          return;
+        }
+      }
+      if (state.selectedNodeId) {
+        const node = findNode(state.selectedNodeId);
+        if (node) {
+          focusRect({
+            minX: node.x - node.r,
+            minY: node.y - node.r,
+            maxX: node.x + node.r,
+            maxY: node.y + node.r
+          });
+          return;
+        }
+      }
+      if (state.selectedEdgeId) {
+        const edge = findEdge(state.selectedEdgeId);
+        const from = edge && findNode(edge.from);
+        const to = edge && findNode(edge.to);
+        if (from && to) {
+          focusRect({
+            minX: Math.min(from.x, to.x) - 80,
+            minY: Math.min(from.y, to.y) - 80,
+            maxX: Math.max(from.x, to.x) + 80,
+            maxY: Math.max(from.y, to.y) + 80
+          });
+          return;
+        }
+      }
+      if (!state.nodes.length) {
+        centerWorld();
+        draw();
+        return;
+      }
+      focusRect({
+        minX: Math.min(...state.nodes.map(node => node.x - node.r)),
+        minY: Math.min(...state.nodes.map(node => node.y - node.r)),
+        maxX: Math.max(...state.nodes.map(node => node.x + node.r)),
+        maxY: Math.max(...state.nodes.map(node => node.y + node.r))
+      });
+    }
+
+    function nodeAt(x, y) {
+      for (let i = state.nodes.length - 1; i >= 0; i--) {
+        const node = state.nodes[i];
+        if (nodeContains(node, x, y)) return node;
+      }
+      return null;
+    }
+
+    function edgeHandleNodeAt(x, y) {
+      for (let i = state.nodes.length - 1; i >= 0; i--) {
+        const node = state.nodes[i];
+        const distance = nodeEdgeDistance(node, x, y);
+        if (distance >= node.r - EDGE_HANDLE_INSET && distance <= node.r + EDGE_HANDLE_OUTSET) return node;
+      }
+      return null;
+    }
+
+    function nodeInteractionAt(x, y) {
+      for (let i = state.nodes.length - 1; i >= 0; i--) {
+        const node = state.nodes[i];
+        const distance = nodeEdgeDistance(node, x, y);
+        if (distance > node.r + EDGE_HANDLE_OUTSET) continue;
+        return {
+          node,
+          zone: distance >= node.r - EDGE_HANDLE_INSET ? "edge" : "inside"
+        };
+      }
+      return null;
+    }
+
+    function nodeHitZone(node, x, y) {
+      const distance = nodeEdgeDistance(node, x, y);
+      if (distance >= node.r - EDGE_HANDLE_INSET && distance <= node.r + EDGE_HANDLE_OUTSET) return "edge";
+      if (distance < node.r - EDGE_HANDLE_INSET) return "inside";
+      return "outside";
+    }
+
+    function isSquareNode(node) {
+      return node.shape === "square";
+    }
+
+    function nodeEdgeDistance(node, x, y) {
+      if (isSquareNode(node)) return Math.max(Math.abs(x - node.x), Math.abs(y - node.y));
+      return Math.hypot(x - node.x, y - node.y);
+    }
+
+    function nodeContains(node, x, y) {
+      if (isSquareNode(node)) return Math.abs(x - node.x) <= node.r && Math.abs(y - node.y) <= node.r;
+      return Math.hypot(x - node.x, y - node.y) <= node.r;
+    }
+
+    function nodeActionButtons(node) {
+      const radius = NODE_ACTION_RADIUS / state.view.zoom;
+      const gap = NODE_ACTION_GAP / state.view.zoom;
+      const y = node.y - node.r - radius - 18 / state.view.zoom;
+      const startX = node.x - radius * 2 - gap;
+      return ["toggle-shape", "toggle-disabled", "delete"].map((action, index) => ({
+        node,
+        action,
+        x: startX + index * (radius * 2 + gap),
+        y,
+        r: radius
+      }));
+    }
+
+    function nodeActionAt(x, y) {
+      const candidates = [
+        state.nodeToolbarId ? findNode(state.nodeToolbarId) : null,
+        state.hoverNodeId ? findNode(state.hoverNodeId) : null,
+        state.selectedNodeId ? findNode(state.selectedNodeId) : null
+      ].filter(Boolean);
+      for (const node of candidates) {
+        for (const button of nodeActionButtons(node)) {
+          if (Math.hypot(x - button.x, y - button.y) <= button.r + 4 / state.view.zoom) return button;
+        }
+      }
+      return null;
+    }
+
+    function nodeActionHotNodeAt(x, y) {
+      const candidates = [
+        state.nodeToolbarId ? findNode(state.nodeToolbarId) : null,
+        state.hoverNodeId ? findNode(state.hoverNodeId) : null,
+        state.selectedNodeId ? findNode(state.selectedNodeId) : null
+      ].filter(Boolean);
+      const seen = new Set();
+      for (const node of candidates) {
+        if (seen.has(node.id)) continue;
+        seen.add(node.id);
+        const buttons = nodeActionButtons(node);
+        const hotPadding = 18 / state.view.zoom;
+        const reachesButton = buttons.some(button => {
+          const distance = Math.hypot(x - button.x, y - button.y);
+          return distance <= button.r + hotPadding;
+        });
+        const keepsBridge = nodeEdgeDistance(node, x, y) <= node.r + (NODE_ACTION_RADIUS * 2 + 34) / state.view.zoom;
+        if (reachesButton || keepsBridge) return node;
+      }
+      return null;
+    }
+
+    function edgeAt(x, y) {
+      for (let i = state.edges.length - 1; i >= 0; i--) {
+        const edge = state.edges[i];
+        const from = findNode(edge.from);
+        const to = findNode(edge.to);
+        if (!from || !to) continue;
+        const geometry = edgeBezierGeometry(edge, from, to);
+        if (distanceToPolyline(x, y, cubicSamples(geometry.start, geometry.c1, geometry.c2, geometry.end)) <= 10 / state.view.zoom) return edge;
+      }
+      return null;
+    }
+
+    function edgeControlAt(x, y) {
+      const edge = state.selectedEdgeId ? findEdge(state.selectedEdgeId) : null;
+      const from = edge && findNode(edge.from);
+      const to = edge && findNode(edge.to);
+      if (!edge || !from || !to) return null;
+      const geometry = edgeBezierGeometry(edge, from, to);
+      const radius = BEZIER_HANDLE_HIT_RADIUS / state.view.zoom;
+      if (Math.hypot(x - geometry.c1.x, y - geometry.c1.y) <= radius) return { edge, handle: "c1" };
+      if (Math.hypot(x - geometry.c2.x, y - geometry.c2.y) <= radius) return { edge, handle: "c2" };
+      return null;
+    }
+
+    function distanceToSegment(px, py, ax, ay, bx, by) {
+      const dx = bx - ax;
+      const dy = by - ay;
+      const lenSq = dx * dx + dy * dy;
+      if (!lenSq) return Math.hypot(px - ax, py - ay);
+      const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+      return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+    }
+
+    function distanceToPolyline(x, y, points) {
+      if (points.length < 2) return Infinity;
+      let best = Infinity;
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i];
+        const b = points[i + 1];
+        best = Math.min(best, distanceToSegment(x, y, a.x, a.y, b.x, b.y));
+      }
+      return best;
+    }
+
+    function findNode(id) {
+      return state.nodes.find(node => node.id === id);
+    }
+
+    function findEdge(id) {
+      return state.edges.find(edge => edge.id === id);
+    }
+
+    function findGroup(id) {
+      return state.groups.find(group => group.id === id);
+    }
+
+    function normalizeGroups(groups) {
+      if (!Array.isArray(groups)) return [];
+      return groups
+        .filter(group => group && Array.isArray(group.nodeIds) && group.rect)
+        .map(group => ({
+          id: group.id || makeId(),
+          name: group.name || "分组",
+          nodeIds: [...new Set(group.nodeIds)].filter(id => state.nodes.some(node => node.id === id)),
+          rect: {
+            minX: Number(group.rect.minX) || 0,
+            minY: Number(group.rect.minY) || 0,
+            maxX: Number(group.rect.maxX) || 0,
+            maxY: Number(group.rect.maxY) || 0
+          }
+        }))
+        .filter(group => group.nodeIds.length && group.rect.maxX > group.rect.minX && group.rect.maxY > group.rect.minY);
+    }
+
+    function pruneGroups() {
+      const nodeIds = new Set(state.nodes.map(node => node.id));
+      state.groups = state.groups
+        .map(group => ({
+          ...group,
+          nodeIds: group.nodeIds.filter(id => nodeIds.has(id))
+        }))
+        .filter(group => group.nodeIds.length);
+      if (state.selectedGroupId && !findGroup(state.selectedGroupId)) state.selectedGroupId = null;
+    }
+
+    function groupContainedNodeIds(group) {
+      return state.nodes
+        .filter(node => nodeInRect(node, group.rect))
+        .map(node => node.id);
+    }
+
+    function groupNodesRect(group) {
+      const nodes = group.nodeIds.map(findNode).filter(Boolean);
+      if (!nodes.length) return null;
+      const ids = new Set(nodes.map(node => node.id));
+      const bounds = {
+        minX: Math.min(...nodes.map(node => node.x - node.r)),
+        minY: Math.min(...nodes.map(node => node.y - node.r)),
+        maxX: Math.max(...nodes.map(node => node.x + node.r)),
+        maxY: Math.max(...nodes.map(node => node.y + node.r))
+      };
+      state.edges.forEach(edge => {
+        if (!ids.has(edge.from) || !ids.has(edge.to)) return;
+        const from = findNode(edge.from);
+        const to = findNode(edge.to);
+        if (!from || !to) return;
+        cubicLengthSamples(edgeBezierGeometry(edge, from, to)).forEach(sample => {
+          bounds.minX = Math.min(bounds.minX, sample.point.x);
+          bounds.minY = Math.min(bounds.minY, sample.point.y);
+          bounds.maxX = Math.max(bounds.maxX, sample.point.x);
+          bounds.maxY = Math.max(bounds.maxY, sample.point.y);
+        });
+      });
+      return {
+        minX: bounds.minX - GROUP_PADDING,
+        minY: bounds.minY - GROUP_PADDING,
+        maxX: bounds.maxX + GROUP_PADDING,
+        maxY: bounds.maxY + GROUP_PADDING
+      };
+    }
+
+    function updateGroupRect(group) {
+      const rect = groupNodesRect(group);
+      if (rect) group.rect = rect;
+    }
+
+    function updateAllGroupRects() {
+      state.groups.forEach(updateGroupRect);
+      pruneGroups();
+    }
+
+    function groupColor(group) {
+      const nodes = group.nodeIds.map(findNode).filter(node => node && !node.disabled);
+      if (!nodes.length) return "#8b929c";
+      const strongest = nodes.reduce((best, node) => {
+        const degree = visibleDegreeOf(node.id);
+        return !best || degree > best.degree ? { node, degree } : best;
+      }, null);
+      if (!strongest || strongest.degree <= 0) return "#e3e5e8";
+      return importanceColor(strongest.degree);
+    }
+
+    function groupAt(x, y) {
+      const hit = GROUP_BORDER_HIT / state.view.zoom;
+      for (let i = state.groups.length - 1; i >= 0; i--) {
+        const group = state.groups[i];
+        const rect = group.rect;
+        const insideOuter = x >= rect.minX - hit && x <= rect.maxX + hit && y >= rect.minY - hit && y <= rect.maxY + hit;
+        const insideInner = x > rect.minX + hit && x < rect.maxX - hit && y > rect.minY + hit && y < rect.maxY - hit;
+        const onLabel = x >= rect.minX && x <= Math.min(rect.maxX, rect.minX + 220) && y >= rect.minY - 8 && y <= rect.minY + 30;
+        if ((insideOuter && !insideInner) || onLabel) return group;
+      }
+      return null;
+    }
+
+    function createGroupFromRect(rect, nodeIds) {
+      const uniqueIds = [...new Set(nodeIds)].filter(id => findNode(id));
+      if (!uniqueIds.length) return null;
+      const existing = state.groups.find(group => {
+        const sameIds = group.nodeIds.length === uniqueIds.length && uniqueIds.every(id => group.nodeIds.includes(id));
+        return sameIds;
+      });
+      if (existing) return existing;
+      const group = { id: makeId(), name: `分组${state.nextGroupNumber++}`, nodeIds: uniqueIds, rect };
+      updateGroupRect(group);
+      state.groups.push(group);
+      return group;
+    }
+
+    function selectedNodesRect() {
+      const nodes = state.nodes.filter(node => state.selectedNodeIds.includes(node.id));
+      if (!nodes.length) return null;
+      return {
+        minX: Math.min(...nodes.map(node => node.x - node.r)),
+        minY: Math.min(...nodes.map(node => node.y - node.r)),
+        maxX: Math.max(...nodes.map(node => node.x + node.r)),
+        maxY: Math.max(...nodes.map(node => node.y + node.r))
+      };
+    }
+
+    function createGroupFromSelection() {
+      const rect = selectedNodesRect();
+      if (!rect) return null;
+      pushUndo();
+      const group = createGroupFromRect(rect, state.selectedNodeIds);
+      if (group) selectGroup(group.id);
+      save();
+      draw();
+      return group;
+    }
+
+    function addNodesToGroupsIfDroppedInside(nodeIds) {
+      const ids = [...new Set(nodeIds || [])].filter(id => findNode(id));
+      if (!ids.length) return;
+      state.groups.forEach(group => {
+        ids.forEach(id => {
+          const node = findNode(id);
+          if (node && nodeInRect(node, group.rect) && !group.nodeIds.includes(id)) group.nodeIds.push(id);
+        });
+      });
+      updateAllGroupRects();
+    }
+
+    function degreeOf(nodeId) {
+      return state.edges.reduce((sum, edge) => {
+        return edge.from === nodeId || edge.to === nodeId ? sum + edgeWeight(edge) : sum;
+      }, 0);
+    }
+
+    function visibleDegreeOf(nodeId) {
+      const node = findNode(nodeId);
+      if (!node || node.disabled) return 0;
+      return state.edges.reduce((sum, edge) => {
+        if (edge.from !== nodeId && edge.to !== nodeId) return sum;
+        const other = findNode(edge.from === nodeId ? edge.to : edge.from);
+        return other && !other.disabled ? sum + edgeWeight(edge) : sum;
+      }, 0);
+    }
+
+    function edgeWeight(edge) {
+      return edge?.bidirectional ? 2 : 1;
+    }
+
+    function ensureCenterNode(createWhenEmpty = false) {
+      if (state.centerNodeId && findNode(state.centerNodeId)) return findNode(state.centerNodeId);
+      if (!state.nodes.length && createWhenEmpty) {
+        const node = {
+          id: makeId(),
+          name: "中心",
+          x: snapWorldX(WORLD_WIDTH / 2),
+          y: snapWorldY(WORLD_HEIGHT / 2),
+          r: 44
+        };
+        state.nodes.push(node);
+        state.centerNodeId = node.id;
+        state.nextNodeNumber = Math.max(state.nextNodeNumber, 1);
+        return node;
+      }
+      state.centerNodeId = state.nodes[0]?.id || null;
+      return state.centerNodeId ? findNode(state.centerNodeId) : null;
+    }
+
+    function centerLevels() {
+      const center = ensureCenterNode(false);
+      if (!center || center.disabled) return new Map();
+      const levels = new Map([[center.id, 0]]);
+      const queue = [center.id];
+      while (queue.length) {
+        const id = queue.shift();
+        const level = levels.get(id);
+        state.edges.forEach(edge => {
+          if (edge.from !== id && edge.to !== id) return;
+          const nextId = edge.from === id ? edge.to : edge.from;
+          const next = findNode(nextId);
+          if (!next || next.disabled || levels.has(nextId)) return;
+          levels.set(nextId, level + 1);
+          queue.push(nextId);
+        });
+      }
+      return levels;
+    }
+
+    function centerLevelColor(level) {
+      const colors = COLOR_SCHEMES[state.colorScheme] || COLOR_SCHEMES.default;
+      if (!Number.isFinite(level)) return "#e3e5e8";
+      return colors[Math.min(level, colors.length - 1)];
+    }
+
+    function nodeColor(node) {
+      if (node.disabled) return DISABLED_NODE_FILL;
+      if (state.centerView) {
+        const levels = centerLevels();
+        return centerLevelColor(levels.has(node.id) ? levels.get(node.id) : Infinity);
+      }
+      if (!state.relationView) return "#fffdfa";
+      if (visibleDegreeOf(node.id) === 0) return "#e3e5e8";
+      return importanceColor(visibleDegreeOf(node.id));
+    }
+
+    function readableTextColor(fill) {
+      const match = String(fill).match(/^#([0-9a-f]{6})$/i);
+      if (!match) return "#1f2328";
+      const value = match[1];
+      const rgb = [0, 2, 4].map(index => parseInt(value.slice(index, index + 2), 16) / 255);
+      const linear = rgb.map(channel => channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4));
+      const luminance = linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+      return luminance > 0.46 ? "#1f2328" : "#fff";
+    }
+
+    function transparentize(color, alpha) {
+      const match = String(color).match(/^#([0-9a-f]{6})$/i);
+      if (!match) return color;
+      const value = match[1];
+      const [r, g, b] = [0, 2, 4].map(index => parseInt(value.slice(index, index + 2), 16));
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function importanceColor(degree) {
+      const colors = COLOR_SCHEMES[state.colorScheme] || COLOR_SCHEMES.default;
+      if (degree <= 0) return colors[colors.length - 1];
+      const levels = importanceLevels();
+      const rank = importanceRank(degree, levels);
+      const palettes = [
+        [colors[0]],
+        [colors[0], colors[1]],
+        [colors[0], colors[1], colors[2]],
+        [colors[0], colors[1], colors[2], colors[3]],
+        [colors[0], colors[1], colors[2], colors[3], colors[4]],
+        [colors[0], colors[1], colors[2], colors[3], colors[4], colors[5]],
+        [colors[0], colors[1], colors[2], colors[3], colors[4], colors[5], colors[6]],
+        [colors[0], colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], colors[7]]
+      ];
+      const palette = levels.length <= palettes.length
+        ? palettes[levels.length - 1]
+        : colors;
+      return palette[Math.min(rank, palette.length - 1)];
+    }
+
+    function importanceLevels() {
+      return [...new Set(state.nodes.map(node => visibleDegreeOf(node.id)).filter(Boolean))]
+        .sort((a, b) => b - a);
+    }
+
+    function importanceRank(degree, levels = importanceLevels()) {
+      return Math.max(0, levels.indexOf(degree));
+    }
+
+    function edgeColor(edge, active) {
+      if (!state.relationView && !state.centerView) return "rgba(31, 35, 40, 0.28)";
+      const from = findNode(edge.from);
+      const to = findNode(edge.to);
+      if (!from || !to) return "rgba(31, 35, 40, 0.28)";
+      if (from.disabled || to.disabled) return DISABLED_EDGE_COLOR;
+      if (state.centerView) {
+        const levels = centerLevels();
+        const fromLevel = levels.has(from.id) ? levels.get(from.id) : Infinity;
+        const toLevel = levels.has(to.id) ? levels.get(to.id) : Infinity;
+        return centerLevelColor(Math.max(fromLevel, toLevel));
+      }
+      const weaker = visibleDegreeOf(from.id) <= visibleDegreeOf(to.id) ? from : to;
+      return nodeColor(weaker);
+    }
+
+    function edgeWidth(edge, active) {
+      const from = findNode(edge.from);
+      const to = findNode(edge.to);
+      if (!from || !to) return active ? 3 : 2;
+      if (from.disabled || to.disabled) return active ? 2.4 : 1.4;
+      if (state.centerView) return active ? 4.2 : 2.4;
+      const weakDegree = Math.min(visibleDegreeOf(from.id), visibleDegreeOf(to.id));
+      const levels = importanceLevels();
+      if (!levels.length || weakDegree <= 0) return active ? 3 : 2;
+      const rank = importanceRank(weakDegree, levels);
+      const maxWidth = 10.2;
+      const minWidth = 2.2;
+      const ratio = levels.length <= 1 ? 0 : rank / Math.max(1, levels.length - 1);
+      const width = minWidth + (maxWidth - minWidth) * Math.pow(1 - ratio, 1.55);
+      return active ? width + 1.8 : width;
+    }
+
+
+    function addNode(x, y, name = `节点${state.nextNodeNumber++}`) {
+      pushUndo();
+      const node = { id: makeId(), name, x: snapWorldX(x), y: snapWorldY(y), r: 44 };
+      state.nodes.push(node);
+      if (!state.centerNodeId || !findNode(state.centerNodeId)) state.centerNodeId = node.id;
+      selectNode(node.id);
+      save();
+      draw();
+      return node;
+    }
+
+    function connectNodes(fromId, toId) {
+      if (!fromId || !toId || fromId === toId) return null;
+      const sameDirection = state.edges.find(edge => edge.from === fromId && edge.to === toId);
+      if (sameDirection) {
+        selectEdge(sameDirection.id);
+        return sameDirection;
+      }
+      const oppositeDirection = state.edges.find(edge => edge.from === toId && edge.to === fromId);
+      if (oppositeDirection) {
+        if (!oppositeDirection.bidirectional) {
+          pushUndo();
+          oppositeDirection.bidirectional = true;
+          save();
+        }
+        selectEdge(oppositeDirection.id);
+        draw();
+        return oppositeDirection;
+      }
+
+      pushUndo();
+      const edge = { id: makeId(), from: fromId, to: toId, curve: 0, bidirectional: false };
+      state.edges.push(edge);
+      selectEdge(edge.id);
+      save();
+      return edge;
+    }
+
+    function selectedNodeSet() {
+      return new Set(state.selectedNodeIds);
+    }
+
+    function selectedInternalEdges() {
+      const ids = selectedNodeSet();
+      if (!ids.size) return [];
+      return state.edges.filter(edge => ids.has(edge.from) && ids.has(edge.to));
+    }
+
+    function selectionCenter() {
+      const nodes = state.nodes.filter(node => state.selectedNodeIds.includes(node.id));
+      if (!nodes.length) return null;
+      return {
+        x: nodes.reduce((sum, node) => sum + node.x, 0) / nodes.length,
+        y: nodes.reduce((sum, node) => sum + node.y, 0) / nodes.length
+      };
+    }
+
+    function hasNodeSelection() {
+      return state.selectedNodeIds.length > 0;
+    }
+
+    function hasSelection() {
+      return hasNodeSelection() || Boolean(state.selectedEdgeId) || Boolean(state.selectedGroupId);
+    }
+
+    function hasCopyableSelection() {
+      return hasNodeSelection() || Boolean(state.selectedGroupId);
+    }
+
+    function selectNode(id) {
+      state.selectedNodeId = id;
+      state.selectedNodeIds = id ? [id] : [];
+      state.selectedEdgeId = null;
+      state.selectedGroupId = null;
+      state.nodeToolbarId = id;
+    }
+
+    function selectNodes(ids) {
+      state.selectedNodeIds = [...new Set(ids)].filter(id => findNode(id));
+      state.selectedNodeId = state.selectedNodeIds.length === 1 ? state.selectedNodeIds[0] : null;
+      state.selectedEdgeId = null;
+      state.selectedGroupId = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+    }
+
+    function selectEdge(id) {
+      state.selectedEdgeId = id;
+      state.selectedNodeId = null;
+      state.selectedNodeIds = [];
+      state.selectedGroupId = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+    }
+
+    function selectGroup(id) {
+      state.selectedGroupId = id && findGroup(id) ? id : null;
+      state.selectedEdgeId = null;
+      state.selectedNodeId = null;
+      state.selectedNodeIds = [];
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+    }
+
+    function clearSelection() {
+      state.selectedNodeId = null;
+      state.selectedNodeIds = [];
+      state.selectedEdgeId = null;
+      state.selectedGroupId = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+    }
+
+    function deleteSelection() {
+      if (!hasSelection()) return;
+      pushUndo();
+      if (hasNodeSelection()) {
+        const ids = selectedNodeSet();
+        state.nodes = state.nodes.filter(node => !ids.has(node.id));
+        state.edges = state.edges.filter(edge => !ids.has(edge.from) && !ids.has(edge.to));
+        pruneGroups();
+        if (ids.has(state.centerNodeId)) ensureCenterNode(false);
+      } else if (state.selectedEdgeId) {
+        state.edges = state.edges.filter(edge => edge.id !== state.selectedEdgeId);
+      } else if (state.selectedGroupId) {
+        state.groups = state.groups.filter(group => group.id !== state.selectedGroupId);
+      }
+      clearSelection();
+      save();
+      draw();
+    }
+
+    function reverseSelectedEdge() {
+      const edge = state.selectedEdgeId ? findEdge(state.selectedEdgeId) : null;
+      if (!edge) return;
+      pushUndo();
+      [edge.from, edge.to] = [edge.to, edge.from];
+      if (typeof edge.curve === "number") {
+        edge.curve = -edge.curve;
+      } else if (edge.curve?.type === "bezier") {
+        [edge.curve.c1, edge.curve.c2] = [edge.curve.c2, edge.curve.c1];
+      } else if (Array.isArray(edge.curve?.points)) {
+        edge.curve.points = [...edge.curve.points].reverse();
+      }
+      save();
+      draw();
+    }
+
+    function deleteNode(nodeId) {
+      if (!nodeId) return;
+      pushUndo();
+      state.nodes = state.nodes.filter(node => node.id !== nodeId);
+      state.edges = state.edges.filter(edge => edge.from !== nodeId && edge.to !== nodeId);
+      pruneGroups();
+      if (state.centerNodeId === nodeId) ensureCenterNode(false);
+      if (state.selectedNodeId === nodeId) clearSelection();
+      state.selectedNodeIds = state.selectedNodeIds.filter(id => id !== nodeId);
+      state.hoverNodeId = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+      save();
+      draw();
+    }
+
+    function toggleNodeDisabled(nodeId) {
+      const node = findNode(nodeId);
+      if (!node) return;
+      pushUndo();
+      node.disabled = !node.disabled;
+      selectNode(node.id);
+      state.nodeToolbarId = node.id;
+      save();
+      draw();
+    }
+
+    function toggleNodeShape(nodeId) {
+      const node = findNode(nodeId);
+      if (!node) return;
+      pushUndo();
+      node.shape = isSquareNode(node) ? "circle" : "square";
+      selectNode(node.id);
+      state.nodeToolbarId = node.id;
+      save();
+      draw();
+    }
+
+    function setCenterNode(nodeId) {
+      const node = findNode(nodeId);
+      if (!node) return;
+      pushUndo();
+      state.centerNodeId = node.id;
+      state.centerView = true;
+      state.relationView = false;
+      selectNode(node.id);
+      save();
+      draw();
+    }
+
+    function copySelection() {
+      if (!hasCopyableSelection()) return;
+      const selectedGroup = state.selectedGroupId ? findGroup(state.selectedGroupId) : null;
+      const ids = selectedGroup
+        ? new Set(selectedGroup.nodeIds.filter(id => findNode(id)))
+        : selectedNodeSet();
+      const nodes = state.nodes.filter(node => ids.has(node.id)).map(node => JSON.parse(JSON.stringify(node)));
+      const edges = state.edges
+        .filter(edge => ids.has(edge.from) && ids.has(edge.to))
+        .map(edge => JSON.parse(JSON.stringify(edge)));
+      if (!nodes.length) return;
+      const groups = selectedGroup ? [JSON.parse(JSON.stringify(selectedGroup))] : [];
+      const minX = selectedGroup ? selectedGroup.rect.minX : Math.min(...nodes.map(node => node.x));
+      const minY = selectedGroup ? selectedGroup.rect.minY : Math.min(...nodes.map(node => node.y));
+      const maxX = selectedGroup ? selectedGroup.rect.maxX : Math.max(...nodes.map(node => node.x));
+      const maxY = selectedGroup ? selectedGroup.rect.maxY : Math.max(...nodes.map(node => node.y));
+      state.clipboard = {
+        type: "group",
+        nodes,
+        edges,
+        groups,
+        origin: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
+      };
+    }
+
+    function pasteNode(x = state.menuPoint.x, y = state.menuPoint.y) {
+      if (!state.clipboard) return;
+      if (state.clipboard.type === "group") return pasteSelection(x, y);
+      const node = addNode(x, y, state.clipboard.name);
+      save();
+      draw();
+      return node;
+    }
+
+    function pasteSelection(x = state.menuPoint.x, y = state.menuPoint.y) {
+      if (!state.clipboard?.nodes?.length) return;
+      pushUndo();
+      const idMap = new Map();
+      const dx = x - state.clipboard.origin.x;
+      const dy = y - state.clipboard.origin.y;
+      const nodes = state.clipboard.nodes.map(node => {
+        const next = JSON.parse(JSON.stringify(node));
+        idMap.set(node.id, makeId());
+        next.id = idMap.get(node.id);
+        next.x = snapWorldX(node.x + dx);
+        next.y = snapWorldY(node.y + dy);
+        return next;
+      });
+      const edges = (state.clipboard.edges || []).map(edge => {
+        const next = JSON.parse(JSON.stringify(edge));
+        next.id = makeId();
+        next.from = idMap.get(edge.from);
+        next.to = idMap.get(edge.to);
+        if (next.curve?.type === "bezier") {
+          next.curve.c1 = snapWorldPoint({ x: next.curve.c1.x + dx, y: next.curve.c1.y + dy });
+          next.curve.c2 = snapWorldPoint({ x: next.curve.c2.x + dx, y: next.curve.c2.y + dy });
+        } else if (next.curve?.points) {
+          next.curve.points = next.curve.points.map(point => snapWorldPoint({ x: point.x + dx, y: point.y + dy }));
+        }
+        return next;
+      }).filter(edge => edge.from && edge.to);
+      const groups = (state.clipboard.groups || []).map(group => {
+        const next = JSON.parse(JSON.stringify(group));
+        next.id = makeId();
+        next.nodeIds = group.nodeIds.map(id => idMap.get(id)).filter(Boolean);
+        next.rect = {
+          minX: group.rect.minX + dx,
+          minY: group.rect.minY + dy,
+          maxX: group.rect.maxX + dx,
+          maxY: group.rect.maxY + dy
+        };
+        return next;
+      }).filter(group => group.nodeIds.length);
+      state.nodes.push(...nodes);
+      state.edges.push(...edges);
+      state.groups.push(...groups);
+      groups.forEach(updateGroupRect);
+      if (groups.length === 1) selectGroup(groups[0].id);
+      else selectNodes(nodes.map(node => node.id));
+      save();
+      draw();
+    }
+
+    function translateCurve(curve, dx, dy) {
+      if (!curve || typeof curve !== "object") return;
+      if (curve.type === "bezier") {
+        if (curve.c1) curve.c1 = { x: curve.c1.x + dx, y: curve.c1.y + dy };
+        if (curve.c2) curve.c2 = { x: curve.c2.x + dx, y: curve.c2.y + dy };
+      }
+      if (Array.isArray(curve.points)) {
+        curve.points = curve.points.map(point => ({ x: point.x + dx, y: point.y + dy }));
+      }
+    }
+
+    function cutSelection() {
+      if (!hasSelection()) return;
+      copySelection();
+      deleteSelection();
+    }
+
+    async function newMap() {
+      if ((state.nodes.length || state.edges.length || state.groups.length) && !window.confirm("新建导图会清空当前画布，是否继续？")) return;
+      state.nodes = [];
+      state.edges = [];
+      state.groups = [];
+      state.nextNodeNumber = 1;
+      state.nextGroupNumber = 1;
+      state.fileHandle = null;
+      state.relationView = true;
+      state.centerView = false;
+      state.centerNodeId = null;
+      state.snapToGrid = false;
+      state.showDirection = false;
+      state.colorScheme = "default";
+      ensureCenterNode(true);
+      state.undoStack = [];
+      state.linking = null;
+      state.dragging = null;
+      state.selectionBox = null;
+      state.edgeControlDrag = null;
+      state.hoverNodeId = null;
+      state.hoverEdgeId = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+      clearSelection();
+      centerWorld();
+      save();
+      draw();
+      setFileStatus("已新建：本地自动保存");
+      try {
+        await clearStoredFileHandle();
+      } catch {
+      }
+    }
+    function clearAll() {
+      if (!state.nodes.length && !state.edges.length && !state.groups.length) return;
+      pushUndo();
+      state.nodes = [];
+      state.edges = [];
+      state.groups = [];
+      state.nextNodeNumber = 1;
+      state.nextGroupNumber = 1;
+      clearSelection();
+      save();
+      draw();
+    }
+
+    function serializeMap() {
+      return {
+        version: 2,
+        savedAt: new Date().toISOString(),
+        nodes: state.nodes,
+        edges: state.edges,
+        groups: state.groups,
+        relationView: state.relationView,
+        centerView: state.centerView,
+        centerNodeId: state.centerNodeId,
+        snapToGrid: state.snapToGrid,
+        showDirection: state.showDirection,
+        colorScheme: state.colorScheme,
+        view: state.view,
+        nextNodeNumber: state.nextNodeNumber,
+        nextGroupNumber: state.nextGroupNumber
+      };
+    }
+
+    function applyMapData(data) {
+      if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) throw new Error("bad map data");
+      state.nodes = data.nodes;
+      state.edges = data.edges.map(edge => ({ id: edge.id || makeId(), from: edge.from, to: edge.to, curve: edge.curve || 0, bidirectional: Boolean(edge.bidirectional) }));
+      state.groups = normalizeGroups(data.groups);
+      state.nextNodeNumber = data.nextNodeNumber || state.nodes.length + 1;
+      state.nextGroupNumber = data.nextGroupNumber || state.groups.length + 1;
+      state.snapToGrid = Boolean(data.snapToGrid);
+      state.showDirection = Boolean(data.showDirection);
+      state.relationView = data.relationView !== false;
+      state.centerView = Boolean(data.centerView);
+      state.centerNodeId = findNode(data.centerNodeId) ? data.centerNodeId : state.nodes[0]?.id || null;
+      if (state.centerView) state.relationView = false;
+      ensureCenterNode(true);
+      state.colorScheme = normalizeColorScheme(data.colorScheme);
+      state.fileDirty = false;
+      if (data.view) state.view = { x: data.view.x || 0, y: data.view.y || 0, zoom: data.view.zoom || 1 };
+      if (state.snapToGrid) snapAllPointsToGrid();
+      state.dragging = null;
+      state.selectionBox = null;
+      state.edgeControlDrag = null;
+      state.linking = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = null;
+      clearSelection();
+      save(false);
+      focusSelectionOrAll();
+    }
+
+    function exportJson() {
+      const data = {
+        ...serializeMap(),
+        exportedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+      link.href = url;
+      link.download = `system-map-${stamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function setFileStatus(text) {
+      fileStatus.textContent = text;
+    }
+
+    function updateFileStatus() {
+      if (state.fileHandle) {
+        setFileStatus(state.fileDirty ? "有未写回文件的本地修改" : `已保存：${state.fileHandle.name}`);
+      } else {
+        setFileStatus(state.fileDirty ? "本地自动保存（未保存到文件）" : "本地自动保存");
+      }
+    }
+
+    function confirmDiscardUnsavedFileChanges() {
+      if (!state.fileDirty) return true;
+      return window.confirm("当前导图有未保存到文件的修改。打开其他文件会覆盖当前画布，是否继续？");
+    }
+
+    function defaultFileName() {
+      const stamp = new Date().toISOString().slice(0, 10);
+      return `system-map-${stamp}.json`;
+    }
+
+    function openHandleDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(FILE_DB_NAME, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(FILE_DB_STORE);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function storeFileHandle(handle) {
+      const db = await openHandleDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(FILE_DB_STORE, "readwrite");
+        tx.objectStore(FILE_DB_STORE).put(handle, FILE_HANDLE_KEY);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function clearStoredFileHandle() {
+      const db = await openHandleDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(FILE_DB_STORE, "readwrite");
+        tx.objectStore(FILE_DB_STORE).delete(FILE_HANDLE_KEY);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+    async function loadStoredFileHandle() {
+      try {
+        const db = await openHandleDb();
+        const handle = await new Promise((resolve, reject) => {
+          const tx = db.transaction(FILE_DB_STORE, "readonly");
+          const request = tx.objectStore(FILE_DB_STORE).get(FILE_HANDLE_KEY);
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => reject(request.error);
+        });
+        if (!handle) return;
+        state.fileHandle = handle;
+        updateFileStatus();
+      } catch {
+        setFileStatus("本地自动保存");
+      }
+    }
+
+    async function verifyPermission(handle, mode) {
+      const options = { mode };
+      if ((await handle.queryPermission(options)) === "granted") return true;
+      return (await handle.requestPermission(options)) === "granted";
+    }
+
+    async function writeToHandle(handle) {
+      const ok = await verifyPermission(handle, "readwrite");
+      if (!ok) throw new Error("没有文件写入权限");
+      const writable = await handle.createWritable();
+      await writable.write(JSON.stringify(serializeMap(), null, 2));
+      await writable.close();
+    }
+
+    async function openFromFile() {
+      try {
+        if (!confirmDiscardUnsavedFileChanges()) return;
+        if (!window.showOpenFilePicker) {
+          setFileStatus("浏览器不支持直接打开文件，请用导入功能的后续版本");
+          return;
+        }
+        const [handle] = await window.showOpenFilePicker({
+          types: [{
+            description: "系统导图 JSON",
+            accept: { "application/json": [".json"] }
+          }],
+          multiple: false
+        });
+        const file = await handle.getFile();
+        const data = JSON.parse(await file.text());
+        pushUndo();
+        state.fileHandle = handle;
+        await storeFileHandle(handle);
+        applyMapData(data);
+        setFileStatus(`已打开：${handle.name}`);
+      } catch (error) {
+        if (error.name !== "AbortError") setFileStatus(error.message);
+      }
+    }
+
+    async function saveToFile() {
+      try {
+        if (!state.fileHandle) {
+          await saveAsFile();
+          return;
+        }
+        await writeToHandle(state.fileHandle);
+        state.fileDirty = false;
+        save(false);
+        setFileStatus(`已保存：${state.fileHandle.name}`);
+      } catch (error) {
+        setFileStatus(error.message);
+      }
+    }
+
+    async function saveAsFile() {
+      try {
+        if (!window.showSaveFilePicker) {
+          exportJson();
+          setFileStatus("浏览器不支持写回文件，已改为下载 JSON");
+          return;
+        }
+        const handle = await window.showSaveFilePicker({
+          suggestedName: state.fileHandle?.name || defaultFileName(),
+          types: [{
+            description: "系统导图 JSON",
+            accept: { "application/json": [".json"] }
+          }]
+        });
+        state.fileHandle = handle;
+        await storeFileHandle(handle);
+        await writeToHandle(handle);
+        state.fileDirty = false;
+        save(false);
+        setFileStatus(`已另存为：${handle.name}`);
+      } catch (error) {
+        if (error.name !== "AbortError") setFileStatus(error.message);
+      }
+    }
+
+    async function autoLayout() {
+      if (state.nodes.length <= 1) return;
+      showLayoutProgress(4, "准备候选布局");
+      autoLayoutBtn.disabled = true;
+      try {
+        await nextFrame();
+        pushUndo();
+        const area = layoutAreaForCount(state.nodes.length);
+        const candidates = buildLayoutCandidates(area, state.nodes.length);
+        let best = null;
+        for (let i = 0; i < candidates.length; i++) {
+          updateLayoutProgress(8 + i / candidates.length * 70, `评估布局 ${i + 1}/${candidates.length}`);
+          await nextFrame();
+          const result = solveSlotLayout(candidates[i]);
+          if (!best || result.cost < best.cost) best = result;
+        }
+        updateLayoutProgress(82, "应用节点位置");
+        await nextFrame();
+        if (best) applyLayoutAssignment(best.assignment);
+        updateLayoutProgress(92, "聚焦画布");
+        await nextFrame();
+        centerWorld();
+        save();
+        draw();
+        updateLayoutProgress(100, "完成");
+        await delay(180);
+      } finally {
+        hideLayoutProgress();
+        autoLayoutBtn.disabled = false;
+      }
+    }
+
+    function showLayoutProgress(percent, text) {
+      layoutProgress.hidden = false;
+      updateLayoutProgress(percent, text);
+    }
+
+    function updateLayoutProgress(percent, text) {
+      layoutProgressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+      layoutProgressText.textContent = text;
+    }
+
+    function hideLayoutProgress() {
+      layoutProgress.hidden = true;
+    }
+
+    function nextFrame() {
+      return new Promise(resolve => requestAnimationFrame(() => resolve()));
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function layoutAreaForCount(count) {
+      const columns = Math.max(2, Math.ceil(Math.sqrt(count * 1.35)));
+      const rows = Math.max(2, Math.ceil(count / columns));
+      const gapX = 235;
+      const gapY = 210;
+      const width = Math.max(520, (columns - 1) * gapX + 170);
+      const height = Math.max(360, (rows - 1) * gapY + 170);
+      return {
+        cx: WORLD_WIDTH / 2,
+        cy: WORLD_HEIGHT / 2,
+        width: Math.min(width, WORLD_WIDTH * 0.62),
+        height: Math.min(height, WORLD_HEIGHT * 0.62),
+        columns,
+        rows
+      };
+    }
+
+    function buildLayoutCandidates(area, count) {
+      return [
+        buildCircleSlots(area, count, 0.82),
+        buildCircleSlots(area, count, 1),
+        buildGridSlots(area, count, "center"),
+        buildGridSlots(area, count, "row"),
+        buildGridSlots(area, count, "column"),
+        buildHoneycombSlots(area, count, "row"),
+        buildHoneycombSlots(area, count, "column"),
+        buildJitteredSlots(area, count, "center"),
+        buildJitteredSlots(area, count, "row")
+      ];
+    }
+
+    function buildCircleSlots(area, count, scale) {
+      const cx = area.cx;
+      const cy = area.cy;
+      if (count === 1) return [{ x: cx, y: cy }];
+      const radiusX = Math.max(210, area.width * 0.42 * scale);
+      const radiusY = Math.max(160, area.height * 0.42 * scale);
+      const slots = [];
+      for (let i = 0; i < count; i++) {
+        const angle = -Math.PI / 2 + (i / count) * Math.PI * 2;
+        slots.push({ x: cx + Math.cos(angle) * radiusX, y: cy + Math.sin(angle) * radiusY });
+      }
+      return slots;
+    }
+
+    function buildGridSlots(area, count, order) {
+      const columns = area.columns;
+      const rows = area.rows;
+      const gapX = columns === 1 ? 0 : area.width / (columns - 1);
+      const gapY = rows === 1 ? 0 : area.height / (rows - 1);
+      const startX = area.cx - area.width / 2;
+      const startY = area.cy - area.height / 2;
+      const slots = [];
+      for (let row = 0; row < rows; row++) {
+        for (let column = 0; column < columns; column++) {
+          slots.push({
+            x: startX + column * gapX,
+            y: startY + row * gapY
+          });
+        }
+      }
+      if (order === "center") {
+        return slots.sort((a, b) => Math.hypot(a.x - area.cx, a.y - area.cy) - Math.hypot(b.x - area.cx, b.y - area.cy)).slice(0, count);
+      }
+      if (order === "column") {
+        return slots.sort((a, b) => a.x - b.x || a.y - b.y).slice(0, count);
+      }
+      return slots.sort((a, b) => a.y - b.y || a.x - b.x).slice(0, count);
+    }
+
+    function buildHoneycombSlots(area, count, order) {
+      const columns = area.columns;
+      const rows = area.rows;
+      const gapX = columns === 1 ? 0 : area.width / (columns - 1);
+      const gapY = rows === 1 ? 0 : area.height / (rows - 1);
+      const startX = area.cx - area.width / 2;
+      const startY = area.cy - area.height / 2;
+      const slots = [];
+      for (let row = 0; row < rows; row++) {
+        for (let column = 0; column < columns; column++) {
+          const offsetX = row % 2 ? gapX * 0.42 : 0;
+          slots.push({
+            x: startX + column * gapX + offsetX,
+            y: startY + row * gapY
+          });
+        }
+      }
+      return order === "column"
+        ? slots.sort((a, b) => a.x - b.x || a.y - b.y).slice(0, count)
+        : slots.sort((a, b) => a.y - b.y || a.x - b.x).slice(0, count);
+    }
+
+    function buildJitteredSlots(area, count, order) {
+      const base = buildGridSlots(area, count, order);
+      return base.map((slot, index) => {
+        const jitterX = ((index * 37) % 5 - 2) * 22;
+        const jitterY = ((index * 53) % 5 - 2) * 18;
+        return { x: slot.x + jitterX, y: slot.y + jitterY };
+      });
+    }
+
+    function solveSlotLayout(slots) {
+      const nodes = [...state.nodes].sort((a, b) => degreeOf(b.id) - degreeOf(a.id) || a.name.localeCompare(b.name, "zh-CN"));
+      if (nodes.length <= 8) return solveExactSlotLayout(nodes, slots);
+      return solveHeuristicSlotLayout(nodes, slots);
+    }
+
+    function solveExactSlotLayout(nodes, slots) {
+      let best = { cost: Infinity, assignment: null };
+      const used = new Array(slots.length).fill(false);
+      const assignment = new Map();
+      function search(index) {
+        if (index === nodes.length) {
+          const cost = layoutCostForAssignment(assignment);
+          if (cost < best.cost) best = { cost, assignment: new Map(assignment) };
+          return;
+        }
+        for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
+          if (used[slotIndex]) continue;
+          used[slotIndex] = true;
+          assignment.set(nodes[index].id, slots[slotIndex]);
+          search(index + 1);
+          assignment.delete(nodes[index].id);
+          used[slotIndex] = false;
+        }
+      }
+      search(0);
+      return best;
+    }
+
+    function solveHeuristicSlotLayout(nodes, slots) {
+      let assignment = new Map();
+      nodes.forEach((node, index) => assignment.set(node.id, slots[index]));
+      let bestCost = layoutCostForAssignment(assignment);
+      const maxPasses = Math.min(360, 48 + nodes.length * 18);
+      for (let pass = 0; pass < maxPasses; pass++) {
+        let improved = false;
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i].id;
+            const b = nodes[j].id;
+            const aSlot = assignment.get(a);
+            const bSlot = assignment.get(b);
+            assignment.set(a, bSlot);
+            assignment.set(b, aSlot);
+            const next = layoutCostForAssignment(assignment);
+            if (next < bestCost) {
+              bestCost = next;
+              improved = true;
+            } else {
+              assignment.set(a, aSlot);
+              assignment.set(b, bSlot);
+            }
+          }
+        }
+        if (crossingCountForAssignment(assignment) === 0 && pass > 2) break;
+        if (!improved) break;
+      }
+      return { cost: bestCost, assignment };
+    }
+
+    function applyLayoutAssignment(assignment) {
+      state.nodes.forEach(node => {
+        const slot = assignment.get(node.id);
+        if (!slot) return;
+        node.x = snapWorldX(slot.x);
+        node.y = snapWorldY(slot.y);
+      });
+    }
+
+    function clampWorldX(x) {
+      return Math.max(60, Math.min(WORLD_WIDTH - 60, x));
+    }
+
+    function clampWorldY(y) {
+      return Math.max(60, Math.min(WORLD_HEIGHT - 60, y));
+    }
+
+    function snapValue(value) {
+      return Math.round(value / GRID_SIZE) * GRID_SIZE;
+    }
+
+    function snapWorldX(x) {
+      return clampWorldX(state.snapToGrid ? snapValue(x) : x);
+    }
+
+    function snapWorldY(y) {
+      return clampWorldY(state.snapToGrid ? snapValue(y) : y);
+    }
+
+    function snapWorldPoint(point) {
+      return { x: snapWorldX(point.x), y: snapWorldY(point.y) };
+    }
+
+    function snapCurve(curve) {
+      if (!state.snapToGrid || !curve || typeof curve !== "object") return;
+      if (curve.type === "bezier") {
+        if (curve.c1) curve.c1 = snapWorldPoint(curve.c1);
+        if (curve.c2) curve.c2 = snapWorldPoint(curve.c2);
+      }
+      if (Array.isArray(curve.points)) curve.points = curve.points.map(point => snapWorldPoint(point));
+    }
+
+    function snapAllPointsToGrid() {
+      state.nodes.forEach(node => {
+        node.x = snapWorldX(node.x);
+        node.y = snapWorldY(node.y);
+      });
+      state.edges.forEach(edge => snapCurve(edge.curve));
+    }
+
+    function toggleSnapToGrid() {
+      pushUndo();
+      state.snapToGrid = !state.snapToGrid;
+      if (state.snapToGrid) snapAllPointsToGrid();
+      save();
+      draw();
+    }
+
+    function toggleDirection() {
+      state.showDirection = !state.showDirection;
+      save();
+      draw();
+    }
+
+    function setColorScheme(scheme) {
+      if (!COLOR_SCHEMES[scheme] || state.colorScheme === scheme) return;
+      pushUndo();
+      state.colorScheme = scheme;
+      save();
+      draw();
+    }
+
+    function layoutCostForAssignment(assignment) {
+      const crossings = crossingCountForAssignment(assignment);
+      const nodeHits = edgeNodeHitCountForAssignment(assignment);
+      const length = totalEdgeLengthForAssignment(assignment);
+      const center = centerBiasForAssignment(assignment);
+      const spread = connectedSpreadForAssignment(assignment);
+      const overlap = edgeOverlapPenaltyForAssignment(assignment);
+      return crossings * 1000000 + nodeHits * 160000 + overlap * 220000 + length * 0.34 + center * 0.05 + spread * 0.18;
+    }
+
+    function totalEdgeLengthForAssignment(assignment) {
+      return state.edges.reduce((sum, edge) => {
+        const a = assignment.get(edge.from);
+        const b = assignment.get(edge.to);
+        return a && b ? sum + Math.hypot(a.x - b.x, a.y - b.y) : sum;
+      }, 0);
+    }
+
+    function centerBiasForAssignment(assignment) {
+      const cx = WORLD_WIDTH / 2;
+      const cy = WORLD_HEIGHT / 2;
+      return state.nodes.reduce((sum, node) => {
+        const slot = assignment.get(node.id);
+        return slot ? sum + Math.hypot(slot.x - cx, slot.y - cy) * Math.max(1, degreeOf(node.id)) : sum;
+      }, 0);
+    }
+
+    function edgeNodeHitCountForAssignment(assignment) {
+      let count = 0;
+      state.edges.forEach(edge => {
+        const a = assignment.get(edge.from);
+        const b = assignment.get(edge.to);
+        if (!a || !b) return;
+        state.nodes.forEach(node => {
+          if (node.id === edge.from || node.id === edge.to) return;
+          const slot = assignment.get(node.id);
+          if (slot && distanceToSegment(slot.x, slot.y, a.x, a.y, b.x, b.y) < node.r + 18) count++;
+        });
+      });
+      return count;
+    }
+
+    function connectedSpreadForAssignment(assignment) {
+      return state.nodes.reduce((sum, node) => {
+        const here = assignment.get(node.id);
+        if (!here) return sum;
+        const linked = state.edges
+          .map(edge => edge.from === node.id ? edge.to : edge.to === node.id ? edge.from : null)
+          .filter(Boolean)
+          .map(id => assignment.get(id))
+          .filter(Boolean);
+        if (!linked.length) return sum;
+        const mx = linked.reduce((total, slot) => total + slot.x, 0) / linked.length;
+        const my = linked.reduce((total, slot) => total + slot.y, 0) / linked.length;
+        return sum + Math.hypot(here.x - mx, here.y - my);
+      }, 0);
+    }
+
+    function edgeOverlapPenaltyForAssignment(assignment) {
+      let penalty = 0;
+      for (let i = 0; i < state.edges.length; i++) {
+        for (let j = i + 1; j < state.edges.length; j++) {
+          const a = state.edges[i];
+          const b = state.edges[j];
+          const a1 = assignment.get(a.from);
+          const a2 = assignment.get(a.to);
+          const b1 = assignment.get(b.from);
+          const b2 = assignment.get(b.to);
+          if (!a1 || !a2 || !b1 || !b2) continue;
+          const shared = sharedNodeId(a, b);
+          if (shared) {
+            const angle = sharedEdgeAngle(a, b, assignment, shared);
+            if (angle < 8) penalty += 18;
+            else if (angle < 16) penalty += 10;
+            else if (angle < 28) penalty += 4;
+          } else {
+            const distance = segmentSegmentDistance(a1, a2, b1, b2);
+            if (distance < 10) penalty += 14;
+            else if (distance < 24) penalty += 6;
+            else if (distance < 42) penalty += 2;
+          }
+        }
+      }
+      return penalty;
+    }
+
+    function sharedNodeId(a, b) {
+      if (a.from === b.from || a.from === b.to) return a.from;
+      if (a.to === b.from || a.to === b.to) return a.to;
+      return "";
+    }
+
+    function sharedEdgeAngle(a, b, assignment, sharedId) {
+      const origin = assignment.get(sharedId);
+      const aOther = assignment.get(a.from === sharedId ? a.to : a.from);
+      const bOther = assignment.get(b.from === sharedId ? b.to : b.from);
+      if (!origin || !aOther || !bOther) return 180;
+      const ax = aOther.x - origin.x;
+      const ay = aOther.y - origin.y;
+      const bx = bOther.x - origin.x;
+      const by = bOther.y - origin.y;
+      const denom = Math.max(1, Math.hypot(ax, ay) * Math.hypot(bx, by));
+      const cos = Math.max(-1, Math.min(1, (ax * bx + ay * by) / denom));
+      return Math.acos(cos) * 180 / Math.PI;
+    }
+
+    function segmentSegmentDistance(a1, a2, b1, b2) {
+      return Math.min(
+        distanceToSegment(a1.x, a1.y, b1.x, b1.y, b2.x, b2.y),
+        distanceToSegment(a2.x, a2.y, b1.x, b1.y, b2.x, b2.y),
+        distanceToSegment(b1.x, b1.y, a1.x, a1.y, a2.x, a2.y),
+        distanceToSegment(b2.x, b2.y, a1.x, a1.y, a2.x, a2.y)
+      );
+    }
+
+    function crossingCountForAssignment(assignment) {
+      let count = 0;
+      forEachCrossingForAssignment(assignment, () => count++);
+      return count;
+    }
+
+    function forEachCrossingForAssignment(assignment, callback) {
+      for (let i = 0; i < state.edges.length; i++) {
+        for (let j = i + 1; j < state.edges.length; j++) {
+          const a = state.edges[i];
+          const b = state.edges[j];
+          if (a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to) continue;
+          const a1 = assignment.get(a.from);
+          const a2 = assignment.get(a.to);
+          const b1 = assignment.get(b.from);
+          const b2 = assignment.get(b.to);
+          if (!a1 || !a2 || !b1 || !b2) continue;
+          if (segmentsIntersect(a1.x, a1.y, a2.x, a2.y, b1.x, b1.y, b2.x, b2.y)) callback(a, b);
+        }
+      }
+    }
+
+    function assignOuterRoutes(issueCounts = new Map()) {
+      if (state.nodes.length < 4) return;
+      const bounds = routeBounds();
+      const lengths = state.edges
+        .map(edge => {
+          const from = findNode(edge.from);
+          const to = findNode(edge.to);
+          return from && to ? Math.hypot(from.x - to.x, from.y - to.y) : 0;
+        })
+        .sort((a, b) => a - b);
+      const longThreshold = lengths[Math.max(0, Math.floor(lengths.length * 0.62))] || 0;
+      state.edges.forEach(edge => {
+        const from = findNode(edge.from);
+        const to = findNode(edge.to);
+        if (!from || !to) return;
+        const issues = issueCounts.get(edge.id) || 0;
+        const length = Math.hypot(from.x - to.x, from.y - to.y);
+        if (!edgeNeedsOuterRoute(edge, from, to, bounds, issues, length, longThreshold)) return;
+        const route = bestOuterRoute(from, to, bounds);
+        if (route) edge.curve = route;
+      });
+    }
+
+    function graphBounds(padding) {
+      return {
+        left: Math.min(...state.nodes.map(node => node.x - node.r)) - padding,
+        right: Math.max(...state.nodes.map(node => node.x + node.r)) + padding,
+        top: Math.min(...state.nodes.map(node => node.y - node.r)) - padding,
+        bottom: Math.max(...state.nodes.map(node => node.y + node.r)) + padding
+      };
+    }
+
+    function routeBounds() {
+      return graphBounds(Math.max(170, 130 + state.edges.length * 4));
+    }
+
+    function edgeNeedsOuterRoute(edge, from, to, bounds, issues, length, longThreshold) {
+      let hits = 0;
+      state.nodes.forEach(node => {
+        if (node.id === edge.from || node.id === edge.to) return;
+        if (distanceToSegment(node.x, node.y, from.x, from.y, to.x, to.y) < node.r + 24) hits++;
+      });
+      if (hits > 0) return true;
+      const center = { x: (bounds.left + bounds.right) / 2, y: (bounds.top + bounds.bottom) / 2 };
+      const centerDistance = distanceToSegment(center.x, center.y, from.x, from.y, to.x, to.y);
+      const diagonal = Math.hypot(bounds.right - bounds.left, bounds.bottom - bounds.top);
+      const longEdge = length > Math.max(longThreshold, diagonal * 0.42);
+      if (issues >= 2 && length > diagonal * 0.26) return true;
+      if (issues >= 1 && longEdge && centerDistance < 220) return true;
+      return longEdge && centerDistance < 130;
+    }
+
+    function bestOuterRoute(from, to, bounds) {
+      const offsets = [0, 52, 104];
+      const candidates = offsets.flatMap(offset => [
+        outerRouteCandidate("top", from, to, bounds, offset),
+        outerRouteCandidate("bottom", from, to, bounds, offset),
+        outerRouteCandidate("left", from, to, bounds, offset),
+        outerRouteCandidate("right", from, to, bounds, offset)
+      ]).filter(Boolean);
+      let best = null;
+      candidates.forEach(candidate => {
+        const score = routeScore(from, to, candidate.points, candidate.lane, candidate.offset);
+        if (!best || score < best.score) best = { ...candidate, score };
+      });
+      const direct = [
+        boundaryPoint(from, to),
+        boundaryPoint(to, from)
+      ];
+      const directScore = routeScore(from, to, direct, "direct", 0);
+      if (best && best.score > directScore + 700) return null;
+      return best ? { type: "route", mode: "bezier", lane: best.lane, points: best.points } : null;
+    }
+
+    function routedEdgePoints(curve, from, to) {
+      if (curve?.mode === "bezier" && curve.lane) {
+        const lane = parseRouteLane(curve.lane);
+        if (lane) return outerRouteCandidate(lane.side, from, to, routeBounds(), lane.offset).points;
+      }
+      return curve?.points || [];
+    }
+
+    function parseRouteLane(lane) {
+      const match = String(lane).match(/^(top|bottom|left|right)-(\d+)$/);
+      if (!match) return null;
+      return { side: match[1], offset: Number(match[2]) || 0 };
+    }
+
+    function outerRouteCandidate(lane, from, to, bounds, offset) {
+      if (lane === "top" || lane === "bottom") {
+        const y = lane === "top" ? bounds.top - offset : bounds.bottom + offset;
+        const start = boundaryPoint(from, { x: from.x, y });
+        const end = boundaryPoint(to, { x: to.x, y });
+        return {
+          lane: `${lane}-${offset}`,
+          offset,
+          points: [
+            start,
+            { x: start.x, y },
+            { x: end.x, y },
+            end
+          ]
+        };
+      }
+      const x = lane === "left" ? bounds.left - offset : bounds.right + offset;
+      const start = boundaryPoint(from, { x, y: from.y });
+      const end = boundaryPoint(to, { x, y: to.y });
+      return {
+        lane: `${lane}-${offset}`,
+        offset,
+        points: [
+          start,
+          { x, y: start.y },
+          { x, y: end.y },
+          end
+        ]
+      };
+    }
+
+    function boundaryPoint(node, target) {
+      const dx = target.x - node.x;
+      const dy = target.y - node.y;
+      const length = Math.max(1, Math.hypot(dx, dy));
+      if (isSquareNode(node)) {
+        const scale = (node.r + 2) / Math.max(1, Math.max(Math.abs(dx), Math.abs(dy)));
+        return {
+          x: node.x + dx * scale,
+          y: node.y + dy * scale
+        };
+      }
+      return {
+        x: node.x + dx / length * (node.r + 2),
+        y: node.y + dy / length * (node.r + 2)
+      };
+    }
+
+    function defaultBezierControls(from, to) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const length = Math.max(1, Math.hypot(dx, dy));
+      const ux = dx / length;
+      const uy = dy / length;
+      const handleLength = Math.max(70, Math.min(180, length * 0.32));
+      return {
+        c1: { x: from.x + ux * handleLength, y: from.y + uy * handleLength },
+        c2: { x: to.x - ux * handleLength, y: to.y - uy * handleLength }
+      };
+    }
+
+    function edgeBezierGeometry(edge, from, to) {
+      const curve = edge.curve;
+      let controls;
+      if (curve?.type === "bezier" && curve.c1 && curve.c2) {
+        controls = {
+          c1: { x: Number(curve.c1.x) || from.x, y: Number(curve.c1.y) || from.y },
+          c2: { x: Number(curve.c2.x) || to.x, y: Number(curve.c2.y) || to.y }
+        };
+      } else if (curve?.type === "route") {
+        const points = routedEdgePoints(curve, from, to);
+        controls = points.length >= 4
+          ? { c1: { ...points[1] }, c2: { ...points[2] } }
+          : defaultBezierControls(from, to);
+      } else {
+        const amount = Number(curve || 0);
+        if (amount) {
+          const control = curveControlPoint(from, to, amount);
+          const start = boundaryPoint(from, control);
+          const end = boundaryPoint(to, control);
+          controls = {
+            c1: {
+              x: start.x + (control.x - start.x) * 2 / 3,
+              y: start.y + (control.y - start.y) * 2 / 3
+            },
+            c2: {
+              x: end.x + (control.x - end.x) * 2 / 3,
+              y: end.y + (control.y - end.y) * 2 / 3
+            }
+          };
+        } else {
+          controls = defaultBezierControls(from, to);
+        }
+      }
+      return {
+        start: boundaryPoint(from, controls.c1),
+        c1: controls.c1,
+        c2: controls.c2,
+        end: boundaryPoint(to, controls.c2)
+      };
+    }
+
+    function ensureManualBezier(edge) {
+      const from = edge && findNode(edge.from);
+      const to = edge && findNode(edge.to);
+      if (!edge || !from || !to) return null;
+      const geometry = edgeBezierGeometry(edge, from, to);
+      edge.curve = {
+        type: "bezier",
+        c1: { ...geometry.c1 },
+        c2: { ...geometry.c2 }
+      };
+      return edge.curve;
+    }
+
+    function cubicPoint(a, b, c, d, t) {
+      const mt = 1 - t;
+      const mt2 = mt * mt;
+      const t2 = t * t;
+      return {
+        x: mt2 * mt * a.x + 3 * mt2 * t * b.x + 3 * mt * t2 * c.x + t2 * t * d.x,
+        y: mt2 * mt * a.y + 3 * mt2 * t * b.y + 3 * mt * t2 * c.y + t2 * t * d.y
+      };
+    }
+
+    function quadraticPoint(a, b, c, t) {
+      const mt = 1 - t;
+      return {
+        x: mt * mt * a.x + 2 * mt * t * b.x + t * t * c.x,
+        y: mt * mt * a.y + 2 * mt * t * b.y + t * t * c.y
+      };
+    }
+
+    function bezierRouteSamples(points, from, to) {
+      if (points.length >= 4) {
+        const samples = [];
+        for (let i = 0; i <= 32; i++) samples.push(cubicPoint(points[0], points[1], points[2], points[3], i / 32));
+        return samples;
+      }
+      return points.length ? points : [from, to];
+    }
+
+    function cubicSamples(start, c1, c2, end) {
+      const samples = [];
+      for (let i = 0; i <= 32; i++) samples.push(cubicPoint(start, c1, c2, end, i / 32));
+      return samples;
+    }
+
+    function quadraticSamples(from, control, to) {
+      const samples = [];
+      for (let i = 0; i <= 24; i++) samples.push(quadraticPoint(from, control, to, i / 24));
+      return samples;
+    }
+
+    function routeScore(from, to, route, lane, offset = 0) {
+      let score = 0;
+      const directLength = Math.hypot(from.x - to.x, from.y - to.y);
+      const laneUsage = state.edges.filter(edge => edge.curve?.type === "route" && edge.curve.lane === lane).length;
+      score += laneUsage * 120 + offset * 1.8;
+      const samples = bezierRouteSamples(route, from, to);
+      let sampledLength = 0;
+      for (let i = 0; i < samples.length - 1; i++) {
+        const a = samples[i];
+        const b = samples[i + 1];
+        const segmentLength = Math.hypot(a.x - b.x, a.y - b.y);
+        sampledLength += segmentLength;
+        score += segmentLength * 0.42;
+        if (segmentSegmentDistance(a, b, from, to) < 18 && Math.hypot(a.x - b.x, a.y - b.y) > directLength * 0.45) score += 260;
+        state.nodes.forEach(node => {
+          if (node.id === from.id || node.id === to.id) return;
+          const distance = distanceToSegment(node.x, node.y, a.x, a.y, b.x, b.y);
+          if (distance < node.r + 30) score += 9000;
+          else if (distance < node.r + 90) score += 1100;
+        });
+        state.edges.forEach(edge => {
+          if (edge.from === from.id && edge.to === to.id) return;
+          if (edge.from === to.id && edge.to === from.id) return;
+          const otherFrom = findNode(edge.from);
+          const otherTo = findNode(edge.to);
+          if (!otherFrom || !otherTo) return;
+          if (otherFrom.id === from.id || otherFrom.id === to.id || otherTo.id === from.id || otherTo.id === to.id) return;
+          if (segmentsIntersect(a.x, a.y, b.x, b.y, otherFrom.x, otherFrom.y, otherTo.x, otherTo.y)) score += 1600;
+        });
+      }
+      if (sampledLength > directLength * 2.15) score += (sampledLength - directLength * 2.15) * 1.6;
+      return score;
+    }
+
+    function crossingCount() {
+      let count = 0;
+      forEachCrossing(() => count++);
+      return count;
+    }
+
+    function forEachCrossing(callback) {
+      for (let i = 0; i < state.edges.length; i++) {
+        for (let j = i + 1; j < state.edges.length; j++) {
+          const a = state.edges[i];
+          const b = state.edges[j];
+          if (a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to) continue;
+          const a1 = findNode(a.from);
+          const a2 = findNode(a.to);
+          const b1 = findNode(b.from);
+          const b2 = findNode(b.to);
+          if (!a1 || !a2 || !b1 || !b2) continue;
+          if (segmentsIntersect(a1.x, a1.y, a2.x, a2.y, b1.x, b1.y, b2.x, b2.y)) callback(a, b);
+        }
+      }
+    }
+
+    function segmentsIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+      function orient(px, py, qx, qy, rx, ry) {
+        return (qy - py) * (rx - qx) - (qx - px) * (ry - qy);
+      }
+      const o1 = orient(ax, ay, bx, by, cx, cy);
+      const o2 = orient(ax, ay, bx, by, dx, dy);
+      const o3 = orient(cx, cy, dx, dy, ax, ay);
+      const o4 = orient(cx, cy, dx, dy, bx, by);
+      return o1 * o2 < 0 && o3 * o4 < 0;
+    }
+
+    function editNodeName(node) {
+      const input = document.createElement("input");
+      const screen = worldToScreen(node);
+      input.className = "name-editor";
+      input.value = node.name;
+      input.style.left = `${screen.x - 75}px`;
+      input.style.top = `${screen.y - 17}px`;
+      document.body.appendChild(input);
+      input.select();
+
+      function finish(shouldSave) {
+        if (!document.body.contains(input)) return;
+        if (shouldSave) {
+          const name = input.value.trim();
+          if (name && name !== node.name) {
+            pushUndo();
+            node.name = name;
+          }
+          save();
+          draw();
+        }
+        input.remove();
+      }
+
+      input.addEventListener("keydown", event => {
+        event.stopPropagation();
+        if (event.key === "Enter") finish(true);
+        if (event.key === "Escape") finish(false);
+      });
+      input.addEventListener("blur", () => finish(true));
+    }
+
+    function editGroupName(group) {
+      const input = document.createElement("input");
+      const screen = worldToScreen({ x: group.rect.minX, y: group.rect.minY });
+      input.className = "name-editor";
+      input.value = group.name || "";
+      input.style.left = `${screen.x}px`;
+      input.style.top = `${screen.y}px`;
+      input.style.width = `${Math.max(120, Math.min(220, (group.rect.maxX - group.rect.minX) * state.view.zoom))}px`;
+      document.body.appendChild(input);
+      input.select();
+
+      function finish(shouldSave) {
+        if (!document.body.contains(input)) return;
+        if (shouldSave) {
+          const name = input.value.trim();
+          if (name && name !== group.name) {
+            pushUndo();
+            group.name = name;
+          }
+          save();
+          draw();
+        }
+        input.remove();
+      }
+
+      input.addEventListener("keydown", event => {
+        event.stopPropagation();
+        if (event.key === "Enter") finish(true);
+        if (event.key === "Escape") finish(false);
+      });
+      input.addEventListener("blur", () => finish(true));
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      drawGrid();
+      ctx.save();
+      ctx.translate(state.view.x, state.view.y);
+      ctx.scale(state.view.zoom, state.view.zoom);
+      drawGroups();
+      drawEdges();
+      drawLinkPreview();
+      drawNodes();
+      drawEdgeControls();
+      drawNodeActions();
+      drawSelectionBox();
+      ctx.restore();
+      relationViewBtn.classList.toggle("active", state.relationView);
+      centerViewBtn.classList.toggle("active", state.centerView);
+      snapToggleBtn.classList.toggle("active", state.snapToGrid);
+      directionToggleBtn.classList.toggle("active", state.showDirection);
+      colorbar.hidden = !state.relationView && !state.centerView;
+      colorbar.querySelectorAll("button").forEach(button => {
+        button.classList.toggle("active", button.dataset.scheme === state.colorScheme);
+      });
+      undoBtn.disabled = state.undoStack.length === 0;
+      zoomStatus.textContent = `${Math.round(state.view.zoom * 100)}%`;
+      syncHighlightAnimation();
+    }
+
+    function drawGroups() {
+      if (!state.groups.length) return;
+      ctx.save();
+      state.groups.forEach(group => {
+        const rect = group.rect;
+        const width = rect.maxX - rect.minX;
+        const height = rect.maxY - rect.minY;
+        if (width <= 0 || height <= 0) return;
+        const color = groupColor(group);
+        const selected = group.id === state.selectedGroupId;
+        ctx.lineWidth = (selected ? 7 : 5) / state.view.zoom;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = transparentize(color, 0.055);
+        ctx.setLineDash([18 / state.view.zoom, 12 / state.view.zoom]);
+        if (selected) {
+          ctx.shadowColor = transparentize(color, 0.35);
+          ctx.shadowBlur = 12 / state.view.zoom;
+        }
+        ctx.fillRect(rect.minX, rect.minY, width, height);
+        ctx.strokeRect(rect.minX, rect.minY, width, height);
+        ctx.shadowColor = "transparent";
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = "700 17px PingFang SC, Microsoft YaHei, Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(group.name || "分组", rect.minX + 10, rect.minY + GROUP_LABEL_HEIGHT / 2, Math.max(20, Math.min(width, 220) - 18));
+        ctx.setLineDash([18 / state.view.zoom, 12 / state.view.zoom]);
+      });
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    function drawGrid() {
+      const grid = GRID_SIZE * state.view.zoom;
+      if (grid < 8) return;
+      const startX = ((state.view.x % grid) + grid) % grid;
+      const startY = ((state.view.y % grid) + grid) % grid;
+      ctx.save();
+      ctx.strokeStyle = "rgba(31, 35, 40, 0.055)";
+      ctx.lineWidth = 1;
+      for (let x = startX; x < window.innerWidth; x += grid) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, window.innerHeight);
+        ctx.stroke();
+      }
+      for (let y = startY; y < window.innerHeight; y += grid) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(window.innerWidth, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "rgba(31, 35, 40, 0.12)";
+      ctx.strokeRect(state.view.x, state.view.y, WORLD_WIDTH * state.view.zoom, WORLD_HEIGHT * state.view.zoom);
+      ctx.restore();
+    }
+
+    function drawEdges() {
+      ctx.save();
+      ctx.lineCap = "round";
+      state.edges.forEach(edge => {
+        const from = findNode(edge.from);
+        const to = findNode(edge.to);
+        if (!from || !to) return;
+        const selected = edge.id === state.selectedEdgeId;
+        const selectedNodes = selectedNodeSet();
+        const grouped = selectedNodes.has(edge.from) && selectedNodes.has(edge.to);
+        const active = selected || grouped || edge.from === state.selectedNodeId || edge.to === state.selectedNodeId;
+        const disabled = from.disabled || to.disabled;
+        ctx.strokeStyle = disabled ? DISABLED_EDGE_COLOR : active ? rainbowEdge(from, to) : edgeColor(edge, active);
+        ctx.lineWidth = edgeWidth(edge, active);
+        ctx.setLineDash(disabled ? [9 / state.view.zoom, 7 / state.view.zoom] : []);
+        const geometry = edgeBezierGeometry(edge, from, to);
+        if (state.showDirection && !disabled) {
+          const samples = cubicLengthSamples(geometry);
+          const totalLength = samples[samples.length - 1]?.length || 0;
+          const arrowInset = 15 / state.view.zoom;
+          drawEdgePathBetweenDistances(geometry, samples, edge.bidirectional ? arrowInset : 0, Math.max(0, totalLength - arrowInset));
+          drawEdgeDirection(geometry, edge, active, samples);
+          if (edge.bidirectional) drawEdgeDirection(reverseEdgeGeometry(geometry), edge, active);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(geometry.start.x, geometry.start.y);
+          ctx.bezierCurveTo(geometry.c1.x, geometry.c1.y, geometry.c2.x, geometry.c2.y, geometry.end.x, geometry.end.y);
+          ctx.stroke();
+        }
+      });
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    function drawEdgePathBetweenDistances(geometry, samples, startDistance, endDistance) {
+      if (!samples.length || endDistance <= startDistance) return;
+      const totalLength = samples[samples.length - 1].length;
+      if (startDistance <= 0 && endDistance >= totalLength) {
+        ctx.beginPath();
+        ctx.moveTo(geometry.start.x, geometry.start.y);
+        ctx.bezierCurveTo(geometry.c1.x, geometry.c1.y, geometry.c2.x, geometry.c2.y, geometry.end.x, geometry.end.y);
+        ctx.stroke();
+        return;
+      }
+      const start = pointAtCurveDistance(samples, startDistance);
+      const end = pointAtCurveDistance(samples, endDistance);
+      if (!start || !end) return;
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      for (let index = 1; index < samples.length && samples[index].length < endDistance; index++) {
+        if (samples[index].length <= startDistance) continue;
+        ctx.lineTo(samples[index].point.x, samples[index].point.y);
+      }
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+
+    function reverseEdgeGeometry(geometry) {
+      return {
+        start: geometry.end,
+        c1: geometry.c2,
+        c2: geometry.c1,
+        end: geometry.start
+      };
+    }
+
+    function drawEdgeDirection(geometry, edge, active, samples = cubicLengthSamples(geometry)) {
+      const color = edgeColor(edge, active);
+      const totalLength = samples[samples.length - 1]?.length || 0;
+      if (totalLength < 28) return;
+      const spacing = 72 / state.view.zoom;
+      const speed = 74 / state.view.zoom;
+      const offset = performance.now() / 1000 * speed % spacing;
+      const radius = Math.max(edgeWidth(edge, active) * 0.82, (active ? 4.2 : 3.4) / state.view.zoom);
+      const arrowDistance = totalLength;
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      for (let distance = offset; distance < arrowDistance - spacing * 0.35; distance += spacing) {
+        const point = pointAtCurveDistance(samples, distance);
+        if (!point) continue;
+        ctx.globalAlpha = 0.82;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const arrowTip = pointAtCurveDistance(samples, arrowDistance);
+      const arrowTail = pointAtCurveDistance(samples, Math.max(0, arrowDistance - 24 / state.view.zoom));
+      if (arrowTip && arrowTail) drawDirectionArrow(arrowTip, Math.atan2(arrowTip.y - arrowTail.y, arrowTip.x - arrowTail.x), color);
+      ctx.restore();
+    }
+
+    function cubicLengthSamples(geometry) {
+      const samples = [];
+      let previous = geometry.start;
+      let length = 0;
+      samples.push({ point: previous, length });
+      for (let index = 1; index <= 56; index++) {
+        const point = cubicPoint(geometry.start, geometry.c1, geometry.c2, geometry.end, index / 56);
+        length += Math.hypot(point.x - previous.x, point.y - previous.y);
+        samples.push({ point, length });
+        previous = point;
+      }
+      return samples;
+    }
+
+    function pointAtCurveDistance(samples, distance) {
+      if (!samples.length) return null;
+      if (distance <= 0) return samples[0].point;
+      const last = samples[samples.length - 1];
+      if (distance >= last.length) return last.point;
+      for (let index = 1; index < samples.length; index++) {
+        const current = samples[index];
+        const previous = samples[index - 1];
+        if (current.length < distance) continue;
+        const segmentLength = Math.max(1, current.length - previous.length);
+        const ratio = (distance - previous.length) / segmentLength;
+        return {
+          x: previous.point.x + (current.point.x - previous.point.x) * ratio,
+          y: previous.point.y + (current.point.y - previous.point.y) * ratio
+        };
+      }
+      return last.point;
+    }
+
+    function drawDirectionArrow(tip, angle, color) {
+      const length = 15 / state.view.zoom;
+      const width = 8 / state.view.zoom;
+      const base = {
+        x: tip.x - Math.cos(angle) * length,
+        y: tip.y - Math.sin(angle) * length
+      };
+      const normal = { x: -Math.sin(angle), y: Math.cos(angle) };
+      ctx.globalAlpha = 0.94;
+      ctx.beginPath();
+      ctx.moveTo(tip.x, tip.y);
+      ctx.lineTo(base.x + normal.x * width, base.y + normal.y * width);
+      ctx.lineTo(base.x - normal.x * width, base.y - normal.y * width);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    function drawEdgeControls() {
+      const edge = state.selectedEdgeId ? findEdge(state.selectedEdgeId) : null;
+      const from = edge && findNode(edge.from);
+      const to = edge && findNode(edge.to);
+      if (!edge || !from || !to) return;
+      const geometry = edgeBezierGeometry(edge, from, to);
+      const disabled = from.disabled || to.disabled;
+      ctx.save();
+      ctx.lineWidth = 1.5 / state.view.zoom;
+      ctx.strokeStyle = disabled ? DISABLED_EDGE_COLOR : rainbowEdge(geometry.start, geometry.end);
+      ctx.fillStyle = "#fffdfa";
+      ctx.setLineDash([5 / state.view.zoom, 5 / state.view.zoom]);
+      ctx.beginPath();
+      ctx.moveTo(geometry.start.x, geometry.start.y);
+      ctx.lineTo(geometry.c1.x, geometry.c1.y);
+      ctx.moveTo(geometry.end.x, geometry.end.y);
+      ctx.lineTo(geometry.c2.x, geometry.c2.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      [
+        { point: geometry.c1, active: state.edgeControlDrag?.handle === "c1" },
+        { point: geometry.c2, active: state.edgeControlDrag?.handle === "c2" }
+      ].forEach(handle => {
+        ctx.beginPath();
+        ctx.arc(handle.point.x, handle.point.y, BEZIER_HANDLE_RADIUS / state.view.zoom, 0, Math.PI * 2);
+        ctx.fillStyle = disabled && handle.active ? DISABLED_NODE_FILL : handle.active ? rainbowHighlight(handle.point.x, handle.point.y) : "#fffdfa";
+        ctx.fill();
+        ctx.lineWidth = 2 / state.view.zoom;
+        ctx.strokeStyle = disabled ? DISABLED_EDGE_COLOR : rainbowHighlight(handle.point.x, handle.point.y);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    function drawRoutedEdge(from, to, points) {
+      const route = points.length ? points : [from, to];
+      if (route.length >= 4) {
+        ctx.moveTo(route[0].x, route[0].y);
+        ctx.bezierCurveTo(route[1].x, route[1].y, route[2].x, route[2].y, route[3].x, route[3].y);
+        return;
+      }
+      ctx.moveTo(route[0].x, route[0].y);
+      for (let i = 1; i < route.length; i++) {
+        const prev = route[i - 1];
+        const current = route[i];
+        const next = route[i + 1];
+        if (!next) {
+          ctx.lineTo(current.x, current.y);
+          continue;
+        }
+        const radius = 46;
+        const inAngle = Math.atan2(current.y - prev.y, current.x - prev.x);
+        const outAngle = Math.atan2(next.y - current.y, next.x - current.x);
+        const p1 = {
+          x: current.x - Math.cos(inAngle) * radius,
+          y: current.y - Math.sin(inAngle) * radius
+        };
+        const p2 = {
+          x: current.x + Math.cos(outAngle) * radius,
+          y: current.y + Math.sin(outAngle) * radius
+        };
+        ctx.lineTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(current.x, current.y, p2.x, p2.y);
+      }
+    }
+
+    function drawLinkPreview() {
+      if (!state.linking) return;
+      const from = findNode(state.linking.fromId);
+      if (!from) return;
+      ctx.save();
+      ctx.setLineDash([8, 8]);
+      ctx.lineCap = "round";
+      ctx.strokeStyle = rainbowEdge(from, state.linking);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(state.linking.x, state.linking.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawNodes() {
+      const selectedNodes = selectedNodeSet();
+      const centerLevelMap = state.centerView ? centerLevels() : null;
+      state.nodes.forEach(node => {
+        const selected = selectedNodes.has(node.id) || node.id === state.selectedNodeId;
+        const hovered = node.id === state.hoverNodeId;
+        const isLinkSource = state.linking?.fromId === node.id;
+        const isIsolated = (state.relationView && visibleDegreeOf(node.id) === 0) ||
+          (state.centerView && !centerLevelMap.has(node.id));
+        const disabled = Boolean(node.disabled);
+        const fill = isLinkSource ? HIGHLIGHT_COLOR : nodeColor(node);
+
+        ctx.save();
+        drawNodePath(node);
+        if (!disabled) {
+          ctx.fillStyle = fill;
+          ctx.fill();
+        }
+        if (disabled) {
+          ctx.lineWidth = 2 / state.view.zoom;
+          ctx.setLineDash([7 / state.view.zoom, 6 / state.view.zoom]);
+          ctx.strokeStyle = DISABLED_EDGE_COLOR;
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        else if (selected || hovered) {
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = rainbowHighlight(node.x, node.y);
+          ctx.stroke();
+        }
+        else if (!disabled && !state.relationView && !state.centerView) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "rgba(31, 35, 40, 0.28)";
+          ctx.stroke();
+        }
+
+
+        ctx.fillStyle = disabled ? DISABLED_TEXT_COLOR : (state.relationView || state.centerView) && !isLinkSource && !isIsolated ? readableTextColor(fill) : "#1f2328";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        drawTextInNode(node, state.relationView && !state.centerView ? 23 : 0);
+        if (state.relationView && !state.centerView && !disabled) {
+          ctx.font = "700 11px PingFang SC, Microsoft YaHei, Arial";
+          ctx.fillText(visibleDegreeOf(node.id), node.x, node.y + 20);
+        }
+        ctx.restore();
+      });
+    }
+
+    function drawNodePath(node) {
+      ctx.beginPath();
+      if (isSquareNode(node)) {
+        ctx.rect(node.x - node.r, node.y - node.r, node.r * 2, node.r * 2);
+      } else {
+        ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+      }
+    }
+
+    function drawSelectionBox() {
+      if (!state.selectionBox) return;
+      const rect = normalizedSelectionRect(state.selectionBox.start, state.selectionBox.current);
+      ctx.save();
+      ctx.fillStyle = "rgba(212, 74, 48, 0.08)";
+      ctx.strokeStyle = rainbowHighlight((rect.minX + rect.maxX) / 2, (rect.minY + rect.maxY) / 2);
+      ctx.lineWidth = 1.5 / state.view.zoom;
+      ctx.setLineDash([7 / state.view.zoom, 6 / state.view.zoom]);
+      ctx.fillRect(rect.minX, rect.minY, rect.maxX - rect.minX, rect.maxY - rect.minY);
+      ctx.strokeRect(rect.minX, rect.minY, rect.maxX - rect.minX, rect.maxY - rect.minY);
+      ctx.restore();
+    }
+
+    function normalizedSelectionRect(a, b) {
+      return {
+        minX: Math.min(a.x, b.x),
+        minY: Math.min(a.y, b.y),
+        maxX: Math.max(a.x, b.x),
+        maxY: Math.max(a.y, b.y)
+      };
+    }
+
+    function nodeInRect(node, rect) {
+      return node.x >= rect.minX && node.x <= rect.maxX && node.y >= rect.minY && node.y <= rect.maxY;
+    }
+
+    function drawNodeActions() {
+      const node = state.nodeToolbarId ? findNode(state.nodeToolbarId) : state.selectedNodeId ? findNode(state.selectedNodeId) : null;
+      if (!node) return;
+      ctx.save();
+      nodeActionButtons(node).forEach(button => {
+        const hovered = state.hoverNodeAction?.node.id === node.id && state.hoverNodeAction?.action === button.action;
+        ctx.beginPath();
+        ctx.arc(button.x, button.y, button.r, 0, Math.PI * 2);
+        ctx.fillStyle = hovered ? "#fffdfa" : "rgba(255, 252, 246, 0.94)";
+        ctx.shadowColor = "rgba(31, 35, 40, 0.16)";
+        ctx.shadowBlur = 12 / state.view.zoom;
+        ctx.shadowOffsetY = 4 / state.view.zoom;
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.lineWidth = 1.5 / state.view.zoom;
+        ctx.strokeStyle = hovered ? rainbowHighlight(button.x, button.y) : "rgba(31, 35, 40, 0.22)";
+        ctx.stroke();
+        ctx.strokeStyle = button.action === "delete" ? "#d44a30" : "#1f2328";
+        ctx.fillStyle = ctx.strokeStyle;
+        if (button.action === "delete") drawTrashIcon(button.x, button.y, button.r);
+        else if (button.action === "toggle-shape") drawShapeIcon(button.x, button.y, button.r, isSquareNode(node));
+        else drawEyeIcon(button.x, button.y, button.r, node.disabled);
+      });
+      ctx.restore();
+    }
+
+    function drawShapeIcon(x, y, radius, square) {
+      const unit = 1 / state.view.zoom;
+      ctx.save();
+      ctx.lineWidth = 1.8 / state.view.zoom;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      if (square) ctx.arc(x, y, 6.5 * unit, 0, Math.PI * 2);
+      else ctx.rect(x - 6 * unit, y - 6 * unit, 12 * unit, 12 * unit);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEyeIcon(x, y, radius, open) {
+      const unit = 1 / state.view.zoom;
+      ctx.save();
+      ctx.lineWidth = 1.8 / state.view.zoom;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.ellipse(x, y, 8 * unit, 5 * unit, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      if (open) {
+        ctx.beginPath();
+        ctx.arc(x, y, 2.4 * unit, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x - 8 * unit, y + 7 * unit);
+        ctx.lineTo(x + 8 * unit, y - 7 * unit);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawTrashIcon(x, y, radius) {
+      const unit = 1 / state.view.zoom;
+      ctx.save();
+      ctx.lineWidth = 1.8 / state.view.zoom;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(x - 6 * unit, y - 5 * unit);
+      ctx.lineTo(x + 6 * unit, y - 5 * unit);
+      ctx.moveTo(x - 3 * unit, y - 8 * unit);
+      ctx.lineTo(x + 3 * unit, y - 8 * unit);
+      ctx.moveTo(x - 4.5 * unit, y - 2 * unit);
+      ctx.lineTo(x - 3.5 * unit, y + 7 * unit);
+      ctx.lineTo(x + 3.5 * unit, y + 7 * unit);
+      ctx.lineTo(x + 4.5 * unit, y - 2 * unit);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function curveControlPoint(from, to, curve) {
+      const mx = (from.x + to.x) / 2;
+      const my = (from.y + to.y) / 2;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const length = Math.max(1, Math.hypot(dx, dy));
+      return {
+        x: mx + (-dy / length) * curve,
+        y: my + (dx / length) * curve
+      };
+    }
+
+    function drawTextInNode(node, bottomReserve = 0) {
+      if (isSquareNode(node)) drawTextInBox(node.name, node.x, node.y, node.r * 2, node.r * 2, bottomReserve);
+      else drawTextInCircle(node.name, node.x, node.y, node.r, bottomReserve);
+    }
+
+    function drawTextInBox(text, x, y, width, height, bottomReserve = 0) {
+      const characters = Array.from(String(text).trim());
+      if (!characters.length) return;
+
+      const innerWidth = Math.max(8, width - 16);
+      const innerHeight = Math.max(8, height - 14 - bottomReserve);
+      const verticalCenter = -bottomReserve / 2;
+
+      for (let fontSize = 15; fontSize >= 6; fontSize--) {
+        ctx.font = `700 ${fontSize}px PingFang SC, Microsoft YaHei, Arial`;
+        const lineHeight = fontSize * 1.16;
+        const maxLines = Math.max(1, Math.floor(innerHeight / lineHeight));
+
+        for (let lineCount = 1; lineCount <= maxLines; lineCount++) {
+          const lines = wrapTextToWidths(characters, Array(lineCount).fill(innerWidth));
+          if (!lines) continue;
+          lines.forEach((line, index) => {
+            const offset = verticalCenter + (index - (lineCount - 1) / 2) * lineHeight;
+            ctx.fillText(line, x, y + offset);
+          });
+          return;
+        }
+      }
+
+      drawTextInCircle(text, x, y, Math.min(width, height) / 2, bottomReserve);
+    }
+
+    function drawTextInCircle(text, x, y, radius, bottomReserve = 0) {
+      const characters = Array.from(String(text).trim());
+      if (!characters.length) return;
+
+      const innerRadius = Math.max(8, radius - 7);
+      const top = -innerRadius;
+      const bottom = innerRadius - bottomReserve;
+      const verticalCenter = (top + bottom) / 2;
+      const availableHeight = bottom - top;
+
+      for (let fontSize = 15; fontSize >= 6; fontSize--) {
+        ctx.font = `700 ${fontSize}px PingFang SC, Microsoft YaHei, Arial`;
+        const lineHeight = fontSize * 1.16;
+        const maxLines = Math.max(1, Math.floor(availableHeight / lineHeight));
+
+        for (let lineCount = 1; lineCount <= maxLines; lineCount++) {
+          const offsets = Array.from({ length: lineCount }, (_, index) =>
+            verticalCenter + (index - (lineCount - 1) / 2) * lineHeight
+          );
+          const widths = offsets.map(offset => {
+            const chord = 2 * Math.sqrt(Math.max(0, innerRadius ** 2 - offset ** 2));
+            return Math.max(1, chord - 4);
+          });
+          const lines = wrapTextToWidths(characters, widths);
+          if (!lines) continue;
+
+          lines.forEach((line, index) => ctx.fillText(line, x, y + offsets[index]));
+          return;
+        }
+      }
+
+      ctx.font = "700 6px PingFang SC, Microsoft YaHei, Arial";
+      const fallbackLineHeight = 7;
+      const fallbackWidth = innerRadius * 1.35;
+      const fallbackLines = [];
+      let currentLine = "";
+      characters.forEach(character => {
+        const candidate = currentLine + character;
+        if (currentLine && ctx.measureText(candidate).width > fallbackWidth) {
+          fallbackLines.push(currentLine);
+          currentLine = character;
+        } else {
+          currentLine = candidate;
+        }
+      });
+      if (currentLine) fallbackLines.push(currentLine);
+      fallbackLines.forEach((line, index) => {
+        const offset = (index - (fallbackLines.length - 1) / 2) * fallbackLineHeight;
+        ctx.fillText(line, x, y + offset);
+      });
+    }
+
+    function wrapTextToWidths(characters, widths) {
+      const lines = [];
+      let start = 0;
+
+      for (let lineIndex = 0; lineIndex < widths.length; lineIndex++) {
+        const remainingLines = widths.length - lineIndex - 1;
+        const maxEnd = characters.length - remainingLines;
+        let end = start;
+
+        while (end < maxEnd) {
+          const candidate = characters.slice(start, end + 1).join("");
+          if (ctx.measureText(candidate).width > widths[lineIndex]) break;
+          end++;
+        }
+
+        if (end === start) return null;
+        lines.push(characters.slice(start, end).join(""));
+        start = end;
+      }
+
+      return start === characters.length ? lines : null;
+    }
+
+    function rainbowEdge(from, to) {
+      const gradient = ctx.createLinearGradient(from.x, from.y, to.x, to.y);
+      const phase = performance.now() / 18;
+      for (let index = 0; index <= 8; index++) {
+        const hue = (index / 8 * 360 + phase) % 360;
+        gradient.addColorStop(index / 8, `hsl(${hue} 88% 58%)`);
+      }
+      return gradient;
+    }
+    function rainbowHighlight(x, y) {
+      if (typeof ctx.createConicGradient !== "function") return HIGHLIGHT_COLOR;
+      const angle = performance.now() / 1600 * Math.PI * 2;
+      const gradient = ctx.createConicGradient(angle, x, y);
+      const colors = ["#ff3b30", "#ffcc00", "#34c759", "#00c7ff", "#3478f6", "#af52de", "#ff3b30"];
+      colors.forEach((color, index) => gradient.addColorStop(index / (colors.length - 1), color));
+      return gradient;
+    }
+
+    function syncHighlightAnimation() {
+      if (!hasAnimatedHighlight() || highlightAnimationFrame !== null) return;
+      const animate = () => {
+        if (!hasAnimatedHighlight()) {
+          highlightAnimationFrame = null;
+          return;
+        }
+        draw();
+        highlightAnimationFrame = requestAnimationFrame(animate);
+      };
+      highlightAnimationFrame = requestAnimationFrame(animate);
+    }
+
+    function hasAnimatedHighlight() {
+      return Boolean(
+        state.hoverNodeId ||
+        state.selectedNodeId ||
+        state.selectedNodeIds.length ||
+        state.selectedEdgeId ||
+        state.selectedGroupId ||
+        state.selectionBox ||
+        state.dragging ||
+        state.edgeControlDrag ||
+        state.linking ||
+        (state.showDirection && state.edges.length)
+      );
+    }
+    function updateHover(point) {
+      const nodeAction = nodeActionAt(point.x, point.y);
+      if (nodeAction) {
+        state.hoverNodeAction = nodeAction;
+        state.nodeToolbarId = nodeAction.node.id;
+        state.hoverNodeId = nodeAction.node.id;
+        state.hoverEdgeId = null;
+        canvas.style.cursor = "pointer";
+        syncHighlightAnimation();
+        return;
+      }
+      const edgeControl = edgeControlAt(point.x, point.y);
+      const interaction = edgeControl ? null : nodeInteractionAt(point.x, point.y);
+      const edgeNode = interaction?.zone === "edge" ? interaction.node : null;
+      const node = interaction?.node || null;
+      const hotNode = node ? null : nodeActionHotNodeAt(point.x, point.y);
+      const edge = node ? null : edgeAt(point.x, point.y);
+      const group = node || edge ? null : groupAt(point.x, point.y);
+      state.hoverNodeAction = null;
+      state.hoverNodeId = node ? node.id : hotNode ? hotNode.id : null;
+      state.hoverEdgeId = edge ? edge.id : null;
+      state.nodeToolbarId = node ? node.id : hotNode ? hotNode.id : state.selectedNodeId;
+      syncHighlightAnimation();
+      if (state.edgeControlDrag) canvas.style.cursor = "grabbing";
+      else if (edgeControl) canvas.style.cursor = "grab";
+      else if (state.dragging) canvas.style.cursor = "grabbing";
+      else if (state.linking) canvas.style.cursor = "crosshair";
+      else if (node) canvas.style.cursor = interaction.zone === "edge" ? "crosshair" : "grab";
+      else if (hotNode) canvas.style.cursor = "default";
+      else if (edge) canvas.style.cursor = "pointer";
+      else if (group) canvas.style.cursor = "grab";
+      else canvas.style.cursor = "default";
+    }
+
+    function showMenu(x, y, point) {
+      state.menuPoint = point;
+      const node = nodeAt(point.x, point.y);
+      const edge = node ? null : edgeAt(point.x, point.y);
+      const group = node || edge ? null : groupAt(point.x, point.y);
+      if (node) {
+        if (!(state.selectedNodeIds.length > 1 && state.selectedNodeIds.includes(node.id))) selectNode(node.id);
+      }
+      else if (edge) selectEdge(edge.id);
+      else if (group) selectGroup(group.id);
+      else clearSelection();
+
+      const edgeMenu = Boolean(edge);
+      const nodeMenu = Boolean(node);
+      menu.querySelectorAll("button").forEach(button => {
+        const action = button.dataset.action;
+        button.hidden = edgeMenu
+          ? action !== "reverse-edge" && action !== "delete"
+          : action === "reverse-edge" || (action === "set-center" && !nodeMenu);
+      });
+      menu.querySelector('[data-action="reverse-edge"]').disabled = !state.selectedEdgeId;
+      menu.querySelector('[data-action="rename"]').disabled = (!state.selectedNodeId || state.selectedNodeIds.length > 1) && !state.selectedGroupId;
+      menu.querySelector('[data-action="copy"]').disabled = !hasCopyableSelection();
+      menu.querySelector('[data-action="cut"]').disabled = !hasSelection();
+      menu.querySelector('[data-action="paste"]').disabled = !state.clipboard;
+      menu.querySelector('[data-action="group"]').disabled = state.selectedNodeIds.length < 1;
+      menu.querySelector('[data-action="set-center"]').disabled = !state.selectedNodeId || state.selectedNodeIds.length > 1;
+      menu.querySelector('[data-action="delete"]').disabled = !hasSelection();
+      menu.hidden = false;
+      const menuHeight = menu.offsetHeight || (edgeMenu ? 82 : 370);
+      menu.style.left = `${Math.min(x, window.innerWidth - 158)}px`;
+      menu.style.top = `${Math.min(y, window.innerHeight - menuHeight - 10)}px`;
+      draw();
+    }
+
+    function hideMenu() {
+      menu.hidden = true;
+    }
+
+    canvas.addEventListener("dblclick", event => {
+      hideMenu();
+      const point = worldPoint(event);
+      const node = nodeAt(point.x, point.y);
+      if (node) {
+        selectNode(node.id);
+        draw();
+        editNodeName(node);
+      } else {
+        const edge = edgeAt(point.x, point.y);
+        if (edge) {
+          pushUndo();
+          edge.curve = 0;
+          selectEdge(edge.id);
+          save();
+          draw();
+          return;
+        }
+        const group = groupAt(point.x, point.y);
+        if (group) {
+          selectGroup(group.id);
+          draw();
+          editGroupName(group);
+          return;
+        }
+        editNodeName(addNode(point.x, point.y));
+      }
+    });
+
+    canvas.addEventListener("pointerdown", event => {
+      hideMenu();
+      const screen = screenPoint(event);
+      const point = screenToWorld(screen);
+      if (event.button === 1 || (event.button === 0 && state.spaceDown)) {
+        event.preventDefault();
+        state.panning = { startX: screen.x, startY: screen.y, viewX: state.view.x, viewY: state.view.y };
+        canvas.style.cursor = "grabbing";
+        return;
+      }
+      if (event.button !== 0) return;
+      const nodeAction = nodeActionAt(point.x, point.y);
+      if (nodeAction) {
+        event.preventDefault();
+        if (nodeAction.action === "toggle-shape") toggleNodeShape(nodeAction.node.id);
+        if (nodeAction.action === "toggle-disabled") toggleNodeDisabled(nodeAction.node.id);
+        if (nodeAction.action === "delete") deleteNode(nodeAction.node.id);
+        return;
+      }
+      const edgeControl = edgeControlAt(point.x, point.y);
+      if (edgeControl) {
+        selectEdge(edgeControl.edge.id);
+        state.edgeControlDrag = { edgeId: edgeControl.edge.id, handle: edgeControl.handle, undoPushed: false };
+        canvas.style.cursor = "grabbing";
+        draw();
+        return;
+      }
+      const interaction = nodeInteractionAt(point.x, point.y);
+      const edgeNode = interaction?.zone === "edge" ? interaction.node : null;
+      const node = interaction?.node || null;
+      if (edgeNode) {
+        selectNode(edgeNode.id);
+        state.linking = { fromId: edgeNode.id, x: point.x, y: point.y };
+      } else if (node) {
+        if (!state.selectedNodeIds.includes(node.id)) selectNode(node.id);
+        const selectedIds = state.selectedNodeIds.includes(node.id) ? [...state.selectedNodeIds] : [node.id];
+        const selectedSet = new Set(selectedIds);
+        state.dragging = {
+          id: node.id,
+          selectedIds,
+          start: point,
+          nodeStarts: state.nodes
+            .filter(item => selectedSet.has(item.id))
+            .map(item => ({ id: item.id, x: item.x, y: item.y })),
+          edgeStarts: state.edges
+            .filter(edge => selectedSet.has(edge.from) && selectedSet.has(edge.to))
+            .map(edge => ({ id: edge.id, curve: JSON.parse(JSON.stringify(edge.curve || 0)) })),
+          dx: node.x - point.x,
+          dy: node.y - point.y,
+          undoPushed: false
+        };
+      } else {
+        const edge = edgeAt(point.x, point.y);
+        if (edge) selectEdge(edge.id);
+        else {
+          const group = groupAt(point.x, point.y);
+          if (group) {
+            const selectedIds = group.nodeIds.filter(id => findNode(id));
+            const selectedSet = new Set(selectedIds);
+            selectGroup(group.id);
+            state.dragging = {
+              type: "group",
+              id: group.id,
+              selectedIds,
+              start: point,
+              groupStart: JSON.parse(JSON.stringify(group.rect)),
+              nodeStarts: state.nodes
+                .filter(item => selectedSet.has(item.id))
+                .map(item => ({ id: item.id, x: item.x, y: item.y })),
+              edgeStarts: state.edges
+                .filter(edge => selectedSet.has(edge.from) && selectedSet.has(edge.to))
+                .map(edge => ({ id: edge.id, curve: JSON.parse(JSON.stringify(edge.curve || 0)) })),
+              undoPushed: false
+            };
+            canvas.style.cursor = "grabbing";
+          } else {
+            clearSelection();
+            state.selectionBox = { start: point, current: point };
+            canvas.style.cursor = "crosshair";
+          }
+        }
+      }
+      draw();
+    });
+
+    canvas.addEventListener("pointerleave", () => {
+      state.hoverNodeId = null;
+      state.hoverEdgeId = null;
+      state.hoverNodeAction = null;
+      state.nodeToolbarId = state.selectedNodeId;
+      draw();
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      const screen = screenPoint(event);
+      const point = screenToWorld(screen);
+      if (state.panning) {
+        state.view.x = state.panning.viewX + screen.x - state.panning.startX;
+        state.view.y = state.panning.viewY + screen.y - state.panning.startY;
+        clampView();
+        draw();
+        return;
+      }
+      if (state.selectionBox) {
+        state.selectionBox.current = point;
+        canvas.style.cursor = "crosshair";
+        draw();
+        return;
+      }
+      updateHover(point);
+      if (state.edgeControlDrag) {
+        const edge = findEdge(state.edgeControlDrag.edgeId);
+        if (edge) {
+          if (!state.edgeControlDrag.undoPushed) {
+            pushUndo();
+            state.edgeControlDrag.undoPushed = true;
+          }
+          const curve = ensureManualBezier(edge);
+          if (curve) curve[state.edgeControlDrag.handle] = snapWorldPoint(point);
+        }
+        draw();
+        return;
+      }
+      if (state.dragging) {
+        if (!state.dragging.undoPushed) {
+          pushUndo();
+          state.dragging.undoPushed = true;
+        }
+        const moveX = point.x - state.dragging.start.x;
+        const moveY = point.y - state.dragging.start.y;
+        const selectedSet = new Set(state.dragging.selectedIds || [state.dragging.id]);
+        if (state.dragging.type === "group") {
+          const group = state.groups.find(item => item.id === state.dragging.id);
+          if (group && state.dragging.groupStart) {
+            group.rect.minX = state.dragging.groupStart.minX + moveX;
+            group.rect.minY = state.dragging.groupStart.minY + moveY;
+            group.rect.maxX = state.dragging.groupStart.maxX + moveX;
+            group.rect.maxY = state.dragging.groupStart.maxY + moveY;
+          }
+        }
+        state.dragging.nodeStarts.forEach(start => {
+          const node = findNode(start.id);
+          if (!node) return;
+          node.x = snapWorldX(start.x + moveX);
+          node.y = snapWorldY(start.y + moveY);
+        });
+        state.dragging.edgeStarts.forEach(start => {
+          const edge = findEdge(start.id);
+          if (!edge || !selectedSet.has(edge.from) || !selectedSet.has(edge.to)) return;
+          edge.curve = JSON.parse(JSON.stringify(start.curve));
+          translateCurve(edge.curve, moveX, moveY);
+          snapCurve(edge.curve);
+        });
+        if (!state.selectedNodeIds.length && state.dragging.id) {
+          const node = findNode(state.dragging.id);
+          if (node) {
+            node.x = snapWorldX(point.x + state.dragging.dx);
+            node.y = snapWorldY(point.y + state.dragging.dy);
+          }
+        }
+        updateAllGroupRects();
+      }
+      if (state.linking) {
+        state.linking.x = point.x;
+        state.linking.y = point.y;
+      }
+      draw();
+    });
+
+    window.addEventListener("pointerup", event => {
+      const point = worldPoint(event);
+      if (state.panning) {
+        state.panning = null;
+        save();
+        draw();
+        return;
+      }
+      if (state.selectionBox) {
+        const rect = normalizedSelectionRect(state.selectionBox.start, state.selectionBox.current);
+        const width = rect.maxX - rect.minX;
+        const height = rect.maxY - rect.minY;
+        const ids = width < 5 / state.view.zoom && height < 5 / state.view.zoom
+          ? []
+          : state.nodes.filter(node => nodeInRect(node, rect)).map(node => node.id);
+        state.selectionBox = null;
+        if (ids.length) selectNodes(ids);
+        else clearSelection();
+        save();
+        draw();
+        return;
+      }
+      if (state.linking) {
+        const target = nodeAt(point.x, point.y);
+        if (target) connectNodes(state.linking.fromId, target.id);
+        state.linking = null;
+        save();
+        draw();
+      }
+      if (state.edgeControlDrag) {
+        state.edgeControlDrag = null;
+        save();
+        draw();
+      }
+      if (state.dragging) {
+        if (state.dragging.type !== "group") addNodesToGroupsIfDroppedInside(state.dragging.selectedIds || [state.dragging.id]);
+        else updateAllGroupRects();
+        state.dragging = null;
+        save();
+        draw();
+      }
+    });
+
+    canvas.addEventListener("contextmenu", event => {
+      event.preventDefault();
+      showMenu(event.clientX, event.clientY, worldPoint(event));
+    });
+
+    canvas.addEventListener("wheel", event => {
+      event.preventDefault();
+      hideMenu();
+      const screen = screenPoint(event);
+      const before = screenToWorld(screen);
+      const factor = Math.exp(-event.deltaY * 0.001);
+      state.view.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.view.zoom * factor));
+      state.view.x = screen.x - before.x * state.view.zoom;
+      state.view.y = screen.y - before.y * state.view.zoom;
+      clampView();
+      draw();
+    }, { passive: false });
+
+    menu.addEventListener("click", event => {
+      const button = event.target.closest("button");
+      if (!button || button.disabled) return;
+      const action = button.dataset.action;
+      if (action === "rename") {
+        const node = findNode(state.selectedNodeId);
+        const group = findGroup(state.selectedGroupId);
+        if (node) editNodeName(node);
+        else if (group) editGroupName(group);
+      }
+      if (action === "copy") copySelection();
+      if (action === "cut") cutSelection();
+      if (action === "paste") pasteNode();
+      if (action === "group") createGroupFromSelection();
+      if (action === "set-center") setCenterNode(state.selectedNodeId);
+      if (action === "reverse-edge") reverseSelectedEdge();
+      if (action === "delete") deleteSelection();
+      if (action === "open") openFromFile();
+      if (action === "save") saveToFile();
+      if (action === "save-as") saveAsFile();
+      if (action === "export") exportJson();
+      if (action === "clear") clearAll();
+      hideMenu();
+    });
+
+    window.addEventListener("keydown", event => {
+      if (event.target instanceof HTMLInputElement) return;
+      const command = event.metaKey || event.ctrlKey;
+      if (command && event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        copySelection();
+      }
+      if (command && event.key.toLowerCase() === "x") {
+        event.preventDefault();
+        cutSelection();
+      }
+      if (command && event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      }
+      if (command && event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        const center = screenToWorld({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        const anchor = selectionCenter() || (state.selectedNodeId ? findNode(state.selectedNodeId) : null);
+        pasteNode((anchor ? anchor.x + 36 : center.x) || center.x,
+          (anchor ? anchor.y + 36 : center.y) || center.y);
+      }
+      if (command && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (event.shiftKey) saveAsFile();
+        else saveToFile();
+      }
+      if (command && event.key.toLowerCase() === "o") {
+        event.preventDefault();
+        openFromFile();
+      }
+      if (!command && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        focusSelectionOrAll();
+      }
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        deleteSelection();
+      }
+      if (event.key === "Escape") {
+        state.dragging = null;
+        state.selectionBox = null;
+        state.edgeControlDrag = null;
+        state.linking = null;
+        state.panning = null;
+        state.hoverNodeAction = null;
+        state.nodeToolbarId = null;
+        hideMenu();
+        clearSelection();
+        draw();
+      }
+      if (event.code === "Space") {
+        state.spaceDown = true;
+        canvas.style.cursor = "grab";
+      }
+    });
+
+    window.addEventListener("keyup", event => {
+      if (event.code === "Space") {
+        state.spaceDown = false;
+        if (!state.panning) canvas.style.cursor = "default";
+      }
+    });
+
+    window.addEventListener("pointerdown", event => {
+      if (!menu.hidden && !menu.contains(event.target)) hideMenu();
+    });
+    newBtn.addEventListener("click", newMap);
+    openBtn.addEventListener("click", openFromFile);
+    saveBtn.addEventListener("click", saveToFile);
+    saveAsBtn.addEventListener("click", saveAsFile);
+    snapToggleBtn.addEventListener("click", toggleSnapToGrid);
+    directionToggleBtn.addEventListener("click", toggleDirection);
+    colorbar.addEventListener("click", event => {
+      const button = event.target.closest("button[data-scheme]");
+      if (button) setColorScheme(button.dataset.scheme);
+    });
+    relationViewBtn.addEventListener("click", () => {
+      state.relationView = !state.relationView;
+      if (state.relationView) state.centerView = false;
+      save();
+      draw();
+    });
+    centerViewBtn.addEventListener("click", () => {
+      ensureCenterNode(true);
+      if (state.selectedNodeId) state.centerNodeId = state.selectedNodeId;
+      state.centerView = !state.centerView;
+      if (state.centerView) state.relationView = false;
+      save();
+      draw();
+    });
+    autoLayoutBtn.addEventListener("click", autoLayout);
+    undoBtn.addEventListener("click", undo);
+    window.addEventListener("resize", resize);
+
+    load();
+    ensureCenterNode(true);
+    save(false);
+    resize();
+    focusSelectionOrAll();
+    loadStoredFileHandle();
+  </script>
+</body>
+</html>
