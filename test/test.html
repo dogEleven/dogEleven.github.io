@@ -248,6 +248,79 @@
             border-top-color: var(--text);
         }
 
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            z-index: 9999;
+        }
+
+        .tofu-loader {
+            width: 156px;
+            height: 98px;
+            overflow: visible;
+        }
+
+        .tofu-piece-motion {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: tofu-mask-rise 7.2s ease-in-out infinite both;
+        }
+
+        .tofu-piece-window:nth-child(2) .tofu-piece-motion {
+            animation-delay: 1.6s;
+        }
+
+        .tofu-piece-window:nth-child(3) .tofu-piece-motion {
+            animation-delay: 0.8s;
+        }
+
+        .tofu-shadow {
+            animation: tofu-shadow 1.6s ease-in-out infinite;
+            transform-origin: center;
+        }
+
+        @keyframes tofu-mask-rise {
+            0%, 14% {
+                transform: translateY(72px) rotate(0deg);
+            }
+
+            30% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            47% {
+                transform: translateY(-4px) rotate(-1.2deg);
+            }
+
+            64% {
+                transform: translateY(2px) rotate(1deg);
+            }
+
+            81% {
+                transform: translateY(-3px) rotate(-0.8deg);
+            }
+
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+        }
+
+        @keyframes tofu-shadow {
+            0%, 100% {
+                opacity: 0.18;
+                transform: scaleX(1);
+            }
+
+            50% {
+                opacity: 0.08;
+                transform: scaleX(0.72);
+            }
+        }
+
         .groups-container {
             display: flex;
             flex-direction: column;
@@ -769,7 +842,41 @@
                 </div>
             </div>
 
-            <div v-if="loading" style="text-align: center; color: var(--subtext); padding: 20px;">Loading...</div>
+            <div v-if="loading" class="loading-screen" aria-label="Loading">
+                <svg class="tofu-loader" viewBox="0 0 482 304" role="img" aria-hidden="true">
+                    <defs>
+                        <mask id="loader-tofu-mask-1" mask-type="alpha" maskUnits="userSpaceOnUse" x="138" y="60" width="100" height="60">
+                            <rect x="138" y="60" width="100" height="60" fill="white" />
+                        </mask>
+                        <mask id="loader-tofu-mask-2" mask-type="alpha" maskUnits="userSpaceOnUse" x="244" y="60" width="100" height="60">
+                            <rect x="244" y="60" width="100" height="60" fill="white" />
+                        </mask>
+                        <mask id="loader-tofu-mask-3" mask-type="alpha" maskUnits="userSpaceOnUse" x="191" y="0" width="100" height="60">
+                            <rect x="191" width="100" height="60" fill="white" />
+                        </mask>
+                    </defs>
+                    <ellipse class="tofu-shadow" cx="241" cy="255" rx="112" ry="16" fill="var(--text)" />
+                    <path d="M241 0C374.101 0 482 40.2944 482 90C482 139.706 451 303.5 241 303.5C31 303.5 0 139.706 0 90C0 40.2944 107.899 0 241 0ZM241.5 17C133.528 17 46 49.6832 46 90C46 130.317 133.528 163 241.5 163C349.472 163 437 130.317 437 90C437 49.6832 349.472 17 241.5 17Z" fill="var(--text)" />
+                    <ellipse cx="241.5" cy="90" rx="195.5" ry="73" fill="var(--card-bg)" />
+                    <g fill="var(--text)">
+                        <g class="tofu-piece-window" mask="url(#loader-tofu-mask-1)">
+                            <g class="tofu-piece-motion">
+                                <rect x="147.446" y="109" width="60" height="60" transform="rotate(-30 147.446 109)" />
+                            </g>
+                        </g>
+                        <g class="tofu-piece-window" mask="url(#loader-tofu-mask-2)">
+                            <g class="tofu-piece-motion">
+                                <rect x="294.427" y="77.5547" width="60" height="60" transform="rotate(45 294.427 77.5547)" />
+                            </g>
+                        </g>
+                        <g class="tofu-piece-window" mask="url(#loader-tofu-mask-3)">
+                            <g class="tofu-piece-motion">
+                                <rect x="219.529" y="23" width="60" height="60" transform="rotate(15 219.529 23)" />
+                            </g>
+                        </g>
+                    </g>
+                </svg>
+            </div>
 
             <!-- Memo View (File Structure) -->
             <div v-if="currentTab === 'idea'" class="groups-container">
