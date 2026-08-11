@@ -23,6 +23,14 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+copy /Y "dist\TofuTodo-Widget-Setup.exe.blockmap" "..\test\TofuTodo-Widget-Setup.exe.blockmap" > nul
+copy /Y "dist\latest.yml" "..\test\latest.yml" > nul
+if errorlevel 1 (
+    echo.
+    echo [失败] 无法发布自动更新清单。
+    pause
+    exit /b 1
+)
 
 echo.
 echo ===================================================

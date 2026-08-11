@@ -1,6 +1,6 @@
 {
     "name": "tofutodo-desktop",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Desktop widget for TofuTodo",
     "main": "main.js",
     "scripts": {
@@ -11,16 +11,25 @@
         "appId": "com.dogeleven.tofutodo",
         "productName": "TofuTodo-Widget",
         "artifactName": "TofuTodo-Widget-Setup.${ext}",
+        "afterPack": "build/afterPack.js",
+        "publish": [
+            {
+                "provider": "generic",
+                "url": "https://dogeleven.github.io/test/"
+            }
+        ],
         "directories": {
             "output": "dist"
         },
         "files": [
             "main.js",
             "preload.js",
-            "package.json"
+            "package.json",
+            "build/tray.png"
         ],
         "win": {
             "signAndEditExecutable": false,
+            "icon": "build/icon.ico",
             "target": [
                 {
                     "target": "nsis",
@@ -36,12 +45,18 @@
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
             "shortcutName": "TofuTodo Widget",
-            "uninstallDisplayName": "TofuTodo Widget"
+            "uninstallDisplayName": "TofuTodo Widget",
+            "installerIcon": "build/icon.ico",
+            "uninstallerIcon": "build/icon.ico",
+            "installerHeaderIcon": "build/icon.ico"
         }
     },
     "devDependencies": {
         "electron": "^28.2.0",
         "electron-builder": "^24.9.1",
         "electron-packager": "^17.1.2"
+    },
+    "dependencies": {
+        "electron-updater": "^6.6.2"
     }
 }

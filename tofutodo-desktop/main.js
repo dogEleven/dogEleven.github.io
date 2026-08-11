@@ -1,21 +1,23 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
+const fs = require('fs');
 const path = require('path');
 
 let win;
 let tray;
 let isQuitting = false;
+let manualUpdateCheck = false;
+let updateCheckInProgress = false;
+let updateDownloadInProgress = false;
+let updateDialogOpen = false;
+let downloadedUpdateReady = false;
 
 function createTrayIcon() {
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-            <circle cx="16" cy="16" r="15" fill="#4a90e2"/>
-            <ellipse cx="16" cy="12" rx="10" ry="4" fill="#ffffff"/>
-            <path d="M6 12c0 8 3.5 13 10 13s10-5 10-13c-1.8 2.5-5.6 4-10 4S7.8 14.5 6 12Z" fill="#ffffff"/>
-            <rect x="10" y="9" width="4" height="4" rx="1" fill="#4a90e2"/>
-            <rect x="18" y="8" width="4" height="4" rx="1" fill="#4a90e2"/>
-        </svg>`;
-    const dataUrl = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
-    return nativeImage.createFromDataURL(dataUrl).resize({ width: 16, height: 16 });
+    const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'tray.png'));
+    if (!icon.isEmpty()) return icon.resize({ width: 16, height: 16 });
+
+    const fallback = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    return nativeImage.createFromDataURL(`data:image/png;base64,${fallback}`).resize({ width: 16, height: 16 });
 }
 
 function showWidget() {
@@ -29,6 +31,167 @@ function hideWidget() {
     win.hide();
 }
 
+function getUpdatePreferencesPath() {
+    return path.join(app.getPath('userData'), 'update-preferences.json');
+}
+
+function readUpdatePreferences() {
+    try {
+        return JSON.parse(fs.readFileSync(getUpdatePreferencesPath(), 'utf8'));
+    } catch {
+        return {};
+    }
+}
+
+function writeUpdatePreferences(preferences) {
+    fs.writeFileSync(getUpdatePreferencesPath(), JSON.stringify(preferences, null, 2), 'utf8');
+}
+
+function showUpdateDialog(options) {
+    if (win && !win.isDestroyed() && win.isVisible()) {
+        return dialog.showMessageBox(win, options);
+    }
+    return dialog.showMessageBox(options);
+}
+
+function installDownloadedUpdate() {
+    if (!downloadedUpdateReady) return;
+    isQuitting = true;
+    autoUpdater.quitAndInstall(false, true);
+}
+
+async function checkForUpdates(manual = false) {
+    if (!app.isPackaged) {
+        if (manual) {
+            await showUpdateDialog({
+                type: 'info',
+                title: '检查更新',
+                message: '开发环境不执行自动更新检查。',
+                buttons: ['确定']
+            });
+        }
+        return;
+    }
+
+    manualUpdateCheck = manualUpdateCheck || manual;
+    if (updateCheckInProgress || updateDownloadInProgress) return;
+
+    updateCheckInProgress = true;
+    updateTrayMenu();
+    try {
+        await autoUpdater.checkForUpdates();
+    } catch {
+        updateCheckInProgress = false;
+        updateTrayMenu();
+    }
+}
+
+function configureAutoUpdater() {
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+
+    autoUpdater.on('update-available', async (info) => {
+        const wasManual = manualUpdateCheck;
+        manualUpdateCheck = false;
+        updateCheckInProgress = false;
+        updateTrayMenu();
+
+        if (!wasManual && readUpdatePreferences().skipVersion === info.version) return;
+        if (updateDialogOpen) return;
+
+        const releaseNotes = Array.isArray(info.releaseNotes)
+            ? info.releaseNotes.map((item) => item.note).filter(Boolean).join('\n')
+            : info.releaseNotes;
+
+        updateDialogOpen = true;
+        try {
+            const { response } = await showUpdateDialog({
+                type: 'info',
+                title: 'TofuTodo 更新',
+                message: `发现新版本 ${info.version}`,
+                detail: releaseNotes || '新版本已经可以下载。',
+                buttons: ['立即更新', '本版本不再提示', '稍后'],
+                defaultId: 0,
+                cancelId: 2,
+                noLink: true
+            });
+
+            if (response === 0) {
+                writeUpdatePreferences({ skipVersion: null });
+                updateDownloadInProgress = true;
+                updateTrayMenu();
+                tray?.displayBalloon({
+                    title: 'TofuTodo 更新',
+                    content: `正在下载 ${info.version}，完成后会提示安装。`
+                });
+                autoUpdater.downloadUpdate().catch(() => {});
+            } else if (response === 1) {
+                writeUpdatePreferences({ skipVersion: info.version });
+            }
+        } finally {
+            updateDialogOpen = false;
+        }
+    });
+
+    autoUpdater.on('update-not-available', async () => {
+        const wasManual = manualUpdateCheck;
+        manualUpdateCheck = false;
+        updateCheckInProgress = false;
+        updateTrayMenu();
+        if (wasManual) {
+            await showUpdateDialog({
+                type: 'info',
+                title: '检查更新',
+                message: `当前已是最新版本 ${app.getVersion()}`,
+                buttons: ['确定']
+            });
+        }
+    });
+
+    autoUpdater.on('download-progress', (progress) => {
+        updateDownloadInProgress = true;
+        tray?.setToolTip(`TofuTodo 更新下载中 ${Math.round(progress.percent)}%`);
+        updateTrayMenu();
+    });
+
+    autoUpdater.on('update-downloaded', async (info) => {
+        updateDownloadInProgress = false;
+        downloadedUpdateReady = true;
+        tray?.setToolTip('TofuTodo 更新已下载');
+        updateTrayMenu();
+
+        const { response } = await showUpdateDialog({
+            type: 'info',
+            title: '更新已下载',
+            message: `TofuTodo ${info.version} 已准备好安装`,
+            detail: '安装时挂件会自动退出，完成后重新启动。',
+            buttons: ['立即安装', '稍后'],
+            defaultId: 0,
+            cancelId: 1,
+            noLink: true
+        });
+        if (response === 0) installDownloadedUpdate();
+    });
+
+    autoUpdater.on('error', async (error) => {
+        const shouldNotify = manualUpdateCheck || updateDownloadInProgress;
+        manualUpdateCheck = false;
+        updateCheckInProgress = false;
+        updateDownloadInProgress = false;
+        tray?.setToolTip('TofuTodo 挂件');
+        updateTrayMenu();
+        if (shouldNotify) {
+            await showUpdateDialog({
+                type: 'error',
+                title: '更新失败',
+                message: '暂时无法完成更新，请稍后重试。',
+                detail: error.message,
+                buttons: ['确定']
+            });
+        }
+    });
+}
+
 function updateTrayMenu() {
     if (!tray) return;
     const isVisible = Boolean(win && !win.isDestroyed() && win.isVisible());
@@ -36,6 +199,18 @@ function updateTrayMenu() {
         {
             label: isVisible ? '隐藏挂件' : '显示挂件',
             click: () => isVisible ? hideWidget() : showWidget()
+        },
+        { type: 'separator' },
+        {
+            label: downloadedUpdateReady
+                ? '安装已下载更新'
+                : updateDownloadInProgress
+                    ? '正在下载更新...'
+                    : updateCheckInProgress
+                        ? '正在检查更新...'
+                        : '检查更新',
+            enabled: downloadedUpdateReady || (!updateDownloadInProgress && !updateCheckInProgress),
+            click: () => downloadedUpdateReady ? installDownloadedUpdate() : checkForUpdates(true)
         },
         { type: 'separator' },
         {
@@ -145,7 +320,11 @@ if (!gotTheLock) {
         }
     });
 
-    app.whenReady().then(createWindow);
+    app.whenReady().then(() => {
+        configureAutoUpdater();
+        createWindow();
+        setTimeout(() => checkForUpdates(false), 6000);
+    });
 
     app.on('before-quit', () => {
         isQuitting = true;
