@@ -5,13 +5,38 @@
     "main": "main.js",
     "scripts": {
         "start": "electron .",
-        "build": "electron-packager . TofuTodo-Widget --platform=win32 --arch=x64 --out=dist --overwrite"
+        "build": "electron-builder --win nsis --x64"
     },
     "build": {
         "appId": "com.dogeleven.tofutodo",
         "productName": "TofuTodo-Widget",
+        "artifactName": "TofuTodo-Widget-Setup.${ext}",
+        "directories": {
+            "output": "dist"
+        },
+        "files": [
+            "main.js",
+            "preload.js",
+            "package.json"
+        ],
         "win": {
-            "target": "portable"
+            "signAndEditExecutable": false,
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "TofuTodo Widget",
+            "uninstallDisplayName": "TofuTodo Widget"
         }
     },
     "devDependencies": {

@@ -360,6 +360,20 @@
             font-weight: 600;
         }
 
+        .group-title span.arrow {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 18px;
+            width: 18px;
+            height: 18px;
+            margin-left: 0;
+            margin-right: 6px;
+            padding: 0;
+            border-radius: 50%;
+            line-height: 1;
+        }
+
         [data-theme='dark'] .group-title span {
             background: rgba(255, 255, 255, 0.1);
         }
@@ -806,7 +820,7 @@
                             <div class="menu-item" @click="toggleTheme" style="color:var(--text);">
                                 {{ isDark ? '🌙 明暗模式' : '☀️ 明暗模式' }}
                             </div>
-                            <a href="TofuTodo-Widget.zip" download class="menu-item"
+                            <a href="TofuTodo-Widget-Setup.exe" download class="menu-item"
                                 style="color:var(--primary); text-decoration:none;">
                                 💻 桌面版下载
                             </a>
