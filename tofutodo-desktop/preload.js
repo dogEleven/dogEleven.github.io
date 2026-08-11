@@ -41,6 +41,12 @@ window.addEventListener("DOMContentLoaded", () => {
       opacity: 0; /* Hide when collapsed so shadow doesn't bleed */
       transition: opacity 0.2s ease;
     }
+
+    #app .loading-screen {
+      inset: 30px 0 30px 24px !important;
+      border-radius: 26px 0 0 26px;
+      overflow: hidden;
+    }
     
     .editor-modal, .modal-overlay {
       position: fixed !important;
