@@ -1,4 +1,4 @@
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, dialog, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const path = require('path');
@@ -273,6 +273,18 @@ function createWindow() {
             event.preventDefault();
             hideWidget();
         }
+    });
+
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        try {
+            const target = new URL(url);
+            if (target.protocol === 'https:' && target.hostname === 'dogeleven.github.io' && target.pathname === '/test/github-setup.html') {
+                shell.openExternal(target.toString());
+            }
+        } catch {
+            // Ignore malformed URLs from page content.
+        }
+        return { action: 'deny' };
     });
 
     // Clear cache forcefully to ensure the latest Github pages deployment is loaded, 

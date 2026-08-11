@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>TofuTodo GitHub 配置指南</title>
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --surface: #ffffff;
+            --text: #1d1d1f;
+            --subtext: #626267;
+            --line: #dedee3;
+            --primary: #087ea4;
+            --success: #18794e;
+            --warning-bg: #fff7df;
+            --warning-text: #6e4f00;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #171719;
+                --surface: #242426;
+                --text: #f5f5f7;
+                --subtext: #a1a1a7;
+                --line: #3a3a3f;
+                --primary: #64c4e8;
+                --success: #79d6aa;
+                --warning-bg: #3a3015;
+                --warning-text: #f5d477;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        a {
+            color: var(--primary);
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 1px solid var(--line);
+            background: color-mix(in srgb, var(--bg) 92%, transparent);
+            backdrop-filter: blur(16px);
+        }
+
+        .topbar-inner,
+        main {
+            width: min(920px, calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        .topbar-inner {
+            display: flex;
+            min-height: 58px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+
+        .brand img {
+            width: 28px;
+            height: 28px;
+        }
+
+        .back-link {
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        main {
+            padding: 48px 0 72px;
+        }
+
+        .intro {
+            padding-bottom: 36px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(30px, 6vw, 48px);
+            line-height: 1.15;
+            letter-spacing: 0;
+        }
+
+        .lead {
+            max-width: 720px;
+            margin: 0;
+            color: var(--subtext);
+            font-size: 17px;
+        }
+
+        section {
+            padding: 36px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        h2 {
+            margin: 0 0 18px;
+            font-size: 23px;
+            letter-spacing: 0;
+        }
+
+        h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+        }
+
+        p {
+            margin: 8px 0;
+        }
+
+        .steps {
+            display: grid;
+            gap: 14px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            counter-reset: setup-step;
+        }
+
+        .step {
+            position: relative;
+            padding: 20px 20px 20px 64px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            counter-increment: setup-step;
+        }
+
+        .step::before {
+            content: counter(setup-step);
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: grid;
+            width: 28px;
+            height: 28px;
+            place-items: center;
+            border-radius: 50%;
+            background: var(--text);
+            color: var(--surface);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .action-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 36px;
+            margin-top: 10px;
+            padding: 0 14px;
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        code {
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: color-mix(in srgb, var(--text) 8%, transparent);
+            font-family: "SFMono-Regular", Consolas, monospace;
+            font-size: 0.9em;
+        }
+
+        .permission-list,
+        .plain-list {
+            margin: 10px 0 0;
+            padding-left: 20px;
+        }
+
+        .permission-list strong {
+            color: var(--success);
+        }
+
+        .notice {
+            margin-top: 20px;
+            padding: 16px 18px;
+            border-left: 4px solid #d7a800;
+            border-radius: 4px;
+            background: var(--warning-bg);
+            color: var(--warning-text);
+        }
+
+        .error-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .error-table th,
+        .error-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .error-table th {
+            color: var(--subtext);
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        footer {
+            padding-top: 28px;
+            color: var(--subtext);
+            font-size: 13px;
+        }
+
+        @media (max-width: 620px) {
+            main {
+                padding-top: 32px;
+            }
+
+            .step {
+                padding: 58px 18px 18px;
+            }
+
+            .step::before {
+                top: 16px;
+                left: 18px;
+            }
+
+            .error-table th:first-child,
+            .error-table td:first-child {
+                width: 64px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div class="brand">
+                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub">
+                <span>TofuTodo 配置指南</span>
+            </div>
+            <a class="back-link" href="test.html">返回 TofuTodo</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="intro">
+            <h1>用 GitHub 保存你的清单</h1>
+            <p class="lead">准备一个 GitHub 仓库和只允许访问该仓库的 Token。TofuTodo 会把待办、备忘录和分组直接同步到 GitHub Issues。</p>
+        </div>
+
+        <section>
+            <h2>工作原理</h2>
+            <p>你将获得一个与 GitHub 个人仓库完全绑定的备忘录，任何时候都可以通过网页或客户端打开。</p>
+            <p class="notice">Token 像密码一样重要。TofuTodo 将它保存在当前浏览器或桌面挂件的本地存储中，并用它直接请求 GitHub API。请只在自己的设备上使用。</p>
+        </section>
+
+        <section>
+            <h2>首次配置</h2>
+            <ol class="steps">
+                <li class="step">
+                    <h3>创建一个仓库</h3>
+                    <p>登录 GitHub 后新建仓库，例如命名为 <code>tofutodo-data</code>。私人清单建议选择 <strong>Private</strong>，初始化 README 与否都不影响使用。</p>
+                    <a class="action-link" href="https://github.com/new" target="_blank" rel="noopener noreferrer">打开 GitHub 新建仓库</a>
+                </li>
+                <li class="step">
+                    <h3>确认 Issues 已开启</h3>
+                    <p>进入仓库的 <strong>Settings → General → Features</strong>，确认 <strong>Issues</strong> 已勾选。新建仓库通常默认开启。</p>
+                </li>
+                <li class="step">
+                    <h3>创建 Fine-grained Token</h3>
+                    <p>进入 Token 创建页，填写名称和有效期，然后设置：</p>
+                    <ul class="permission-list">
+                        <li><strong>Resource owner</strong>：选择仓库所属账号</li>
+                        <li><strong>Repository access</strong>：Only select repositories，只选择刚创建的仓库</li>
+                        <li><strong>Repository permissions → Issues</strong>：Read and write</li>
+                        <li>其他权限保持默认；Metadata 的只读权限会自动附带</li>
+                    </ul>
+                    <a class="action-link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">创建 Fine-grained Token</a>
+                </li>
+                <li class="step">
+                    <h3>复制 Token</h3>
+                    <p>点击 <strong>Generate token</strong> 后立即复制以 <code>github_pat_</code> 开头的内容。GitHub 离开页面后不会再次完整显示它。</p>
+                </li>
+                <li class="step">
+                    <h3>连接 TofuTodo</h3>
+                    <p>仓库填写 <code>你的用户名/tofutodo-data</code>，Token 粘贴刚生成的内容，然后点击“连接 GitHub”。应用会在首次使用时自动创建需要的标签。</p>
+                </li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>常见问题</h2>
+            <table class="error-table">
+                <thead>
+                    <tr><th>提示</th><th>通常原因</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>401</code></td><td>Token 输入错误、已过期或已被撤销。重新生成 Token 后再连接。</td></tr>
+                    <tr><td><code>403</code></td><td>Token 没有 Issues 写权限，或组织要求管理员批准该 Token。</td></tr>
+                    <tr><td><code>404</code></td><td>仓库名不正确，或 Fine-grained Token 没有选择这个仓库。</td></tr>
+                    <tr><td>无法新增</td><td>检查仓库是否启用了 Issues，并确认权限是 Read and write。</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>安全建议</h2>
+            <ul class="plain-list">
+                <li>优先使用 Fine-grained Token，不要给整个账号的所有仓库授权。</li>
+                <li>设置合理的有效期；到期后生成新 Token 并重新连接。</li>
+                <li>不要截图、发送或提交 Token 到任何 GitHub 仓库。</li>
+                <li>设备丢失或怀疑泄露时，立即在 GitHub Token 设置页撤销它。</li>
+            </ul>
+        </section>
+
+        <footer>
+            GitHub 的界面可能随时间调整。遇到差异时，以
+            <a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository" target="_blank" rel="noopener noreferrer">创建仓库</a>
+            和
+            <a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens" target="_blank" rel="noopener noreferrer">管理 Personal Access Token</a>
+            官方文档为准。
+        </footer>
+    </main>
+</body>
+
+</html>

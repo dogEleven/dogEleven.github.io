@@ -61,6 +61,39 @@
             margin-top: 50px;
         }
 
+        .login-field {
+            margin-top: 14px;
+            text-align: left;
+        }
+
+        .login-field label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .login-field input {
+            text-align: left;
+        }
+
+        .login-help {
+            display: inline-block;
+            margin-top: 16px;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .login-security {
+            margin: 12px 0 0;
+            color: var(--subtext);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
         input,
         textarea {
             width: 100%;
@@ -792,9 +825,22 @@
         <!-- Login -->
         <div v-if="!token" class="login-box">
             <h1>🔐 TofuTodo</h1>
-            <p style="color:var(--subtext); margin-bottom: 20px;">GitHub Personal Access Token</p>
-            <input v-model="inputToken" type="password" placeholder="ghp_..." style="text-align: center;">
-            <button @click="saveToken" style="margin-top: 10px;">Connect</button>
+            <p style="color:var(--subtext); margin-bottom: 20px;">使用自己的 GitHub 仓库存储清单</p>
+            <div class="login-field">
+                <label for="repo-input">GitHub 仓库</label>
+                <input id="repo-input" v-model="inputRepo" type="text" placeholder="用户名/仓库名"
+                    autocomplete="off" autocapitalize="none" spellcheck="false">
+            </div>
+            <div class="login-field">
+                <label for="token-input">Personal Access Token</label>
+                <input id="token-input" v-model="inputToken" type="password" placeholder="github_pat_... 或 ghp_..."
+                    autocomplete="off" autocapitalize="none" spellcheck="false" @keyup.enter="saveToken">
+            </div>
+            <button @click="saveToken" style="margin-top: 14px;">连接 GitHub</button>
+            <a class="login-help" href="github-setup.html" target="_blank" rel="noopener noreferrer">
+                第一次使用？查看配置指南
+            </a>
+            <p class="login-security">Token 保存在当前设备中，请勿在公共电脑上使用。</p>
         </div>
 
         <!-- Main -->
@@ -1005,13 +1051,17 @@
 
     <script>
         const { createApp, ref, onMounted, computed, nextTick, watch } = Vue;
-        const REPO = "dogEleven/tofutodo";
+        const DEFAULT_REPO = "dogEleven/tofutodo";
 
         createApp({
             setup() {
                 // State
-                const token = ref(localStorage.getItem('gh_token') || '');
+                const savedToken = localStorage.getItem('gh_token') || '';
+                const savedRepo = localStorage.getItem('gh_repo') || '';
+                const token = ref(savedToken);
                 const inputToken = ref('');
+                const repo = ref(savedRepo || DEFAULT_REPO);
+                const inputRepo = ref(savedRepo || (savedToken ? DEFAULT_REPO : ''));
                 const issues = ref([]);
                 const allLabels = ref([]);
                 const loading = ref(false);
@@ -1058,9 +1108,10 @@
                 const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix', 'trash', 'p0', 'p1', 'p2', 'p3', 'deleted', 'archived'];
 
                 // Axios
-                const api = axios.create({
-                    baseURL: `https://api.github.com/repos/${REPO}`,
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                const api = axios.create({ headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                api.interceptors.request.use((config) => {
+                    config.baseURL = `https://api.github.com/repos/${repo.value}/`;
+                    return config;
                 });
 
                 // Computed
@@ -1198,12 +1249,43 @@
                 });
 
                 // Methods
-                const saveToken = () => {
-                    if (!inputToken.value.startsWith('ghp_') && !inputToken.value.startsWith('github_pat_')) {
-                        alert('Invalid Token format'); return;
+                const saveToken = async () => {
+                    const nextToken = inputToken.value.trim();
+                    const nextRepo = inputRepo.value.trim()
+                        .replace(/^https?:\/\/github\.com\//i, '')
+                        .replace(/\.git$/i, '')
+                        .replace(/^\/+|\/+$/g, '');
+
+                    if (!nextToken.startsWith('ghp_') && !nextToken.startsWith('github_pat_')) {
+                        alert('Token 格式不正确，应以 github_pat_ 或 ghp_ 开头。');
+                        return;
                     }
-                    localStorage.setItem('gh_token', inputToken.value);
-                    token.value = inputToken.value;
+                    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(nextRepo)) {
+                        alert('仓库格式不正确，请填写“用户名/仓库名”。');
+                        return;
+                    }
+
+                    try {
+                        await axios.get(`https://api.github.com/repos/${nextRepo}`, {
+                            headers: {
+                                'Accept': 'application/vnd.github+json',
+                                'Authorization': `Bearer ${nextToken}`
+                            }
+                        });
+                    } catch (error) {
+                        const status = error.response?.status;
+                        if (status === 401) alert('Token 无效或已经过期。');
+                        else if (status === 403) alert('Token 没有访问该仓库的权限。');
+                        else if (status === 404) alert('找不到仓库，或 Token 未被授权访问该仓库。');
+                        else alert('连接 GitHub 失败，请检查网络后重试。');
+                        return;
+                    }
+
+                    localStorage.setItem('gh_repo', nextRepo);
+                    localStorage.setItem('gh_token', nextToken);
+                    repo.value = nextRepo;
+                    token.value = nextToken;
+                    inputRepo.value = nextRepo;
                     initData();
                 };
 
@@ -1309,6 +1391,7 @@
 
                     try {
                         await ensureLabelExists(newLabel.value);
+                        await ensureLabelExists('P3');
                         const res = await api.post('/issues', {
                             title,
                             labels: [newLabel.value, 'P3']
@@ -1455,6 +1538,7 @@
                     issue.labels.push({ name: nextPriority });
 
                     try {
+                        await ensureLabelExists(nextPriority);
                         // We need the full set of labels to preserve other categories (like Work/Idea)
                         const allRemainingLabels = issue.labels.map(l => l.name);
 
@@ -1639,7 +1723,7 @@
                 });
 
                 return {
-                    token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask,
+                    token, inputToken, repo, inputRepo, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask,
                     showLimitBubble, limitBubbleText,
                     groupedIssues, sortedGroupNames, availableLabels, isDark, toggleTheme, formatDate, getMetaOpacity, currentTab,
                     // Groups
