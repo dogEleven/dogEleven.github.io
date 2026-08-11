@@ -219,6 +219,35 @@
             border-radius: 6px;
         }
 
+        .add-btn-wrap {
+            position: relative;
+        }
+
+        .limit-bubble {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 8px);
+            width: max-content;
+            max-width: 210px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: var(--text);
+            color: var(--card-bg);
+            font-size: 12px;
+            line-height: 1.35;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+            z-index: 20;
+        }
+
+        .limit-bubble::after {
+            content: "";
+            position: absolute;
+            right: 18px;
+            top: 100%;
+            border: 6px solid transparent;
+            border-top-color: var(--text);
+        }
+
         .groups-container {
             display: flex;
             flex-direction: column;
@@ -733,7 +762,10 @@
                     <select v-model="newLabel">
                         <option v-for="label in availableLabels" :value="label" :key="label">{{ label }}</option>
                     </select>
-                    <button @click="addTask" class="add-btn">Add</button>
+                    <div class="add-btn-wrap">
+                        <button @click="addTask" class="add-btn">Add</button>
+                        <div v-if="showLimitBubble" class="limit-bubble">{{ limitBubbleText }}</div>
+                    </div>
                 </div>
             </div>
 
@@ -871,6 +903,8 @@
                 const newGroupName = ref('');
                 const activeMenuId = ref(null);
                 const showSettingsMenu = ref(false);
+                const showLimitBubble = ref(false);
+                let limitBubbleTimer = null;
 
                 // Editor State
                 const isEditorOpen = ref(false);
@@ -894,8 +928,12 @@
                 });
 
                 // Config
-                const defaultTodoLabels = ['Work', 'Life', 'HellDrop', 'Zhutousan'];
-                const defaultIdeaLabels = ['Idea', 'Project', 'Reference'];
+                const LIMITED_LIST_LABEL = '有限清单';
+                const LIMITED_MEMO_LABEL = '有限项目';
+                const LIMITED_ITEM_MAX = 7;
+                const limitedLabels = [LIMITED_LIST_LABEL, LIMITED_MEMO_LABEL];
+                const defaultTodoLabels = [LIMITED_LIST_LABEL, 'Work', 'Life', 'HellDrop', 'Zhutousan'];
+                const defaultIdeaLabels = [LIMITED_MEMO_LABEL, 'Idea', 'Project', 'Reference'];
                 const ignoredLabels = ['bug', 'documentation', 'duplicate', 'enhancement', 'good first issue', 'help wanted', 'invalid', 'question', 'wontfix', 'trash', 'p0', 'p1', 'p2', 'p3', 'deleted', 'archived'];
 
                 // Axios
@@ -991,6 +1029,17 @@
                 const renderedMarkdown = computed(() => {
                     return editingBody.value ? marked.parse(editingBody.value) : '';
                 });
+
+                const selectedLimitedCount = computed(() => (groupedIssues.value[newLabel.value] || []).length);
+                const limitBubbleText = computed(() => `${newLabel.value}最多添加${LIMITED_ITEM_MAX}个项目`);
+
+                const showLimitedListTip = () => {
+                    showLimitBubble.value = true;
+                    clearTimeout(limitBubbleTimer);
+                    limitBubbleTimer = setTimeout(() => {
+                        showLimitBubble.value = false;
+                    }, 2200);
+                };
 
                 // Manual sync for Preview to avoid cursor jumping
                 const syncPreviewFromMarkdown = () => {
@@ -1098,16 +1147,57 @@
                     } catch (e) { console.error("Error labels"); }
                 };
 
+                const ensureLabelExists = async (name) => {
+                    if (allLabels.value.some(label => label.name === name)) return;
+                    try {
+                        await api.post('labels', {
+                            name,
+                            color: '4a90e2',
+                            description: currentTab.value === 'todo' ? 'tab:todo' : 'tab:idea'
+                        }, { headers: { 'Authorization': `token ${token.value}` } });
+                        await fetchLabels();
+                    } catch (e) {
+                        if (e.response?.status !== 422) throw e;
+                        await fetchLabels();
+                    }
+                };
+
                 const addTask = async () => {
                     if (!newTask.value) return;
+                    if (limitedLabels.includes(newLabel.value) && selectedLimitedCount.value >= LIMITED_ITEM_MAX) {
+                        showLimitedListTip();
+                        return;
+                    }
+                    const title = newTask.value;
+                    const tempId = `temp-${Date.now()}`;
+                    const now = new Date().toISOString();
+                    const tempIssue = {
+                        id: tempId,
+                        number: tempId,
+                        title,
+                        body: '',
+                        state: 'open',
+                        created_at: now,
+                        updated_at: now,
+                        labels: [{ name: newLabel.value }, { name: 'P3' }],
+                        isSyncing: true
+                    };
+
+                    issues.value.unshift(tempIssue);
+                    newTask.value = '';
+
                     try {
+                        await ensureLabelExists(newLabel.value);
                         const res = await api.post('/issues', {
-                            title: newTask.value,
+                            title,
                             labels: [newLabel.value, 'P3']
                         }, { headers: { 'Authorization': `token ${token.value}` } });
-                        issues.value.unshift(res.data);
-                        newTask.value = '';
-                    } catch (e) { alert('Failed to create task'); }
+                        const idx = issues.value.findIndex(issue => issue.id === tempId);
+                        if (idx !== -1) issues.value[idx] = res.data;
+                    } catch (e) {
+                        issues.value = issues.value.filter(issue => issue.id !== tempId);
+                        alert('同步失败，项目未保存到 GitHub');
+                    }
                 };
 
                 const toggleIssue = async (issue) => {
@@ -1429,6 +1519,7 @@
 
                 return {
                     token, inputToken, saveToken, logout, issues, loading, toggleIssue, newTask, newLabel, addTask,
+                    showLimitBubble, limitBubbleText,
                     groupedIssues, sortedGroupNames, availableLabels, isDark, toggleTheme, formatDate, getMetaOpacity, currentTab,
                     // Groups
                     showGroupModal, newGroupName, createGroup, deleteGroup, isCustomGroup, collapsedGroups, toggleGroup,

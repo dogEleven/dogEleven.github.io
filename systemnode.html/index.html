@@ -41,6 +41,16 @@
       box-shadow: 0 10px 28px rgba(31, 35, 40, 0.14);
     }
 
+    .note-editor {
+      min-width: 190px;
+      min-height: 72px;
+      height: auto;
+      padding: 8px 10px;
+      resize: none;
+      line-height: 1.35;
+      font-weight: 600;
+    }
+
     .menu {
       position: fixed;
       z-index: 30;
@@ -493,13 +503,21 @@
       return COLOR_SCHEMES[scheme] ? scheme : "default";
     }
 
+    function normalizeNodes(nodes) {
+      return nodes.map(node => ({
+        ...node,
+        note: typeof node.note === "string" ? node.note : "",
+        showNote: Boolean(node.showNote)
+      }));
+    }
+
     function load() {
       const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem("simple-system-map-canvas-v1");
       if (!raw) return;
       try {
         const data = JSON.parse(raw);
         if (Array.isArray(data.nodes) && Array.isArray(data.edges)) {
-          state.nodes = data.nodes;
+          state.nodes = normalizeNodes(data.nodes);
           state.edges = data.edges.map(edge => ({ id: edge.id || makeId(), from: edge.from, to: edge.to, curve: edge.curve || 0, bidirectional: Boolean(edge.bidirectional) }));
           state.groups = normalizeGroups(data.groups);
           state.nextNodeNumber = data.nextNodeNumber || state.nodes.length + 1;
@@ -729,6 +747,29 @@
       return null;
     }
 
+    function nodeNoteRect(node) {
+      const width = 178;
+      const height = 44;
+      return {
+        minX: node.x - width / 2,
+        minY: node.y + node.r + 12,
+        maxX: node.x + width / 2,
+        maxY: node.y + node.r + 12 + height,
+        width,
+        height
+      };
+    }
+
+    function nodeNoteAt(x, y) {
+      for (let i = state.nodes.length - 1; i >= 0; i--) {
+        const node = state.nodes[i];
+        if (!node.showNote) continue;
+        const rect = nodeNoteRect(node);
+        if (x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY) return node;
+      }
+      return null;
+    }
+
     function edgeHandleNodeAt(x, y) {
       for (let i = state.nodes.length - 1; i >= 0; i--) {
         const node = state.nodes[i];
@@ -776,8 +817,10 @@
       const radius = NODE_ACTION_RADIUS / state.view.zoom;
       const gap = NODE_ACTION_GAP / state.view.zoom;
       const y = node.y - node.r - radius - 18 / state.view.zoom;
-      const startX = node.x - radius * 2 - gap;
-      return ["toggle-shape", "toggle-disabled", "delete"].map((action, index) => ({
+      const actions = ["toggle-note", "toggle-shape", "toggle-disabled", "delete"];
+      const totalWidth = actions.length * radius * 2 + (actions.length - 1) * gap;
+      const startX = node.x - totalWidth / 2 + radius;
+      return actions.map((action, index) => ({
         node,
         action,
         x: startX + index * (radius * 2 + gap),
@@ -1185,7 +1228,7 @@
 
     function addNode(x, y, name = `节点${state.nextNodeNumber++}`) {
       pushUndo();
-      const node = { id: makeId(), name, x: snapWorldX(x), y: snapWorldY(y), r: 44 };
+      const node = { id: makeId(), name, x: snapWorldX(x), y: snapWorldY(y), r: 44, note: "", showNote: false };
       state.nodes.push(node);
       if (!state.centerNodeId || !findNode(state.centerNodeId)) state.centerNodeId = node.id;
       selectNode(node.id);
@@ -1369,6 +1412,19 @@
       draw();
     }
 
+    function toggleNodeNote(nodeId) {
+      const node = findNode(nodeId);
+      if (!node) return;
+      pushUndo();
+      node.showNote = !node.showNote;
+      if (typeof node.note !== "string") node.note = "";
+      selectNode(node.id);
+      state.nodeToolbarId = node.id;
+      save();
+      draw();
+      if (node.showNote && !node.note.trim()) editNodeNote(node);
+    }
+
     function setCenterNode(nodeId) {
       const node = findNode(nodeId);
       if (!node) return;
@@ -1549,7 +1605,7 @@
 
     function applyMapData(data) {
       if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) throw new Error("bad map data");
-      state.nodes = data.nodes;
+      state.nodes = normalizeNodes(data.nodes);
       state.edges = data.edges.map(edge => ({ id: edge.id || makeId(), from: edge.from, to: edge.to, curve: edge.curve || 0, bidirectional: Boolean(edge.bidirectional) }));
       state.groups = normalizeGroups(data.groups);
       state.nextNodeNumber = data.nextNodeNumber || state.nodes.length + 1;
@@ -2505,6 +2561,46 @@
       input.addEventListener("blur", () => finish(true));
     }
 
+    function editNodeNote(node) {
+      const input = document.createElement("textarea");
+      const rect = nodeNoteRect(node);
+      const screenMin = worldToScreen({ x: rect.minX, y: rect.minY });
+      input.className = "name-editor note-editor";
+      input.value = node.note || "";
+      input.placeholder = "输入注释";
+      input.style.left = `${screenMin.x}px`;
+      input.style.top = `${screenMin.y}px`;
+      input.style.width = `${rect.width * state.view.zoom}px`;
+      input.style.height = `${rect.height * state.view.zoom}px`;
+      document.body.appendChild(input);
+      input.focus();
+      input.select();
+
+      function finish(shouldSave) {
+        if (!document.body.contains(input)) return;
+        if (shouldSave) {
+          const note = input.value.trim();
+          if (note !== (node.note || "")) {
+            pushUndo();
+            node.note = note;
+          }
+          node.showNote = Boolean(note);
+          save();
+          draw();
+        }
+        input.remove();
+      }
+
+      input.addEventListener("keydown", event => {
+        event.stopPropagation();
+        if ((event.key === "Enter" && (event.metaKey || event.ctrlKey)) || event.key === "Escape") {
+          event.preventDefault();
+          finish(event.key !== "Escape");
+        }
+      });
+      input.addEventListener("blur", () => finish(true));
+    }
+
     function editGroupName(group) {
       const input = document.createElement("input");
       const screen = worldToScreen({ x: group.rect.minX, y: group.rect.minY });
@@ -2547,6 +2643,7 @@
       drawGroups();
       drawEdges();
       drawLinkPreview();
+      drawNodeNotes();
       drawNodes();
       drawEdgeControls();
       drawNodeActions();
@@ -2897,6 +2994,54 @@
       });
     }
 
+    function drawNodeNotes() {
+      state.nodes.forEach(node => {
+        const note = String(node.note || "").trim();
+        if (!node.showNote || !note) return;
+        const rect = nodeNoteRect(node);
+        const selected = node.id === state.selectedNodeId || state.selectedNodeIds.includes(node.id);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rect.minX, rect.minY, rect.width, rect.height);
+        ctx.fillStyle = "rgba(255, 252, 246, 0.95)";
+        ctx.fill();
+        ctx.lineWidth = selected ? 1.8 / state.view.zoom : 1.2 / state.view.zoom;
+        ctx.strokeStyle = selected ? rainbowHighlight(node.x, node.y) : "rgba(31, 35, 40, 0.2)";
+        ctx.stroke();
+        ctx.fillStyle = "#4b4540";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "600 12px PingFang SC, Microsoft YaHei, Arial";
+        drawNoteText(note, rect);
+        ctx.restore();
+      });
+    }
+
+    function drawNoteText(text, rect) {
+      const characters = Array.from(text);
+      const maxWidth = rect.width - 18;
+      const lineHeight = 15;
+      const lines = [];
+      let current = "";
+      characters.forEach(character => {
+        const candidate = current + character;
+        if (current && ctx.measureText(candidate).width > maxWidth) {
+          lines.push(current);
+          current = character;
+        } else {
+          current = candidate;
+        }
+      });
+      if (current) lines.push(current);
+      const visibleLines = lines.slice(0, 2);
+      if (lines.length > 2 && visibleLines.length) {
+        const last = visibleLines[visibleLines.length - 1];
+        visibleLines[visibleLines.length - 1] = last.length > 1 ? `${last.slice(0, -1)}…` : "…";
+      }
+      const startY = rect.minY + rect.height / 2 - (visibleLines.length - 1) * lineHeight / 2;
+      visibleLines.forEach((line, index) => ctx.fillText(line, rect.minX + rect.width / 2, startY + index * lineHeight));
+    }
+
     function drawNodePath(node) {
       ctx.beginPath();
       if (isSquareNode(node)) {
@@ -2949,9 +3094,10 @@
         ctx.lineWidth = 1.5 / state.view.zoom;
         ctx.strokeStyle = hovered ? rainbowHighlight(button.x, button.y) : "rgba(31, 35, 40, 0.22)";
         ctx.stroke();
-        ctx.strokeStyle = button.action === "delete" ? "#d44a30" : "#1f2328";
+        ctx.strokeStyle = button.action === "delete" ? "#d44a30" : button.action === "toggle-note" && node.showNote ? "#d44a30" : "#1f2328";
         ctx.fillStyle = ctx.strokeStyle;
         if (button.action === "delete") drawTrashIcon(button.x, button.y, button.r);
+        else if (button.action === "toggle-note") drawNoteIcon(button.x, button.y, button.r, node.showNote);
         else if (button.action === "toggle-shape") drawShapeIcon(button.x, button.y, button.r, isSquareNode(node));
         else drawEyeIcon(button.x, button.y, button.r, node.disabled);
       });
@@ -3009,6 +3155,29 @@
       ctx.lineTo(x + 3.5 * unit, y + 7 * unit);
       ctx.lineTo(x + 4.5 * unit, y - 2 * unit);
       ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawNoteIcon(x, y, radius, active) {
+      const unit = 1 / state.view.zoom;
+      ctx.save();
+      ctx.lineWidth = 1.8 / state.view.zoom;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.rect(x - 6.5 * unit, y - 7 * unit, 13 * unit, 14 * unit);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - 3.5 * unit, y - 2.5 * unit);
+      ctx.lineTo(x + 3.5 * unit, y - 2.5 * unit);
+      ctx.moveTo(x - 3.5 * unit, y + 2 * unit);
+      ctx.lineTo(x + (active ? 3.5 : 1.5) * unit, y + 2 * unit);
+      ctx.stroke();
+      if (active) {
+        ctx.beginPath();
+        ctx.arc(x + 5.2 * unit, y - 5.7 * unit, 2.1 * unit, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
 
@@ -3252,6 +3421,13 @@
     canvas.addEventListener("dblclick", event => {
       hideMenu();
       const point = worldPoint(event);
+      const noteNode = nodeNoteAt(point.x, point.y);
+      if (noteNode) {
+        selectNode(noteNode.id);
+        draw();
+        editNodeNote(noteNode);
+        return;
+      }
       const node = nodeAt(point.x, point.y);
       if (node) {
         selectNode(node.id);
@@ -3292,6 +3468,7 @@
       const nodeAction = nodeActionAt(point.x, point.y);
       if (nodeAction) {
         event.preventDefault();
+        if (nodeAction.action === "toggle-note") toggleNodeNote(nodeAction.node.id);
         if (nodeAction.action === "toggle-shape") toggleNodeShape(nodeAction.node.id);
         if (nodeAction.action === "toggle-disabled") toggleNodeDisabled(nodeAction.node.id);
         if (nodeAction.action === "delete") deleteNode(nodeAction.node.id);
