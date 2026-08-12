@@ -840,6 +840,204 @@
             background: var(--border);
             margin: 0 4px;
         }
+
+        .agent-panel {
+            position: sticky;
+            bottom: 0;
+            z-index: 80;
+            margin-top: 16px;
+            padding-top: 10px;
+            background: var(--bg);
+        }
+
+        .agent-surface {
+            overflow: hidden;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.07);
+        }
+
+        .agent-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 34px;
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .agent-state {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: 7px;
+            color: var(--subtext);
+            font-size: 11px;
+        }
+
+        .agent-state-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .agent-state-dot {
+            width: 7px;
+            height: 7px;
+            flex: 0 0 7px;
+            border-radius: 50%;
+            background: #8e8e93;
+        }
+
+        .agent-state-dot.busy {
+            background: #34c759;
+            animation: agent-pulse 1.2s ease-in-out infinite;
+        }
+
+        .agent-state-dot.error {
+            background: #ff3b30;
+        }
+
+        @keyframes agent-pulse {
+            50% { opacity: 0.35; transform: scale(0.8); }
+        }
+
+        .agent-reset {
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--subtext);
+            font-size: 19px;
+            line-height: 1;
+        }
+
+        .agent-output {
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .agent-empty {
+            padding: 14px 0;
+            color: var(--subtext);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .agent-message {
+            width: fit-content;
+            max-width: 92%;
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .agent-message.user {
+            margin-left: auto;
+            color: white;
+            background: var(--primary);
+        }
+
+        .agent-message.assistant {
+            margin-right: auto;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+        }
+
+        .agent-input-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 38px;
+            gap: 8px;
+            padding: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .agent-input {
+            min-width: 0;
+            height: 38px;
+            padding: 8px 11px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .agent-send {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 19px;
+            line-height: 1;
+        }
+
+        .agent-send:disabled {
+            cursor: default;
+            opacity: 0.4;
+        }
+
+        .ai-config-status {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin: 10px 0 0;
+            color: var(--subtext);
+            font-size: 12px;
+        }
+
+        .ai-config-status strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .ai-settings-actions {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .ai-settings-actions button {
+            width: auto;
+            padding: 8px 13px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .btn-danger-subtle {
+            color: #ff3b30;
+            background: transparent;
+            border: 1px solid var(--border);
+        }
+
+        .ai-login-button {
+            width: 100%;
+            margin-top: 12px;
+            border-radius: 6px;
+        }
+
+        .ai-auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 14px 0 4px;
+            color: var(--subtext);
+            font-size: 11px;
+        }
+
+        .ai-auth-divider::before,
+        .ai-auth-divider::after {
+            content: '';
+            height: 1px;
+            flex: 1;
+            background: var(--border);
+        }
     </style>
 </head>
 
@@ -884,6 +1082,9 @@
                             style="right: 0; top: 100%; margin-top: 5px; min-width: 140px;">
                             <div class="menu-item" @click="toggleTheme" style="color:var(--text);">
                                 {{ isDark ? '🌙 明暗模式' : '☀️ 明暗模式' }}
+                            </div>
+                            <div class="menu-item" @click="openAiSettings" style="color:var(--text);">
+                                AI 设置
                             </div>
                             <a href="TofuTodo-Widget-Setup.exe" download class="menu-item"
                                 style="color:var(--primary); text-decoration:none;">
@@ -1015,6 +1216,31 @@
                     </div>
                 </div>
             </div>
+
+            <section class="agent-panel" @click.stop>
+                <div class="agent-surface">
+                    <div class="agent-head">
+                        <div class="agent-state">
+                            <span class="agent-state-dot" :class="{ busy: agentBusy, error: agentHasError }"></span>
+                            <span class="agent-state-text">{{ agentStatus }}</span>
+                        </div>
+                        <button v-if="agentMessages.length" class="agent-reset" title="新对话"
+                            aria-label="新对话" @click="resetAgentConversation">＋</button>
+                    </div>
+                    <div ref="agentMessagesEl" class="agent-output">
+                        <div v-if="!agentMessages.length" class="agent-empty">等待提问</div>
+                        <div v-for="message in agentMessages" :key="message.id" class="agent-message"
+                            :class="message.role">{{ message.content }}</div>
+                    </div>
+                    <div class="agent-input-row">
+                        <input v-model="agentPrompt" class="agent-input" placeholder="问点什么..."
+                            :disabled="agentBusy" @keyup.enter="runAgent">
+                        <button class="agent-send" title="发送" aria-label="发送" :disabled="agentBusy || !agentPrompt.trim()"
+                            @click="runAgent">↑</button>
+                    </div>
+                </div>
+            </section>
+
             <!-- Editor Modal -->
             <div class="editor-modal" :class="{ active: isEditorOpen }">
                 <div class="editor-header">
@@ -1065,19 +1291,51 @@
                     </div>
                 </div>
             </div>
+
+            <div v-if="showAiSettings" class="modal-overlay" @click.self="showAiSettings = false">
+                <div class="modal" @click.stop>
+                    <h3>AI 设置</h3>
+                    <button v-if="aiConfig.desktop && !aiConfig.hasChatGPTLogin" class="ai-login-button"
+                        :disabled="aiAuthBusy" @click="loginWithChatGPT">
+                        {{ aiAuthBusy ? '等待浏览器授权...' : '使用 ChatGPT 登录' }}
+                    </button>
+                    <button v-else-if="aiConfig.hasChatGPTLogin" class="ai-login-button btn-danger-subtle"
+                        :disabled="aiAuthBusy" @click="logoutFromChatGPT">退出 ChatGPT 登录</button>
+                    <div v-else class="ai-config-status">网页预览无法发起 ChatGPT 登录。</div>
+                    <div class="ai-auth-divider">或使用 API Key</div>
+                    <div class="login-field">
+                        <label for="openai-key-input">OpenAI API Key</label>
+                        <input id="openai-key-input" v-model="aiKeyInput" type="password" placeholder="sk-..."
+                            :disabled="!aiConfig.desktop" autocomplete="off" autocapitalize="none" spellcheck="false"
+                            @keyup.enter="saveAiKey">
+                    </div>
+                    <div class="ai-config-status">
+                        <span class="agent-state-dot" :class="{ busy: aiConfig.hasApiKey || aiConfig.hasChatGPTLogin }"></span>
+                        <strong>{{ aiConfigLabel }}</strong>
+                    </div>
+                    <div v-if="aiSettingsNotice" class="ai-config-status">{{ aiSettingsNotice }}</div>
+                    <div class="ai-settings-actions">
+                        <button v-if="aiConfig.hasApiKey" class="btn-danger-subtle" @click="deleteAiKey">删除</button>
+                        <span v-else></span>
+                        <button class="btn-cancel" @click="showAiSettings = false">取消</button>
+                        <button class="btn-create" :disabled="!aiConfig.desktop" @click="saveAiKey">保存</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         const { createApp, ref, onMounted, computed, nextTick, watch } = Vue;
         const DEFAULT_REPO = "dogEleven/tofutodo";
+        const AGENT_PREVIEW_MODE = new URLSearchParams(window.location.search).get('preview') === 'agent';
 
         createApp({
             setup() {
                 // State
                 const savedToken = localStorage.getItem('gh_token') || '';
                 const savedRepo = localStorage.getItem('gh_repo') || '';
-                const token = ref(savedToken);
+                const token = ref(AGENT_PREVIEW_MODE ? '__agent_preview__' : savedToken);
                 const inputToken = ref('');
                 const repo = ref(savedRepo || DEFAULT_REPO);
                 const inputRepo = ref(savedRepo || (savedToken ? DEFAULT_REPO : ''));
@@ -1095,6 +1353,24 @@
                 const showSettingsMenu = ref(false);
                 const showLimitBubble = ref(false);
                 let limitBubbleTimer = null;
+                const showAiSettings = ref(false);
+                const aiKeyInput = ref('');
+                const aiSettingsNotice = ref('');
+                const aiConfig = ref({
+                    desktop: Boolean(window.electronAPI?.runAgent),
+                    encryptionAvailable: false,
+                    hasApiKey: false,
+                    hasChatGPTLogin: false,
+                    authMode: null
+                });
+                const aiAuthBusy = ref(false);
+                const agentPrompt = ref('');
+                const agentMessages = ref([]);
+                const agentMessagesEl = ref(null);
+                const agentBusy = ref(false);
+                const agentHasError = ref(false);
+                const agentStatus = ref(window.electronAPI?.runAgent ? '待命' : '网页预览');
+                const agentThreadId = ref(localStorage.getItem('agent_thread_id') || '');
 
                 // Editor State
                 const isEditorOpen = ref(false);
@@ -1223,6 +1499,13 @@
 
                 const selectedLimitedCount = computed(() => (groupedIssues.value[newLabel.value] || []).length);
                 const limitBubbleText = computed(() => `${newLabel.value}最多添加${LIMITED_ITEM_MAX}个项目`);
+                const aiConfigLabel = computed(() => {
+                    if (!aiConfig.value.desktop) return '网页预览 · 未连接桌面 Agent';
+                    if (aiConfig.value.hasChatGPTLogin) return '已使用 ChatGPT 登录';
+                    if (aiConfig.value.hasApiKey) return 'API Key 已安全保存';
+                    if (!aiConfig.value.encryptionAvailable) return '当前系统不支持加密存储';
+                    return '尚未登录';
+                });
 
                 const showLimitedListTip = () => {
                     showLimitBubble.value = true;
@@ -1319,6 +1602,162 @@
                         window.electronAPI.exit();
                     } else {
                         alert('当前非桌面挂件环境，请直接关闭页面。');
+                    }
+                };
+
+                const scrollAgentToBottom = () => {
+                    nextTick(() => {
+                        if (agentMessagesEl.value) {
+                            agentMessagesEl.value.scrollTop = agentMessagesEl.value.scrollHeight;
+                        }
+                    });
+                };
+
+                const appendAgentMessage = (role, content) => {
+                    agentMessages.value.push({
+                        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        role,
+                        content
+                    });
+                    scrollAgentToBottom();
+                };
+
+                const loadAgentConfig = async () => {
+                    if (!window.electronAPI?.getAgentConfig) {
+                        aiConfig.value = { desktop: false, encryptionAvailable: false, hasApiKey: false, hasChatGPTLogin: false, authMode: null };
+                        return;
+                    }
+                    try {
+                        aiConfig.value = await window.electronAPI.getAgentConfig();
+                    } catch (error) {
+                        aiSettingsNotice.value = error.message || '读取 AI 设置失败。';
+                    }
+                };
+
+                const loginWithChatGPT = async () => {
+                    if (!window.electronAPI?.loginAgentWithChatGPT || aiAuthBusy.value) return;
+                    aiAuthBusy.value = true;
+                    aiSettingsNotice.value = '请在打开的 OpenAI 页面完成登录。';
+                    try {
+                        await window.electronAPI.loginAgentWithChatGPT();
+                        aiSettingsNotice.value = 'ChatGPT 登录成功。';
+                        await loadAgentConfig();
+                    } catch (error) {
+                        aiSettingsNotice.value = error.message || 'ChatGPT 登录未完成。';
+                    } finally {
+                        aiAuthBusy.value = false;
+                    }
+                };
+
+                const logoutFromChatGPT = async () => {
+                    if (!window.electronAPI?.logoutAgentFromChatGPT || aiAuthBusy.value) return;
+                    aiAuthBusy.value = true;
+                    try {
+                        await window.electronAPI.logoutAgentFromChatGPT();
+                        aiSettingsNotice.value = '已退出 ChatGPT 登录。';
+                        resetAgentConversation();
+                        await loadAgentConfig();
+                    } catch (error) {
+                        aiSettingsNotice.value = error.message || '退出登录失败。';
+                    } finally {
+                        aiAuthBusy.value = false;
+                    }
+                };
+
+                const openAiSettings = async () => {
+                    showSettingsMenu.value = false;
+                    aiKeyInput.value = '';
+                    aiSettingsNotice.value = '';
+                    await loadAgentConfig();
+                    showAiSettings.value = true;
+                };
+
+                const saveAiKey = async () => {
+                    if (!window.electronAPI?.saveAgentKey) {
+                        aiSettingsNotice.value = '网页预览不会保存或发送 API Key。';
+                        return;
+                    }
+                    const apiKey = aiKeyInput.value.trim();
+                    if (!apiKey) {
+                        aiSettingsNotice.value = '请输入 OpenAI API Key。';
+                        return;
+                    }
+                    try {
+                        await window.electronAPI.saveAgentKey(apiKey);
+                        aiKeyInput.value = '';
+                        aiSettingsNotice.value = '已保存。';
+                        await loadAgentConfig();
+                    } catch (error) {
+                        aiSettingsNotice.value = error.message || '保存失败。';
+                    }
+                };
+
+                const deleteAiKey = async () => {
+                    if (!window.electronAPI?.deleteAgentKey) return;
+                    try {
+                        await window.electronAPI.deleteAgentKey();
+                        aiSettingsNotice.value = '已删除。';
+                        await loadAgentConfig();
+                    } catch (error) {
+                        aiSettingsNotice.value = error.message || '删除失败。';
+                    }
+                };
+
+                const resetAgentConversation = () => {
+                    agentMessages.value = [];
+                    agentThreadId.value = '';
+                    agentHasError.value = false;
+                    agentStatus.value = aiConfig.value.desktop ? '待命' : '网页预览';
+                    localStorage.removeItem('agent_thread_id');
+                };
+
+                const runAgent = async () => {
+                    const prompt = agentPrompt.value.trim();
+                    if (!prompt || agentBusy.value) return;
+
+                    if (!window.electronAPI?.runAgent) {
+                        agentPrompt.value = '';
+                        appendAgentMessage('user', prompt);
+                        agentBusy.value = true;
+                        agentHasError.value = false;
+                        agentStatus.value = '网页预览处理中';
+                        await new Promise(resolve => setTimeout(resolve, 350));
+                        appendAgentMessage('assistant', '网页界面测试正常。实际搜索和回答需要在 TofuTodo 桌面版中运行。');
+                        agentBusy.value = false;
+                        agentStatus.value = '网页预览';
+                        return;
+                    }
+
+                    await loadAgentConfig();
+                    if (!aiConfig.value.hasChatGPTLogin && !aiConfig.value.hasApiKey) {
+                        agentStatus.value = '需要登录';
+                        openAiSettings();
+                        return;
+                    }
+
+                    agentPrompt.value = '';
+                    appendAgentMessage('user', prompt);
+                    agentBusy.value = true;
+                    agentHasError.value = false;
+                    agentStatus.value = 'Agent 正在启动';
+
+                    try {
+                        const result = await window.electronAPI.runAgent({
+                            prompt,
+                            threadId: agentThreadId.value
+                        });
+                        if (result.threadId) {
+                            agentThreadId.value = result.threadId;
+                            localStorage.setItem('agent_thread_id', result.threadId);
+                        }
+                        appendAgentMessage('assistant', result.content);
+                        agentStatus.value = '完成';
+                    } catch (error) {
+                        agentHasError.value = true;
+                        agentStatus.value = '运行失败';
+                        appendAgentMessage('assistant', error.message || 'Agent 运行失败，请稍后重试。');
+                    } finally {
+                        agentBusy.value = false;
                     }
                 };
 
@@ -1735,10 +2174,21 @@
 
                 // Init
                 onMounted(() => {
-                    if (token.value) initData();
+                    if (token.value && !AGENT_PREVIEW_MODE) initData();
                     const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                     isDark.value = theme === 'dark';
                     document.documentElement.setAttribute('data-theme', theme);
+                    loadAgentConfig();
+                    if (window.electronAPI?.onAgentProgress) {
+                        window.electronAPI.onAgentProgress((event) => {
+                            if (event.type === 'thread' && event.threadId) {
+                                agentThreadId.value = event.threadId;
+                                localStorage.setItem('agent_thread_id', event.threadId);
+                            } else if (event.type === 'status' && event.status) {
+                                agentStatus.value = event.status;
+                            }
+                        });
+                    }
                 });
 
                 return {
@@ -1749,6 +2199,10 @@
                     showGroupModal, newGroupName, createGroup, deleteGroup, isCustomGroup, collapsedGroups, toggleGroup,
                     // Menu
                     activeMenuId, toggleMenu, closeAllMenus, showSettingsMenu, exitApp,
+                    // Agent
+                    showAiSettings, aiKeyInput, aiSettingsNotice, aiConfig, aiConfigLabel, aiAuthBusy, openAiSettings,
+                    loginWithChatGPT, logoutFromChatGPT, saveAiKey, deleteAiKey,
+                    agentPrompt, agentMessages, agentMessagesEl, agentBusy, agentHasError, agentStatus, runAgent, resetAgentConversation,
                     // Editor
                     openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown, mdTextarea, previewDiv, insertMarkdown, handlePreviewInput,
                     // Delete
