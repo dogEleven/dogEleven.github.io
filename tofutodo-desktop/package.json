@@ -1,6 +1,6 @@
 {
     "name": "tofutodo-desktop",
-    "version": "1.2.2",
+    "version": "1.1.0",
     "description": "Desktop widget for TofuTodo",
     "main": "main.js",
     "scripts": {
@@ -25,9 +25,7 @@
             "main.js",
             "preload.js",
             "package.json",
-            "build/tray.png",
-            "!node_modules/@openai/codex-win32-x64{,/**}",
-            "!node_modules/@openai/codex/node_modules/@openai/codex-win32-x64{,/**}"
+            "build/tray.png"
         ],
         "win": {
             "signAndEditExecutable": false,
@@ -59,8 +57,6 @@
         "electron-packager": "^17.1.2"
     },
     "dependencies": {
-        "@openai/codex-sdk": "^0.147.0",
-        "electron-updater": "^6.6.2",
-        "tar": "^7.5.22"
+        "electron-updater": "^6.6.2"
     }
 }

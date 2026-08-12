@@ -1297,7 +1297,7 @@
                     <h3>AI 设置</h3>
                     <button v-if="aiConfig.desktop && !aiConfig.hasChatGPTLogin" class="ai-login-button"
                         :disabled="aiAuthBusy" @click="loginWithChatGPT">
-                        {{ aiAuthBusy ? '正在准备 Agent...' : (aiConfig.agentInstalled ? '使用 ChatGPT 登录' : '下载并使用 ChatGPT 登录') }}
+                        {{ aiAuthBusy ? '等待浏览器授权...' : '使用 ChatGPT 登录' }}
                     </button>
                     <button v-else-if="aiConfig.hasChatGPTLogin" class="ai-login-button btn-danger-subtle"
                         :disabled="aiAuthBusy" @click="logoutFromChatGPT">退出 ChatGPT 登录</button>
@@ -1358,8 +1358,6 @@
                 const aiSettingsNotice = ref('');
                 const aiConfig = ref({
                     desktop: Boolean(window.electronAPI?.runAgent),
-                    agentInstalled: false,
-                    agentVersion: null,
                     encryptionAvailable: false,
                     hasApiKey: false,
                     hasChatGPTLogin: false,
@@ -1505,7 +1503,6 @@
                     if (!aiConfig.value.desktop) return '网页预览 · 未连接桌面 Agent';
                     if (aiConfig.value.hasChatGPTLogin) return '已使用 ChatGPT 登录';
                     if (aiConfig.value.hasApiKey) return 'API Key 已安全保存';
-                    if (!aiConfig.value.agentInstalled) return 'Agent 尚未安装，首次使用时自动下载';
                     if (!aiConfig.value.encryptionAvailable) return '当前系统不支持加密存储';
                     return '尚未登录';
                 });
@@ -1627,7 +1624,7 @@
 
                 const loadAgentConfig = async () => {
                     if (!window.electronAPI?.getAgentConfig) {
-                        aiConfig.value = { desktop: false, agentInstalled: false, agentVersion: null, encryptionAvailable: false, hasApiKey: false, hasChatGPTLogin: false, authMode: null };
+                        aiConfig.value = { desktop: false, encryptionAvailable: false, hasApiKey: false, hasChatGPTLogin: false, authMode: null };
                         return;
                     }
                     try {
@@ -1640,9 +1637,7 @@
                 const loginWithChatGPT = async () => {
                     if (!window.electronAPI?.loginAgentWithChatGPT || aiAuthBusy.value) return;
                     aiAuthBusy.value = true;
-                    aiSettingsNotice.value = aiConfig.value.agentInstalled
-                        ? '请在打开的 OpenAI 页面完成登录。'
-                        : '首次使用，正在下载 Agent 运行环境。';
+                    aiSettingsNotice.value = '请在打开的 OpenAI 页面完成登录。';
                     try {
                         await window.electronAPI.loginAgentWithChatGPT();
                         aiSettingsNotice.value = 'ChatGPT 登录成功。';
@@ -2191,9 +2186,6 @@
                                 localStorage.setItem('agent_thread_id', event.threadId);
                             } else if (event.type === 'status' && event.status) {
                                 agentStatus.value = event.status;
-                            } else if (event.type === 'download' && event.status) {
-                                agentStatus.value = event.status;
-                                aiSettingsNotice.value = event.status;
                             }
                         });
                     }

@@ -4,17 +4,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   expand: () => ipcRenderer.send("expand-window"),
   collapse: () => ipcRenderer.send("collapse-window"),
   exit: () => ipcRenderer.send("exit-app"),
-  getAgentConfig: () => ipcRenderer.invoke("agent-config:get"),
-  loginAgentWithChatGPT: () => ipcRenderer.invoke("agent-auth:login-chatgpt"),
-  logoutAgentFromChatGPT: () => ipcRenderer.invoke("agent-auth:logout-chatgpt"),
-  saveAgentKey: (apiKey) => ipcRenderer.invoke("agent-config:save-key", apiKey),
-  deleteAgentKey: () => ipcRenderer.invoke("agent-config:delete-key"),
-  runAgent: (request) => ipcRenderer.invoke("agent:run", request),
-  onAgentProgress: (callback) => {
-    const listener = (_event, payload) => callback(payload);
-    ipcRenderer.on("agent-progress", listener);
-    return () => ipcRenderer.removeListener("agent-progress", listener);
-  },
 });
 
 window.addEventListener("DOMContentLoaded", () => {
