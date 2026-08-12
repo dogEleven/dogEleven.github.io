@@ -78,6 +78,29 @@
             text-align: left;
         }
 
+        .login-download {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            color: var(--text);
+            background: transparent;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .login-download:hover {
+            background: var(--input-bg);
+            border-color: rgba(0, 0, 0, 0.12);
+        }
+
         .login-help {
             display: inline-block;
             margin-top: 16px;
@@ -827,16 +850,12 @@
             <h1>🔐 TofuTodo</h1>
             <p style="color:var(--subtext); margin-bottom: 20px;">使用自己的 GitHub 仓库存储清单</p>
             <div class="login-field">
-                <label for="repo-input">GitHub 仓库</label>
-                <input id="repo-input" v-model="inputRepo" type="text" placeholder="用户名/仓库名"
-                    autocomplete="off" autocapitalize="none" spellcheck="false">
-            </div>
-            <div class="login-field">
                 <label for="token-input">Personal Access Token</label>
                 <input id="token-input" v-model="inputToken" type="password" placeholder="github_pat_... 或 ghp_..."
                     autocomplete="off" autocapitalize="none" spellcheck="false" @keyup.enter="saveToken">
             </div>
             <button @click="saveToken" style="margin-top: 14px;">连接 GitHub</button>
+            <a href="TofuTodo-Widget-Setup.exe" download class="login-download">客户端下载</a>
             <a class="login-help" href="github-setup.html" target="_blank" rel="noopener noreferrer">
                 第一次使用？查看配置指南
             </a>
@@ -1251,7 +1270,7 @@
                 // Methods
                 const saveToken = async () => {
                     const nextToken = inputToken.value.trim();
-                    const nextRepo = inputRepo.value.trim()
+                    const nextRepo = (inputRepo.value.trim() || DEFAULT_REPO)
                         .replace(/^https?:\/\/github\.com\//i, '')
                         .replace(/\.git$/i, '')
                         .replace(/^\/+|\/+$/g, '');
