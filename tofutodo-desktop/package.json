@@ -1,6 +1,6 @@
 {
     "name": "tofutodo-desktop",
-    "version": "1.1.0",
+    "version": "1.2.3",
     "description": "Desktop widget for TofuTodo",
     "main": "main.js",
     "scripts": {
