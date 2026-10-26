@@ -3,6 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
+    <script>
+        // GitHub Pages sends dogeleven.github.io to http://tofusoup.cc; local sync and the image cache need https
+        if (location.protocol === 'http:' && location.hostname === 'tofusoup.cc') {
+            location.replace('https:' + location.href.slice('http:'.length));
+        }
+    </script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -1150,7 +1156,8 @@
         const { createApp, ref, onMounted, computed, nextTick, watch } = Vue;
         const DEFAULT_REPO = "dogEleven/tofutodo";
 
-        // Images: stored in a private "<repo>-attachments" repo, fetched with the token, cached in Cache Storage
+        // Images: stored on an orphan "attachments" branch of the data repo, fetched with the token, cached in Cache Storage
+        const ATTACH_BRANCH = 'attachments';
         const ATTACH_PLACEHOLDER = 'tofu-uploading:';
         const IMAGE_CACHE = 'tofutodo-images-v1';
         const IMAGE_MAX_SIZE = 2000;
@@ -1806,7 +1813,6 @@
                 };
 
                 // Images
-                const attachmentsRepo = computed(() => `${repo.value}-attachments`);
 
                 const readImageCache = async (url) => {
                     try {
@@ -1892,15 +1898,42 @@
                     reader.readAsDataURL(blob);
                 });
 
+                // Creates the attachments branch as an orphan (no shared history with the default branch)
+                let attachmentsBranchReady = null;
+                const ensureAttachmentsBranch = () => {
+                    if (!attachmentsBranchReady) {
+                        const base = `https://api.github.com/repos/${repo.value}/git`;
+                        const config = { headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${token.value}` } };
+                        attachmentsBranchReady = (async () => {
+                            try {
+                                await axios.get(`${base}/ref/heads/${ATTACH_BRANCH}`, config);
+                                return;
+                            } catch (e) {
+                                if (e.response?.status !== 404) throw e;
+                            }
+                            const tree = await axios.post(`${base}/trees`, {
+                                tree: [{ path: 'README.md', mode: '100644', type: 'blob', content: '# TofuTodo attachments\n\nImages pasted into TofuTodo. This branch shares no history with the default branch.\n' }]
+                            }, config);
+                            const commit = await axios.post(`${base}/commits`, {
+                                message: 'Create attachments branch', tree: tree.data.sha, parents: []
+                            }, config);
+                            await axios.post(`${base}/refs`, { ref: `refs/heads/${ATTACH_BRANCH}`, sha: commit.data.sha }, config);
+                        })().catch((e) => { attachmentsBranchReady = null; throw e; });
+                    }
+                    return attachmentsBranchReady;
+                };
+
                 const uploadImage = async (blob) => {
+                    await ensureAttachmentsBranch();
                     const ext = Object.keys(IMAGE_TYPES).find(k => IMAGE_TYPES[k] === blob.type) || 'png';
                     const now = new Date();
                     const path = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getTime()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-                    await axios.put(`https://api.github.com/repos/${attachmentsRepo.value}/contents/${path}`, {
+                    await axios.put(`https://api.github.com/repos/${repo.value}/contents/${path}`, {
                         message: `Add ${path}`,
-                        content: await blobToBase64(blob)
+                        content: await blobToBase64(blob),
+                        branch: ATTACH_BRANCH
                     }, { headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${token.value}` } });
-                    const url = `https://github.com/${attachmentsRepo.value}/raw/HEAD/${path}`;
+                    const url = `https://github.com/${repo.value}/raw/${ATTACH_BRANCH}/${path}`;
                     // Seed the caches so the image we just uploaded is never downloaded again
                     writeImageCache(url, blob);
                     resolvedImageUrls.set(url, URL.createObjectURL(blob));
@@ -1909,10 +1942,8 @@
 
                 const alertUploadError = (e) => {
                     const status = e.response?.status;
-                    if (status === 404) {
-                        alert(`图片上传失败：找不到仓库 ${attachmentsRepo.value}，或 Token 没有它的权限。\n请先在 GitHub 新建这个私有仓库，并给 Token 加上它的 Contents 读写权限。`);
-                    } else if (status === 403) {
-                        alert(`图片上传失败：Token 没有 ${attachmentsRepo.value} 的 Contents 写权限。`);
+                    if (status === 403 || status === 404) {
+                        alert(`图片上传失败：Token 没有 ${repo.value} 的 Contents 读写权限。\n请在 GitHub 的 Token 设置里把 Repository permissions → Contents 改成 Read and write。`);
                     } else {
                         alert('图片上传失败: ' + (e.response?.data?.message || e.message));
                     }

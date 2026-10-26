@@ -311,7 +311,7 @@
                 </li>
                 <li class="step">
                     <h3>（可选）开启图片</h3>
-                    <p>想在备忘里粘贴或拖入图片，再新建一个仓库，名字是数据仓库名加 <code>-attachments</code>，例如 <code>tofutodo-data-attachments</code>，建议选 <strong>Private</strong>。然后编辑 Token：在 <strong>Repository access</strong> 里加上这个仓库，并把 <strong>Repository permissions → Contents</strong> 设为 Read and write。图片只能在 TofuTodo 里查看。</p>
+                    <p>想在备忘里粘贴或拖入图片，编辑 Token，把 <strong>Repository permissions → Contents</strong> 设为 Read and write。图片会存进数据仓库里一个单独的 <code>attachments</code> 分支，第一次上传时自动创建，不影响仓库的主分支。图片只能在 TofuTodo 里查看。</p>
                 </li>
             </ol>
         </section>
