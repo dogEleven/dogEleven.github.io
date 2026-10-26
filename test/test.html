@@ -585,6 +585,10 @@
             border-radius: 8px;
         }
 
+        .md-preview img[data-gh-src^="tofu-uploading:"] {
+            opacity: 0.5;
+        }
+
         .md-preview code {
             background: rgba(150, 150, 150, 0.2);
             padding: 2px 4px;
@@ -1000,7 +1004,7 @@
             <div class="editor-modal" :class="{ active: isEditorOpen }">
                 <div class="editor-header">
                     <button class="logout-btn" @click="closeEditor">取消</button>
-                    <div style="font-weight:600;">编辑</div>
+                    <div style="font-weight:600;">{{ pendingUploads ? `图片上传中 (${pendingUploads})…` : '编辑' }}</div>
                     <div>
                         <button class="logout-btn" style="font-weight:600; margin-right: 5px;"
                             @click="saveEditor(false)">保存</button>
@@ -1027,11 +1031,16 @@
                         <button class="md-btn" @click="insertMarkdown('ol')" title="有序列表">1.</button>
                         <div class="md-divider"></div>
                         <button class="md-btn" @click="insertMarkdown('code')" title="代码块">&lt;/&gt;</button>
+                        <div class="md-divider"></div>
+                        <button class="md-btn" @click="pickImage" title="插入图片（也可以直接粘贴或拖入）">🖼</button>
+                        <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onImagePicked">
                     </div>
                     <textarea ref="mdTextarea" v-show="!showPreview" v-model="editingBody" class="editor-textarea"
-                        placeholder="支持 Markdown..." spellcheck="false"></textarea>
+                        placeholder="支持 Markdown..." spellcheck="false"
+                        @paste="handleEditorPaste" @dragover.prevent @drop="handleEditorDrop"></textarea>
                     <div ref="previewDiv" v-show="showPreview" class="md-preview active" contenteditable="true"
-                        @input="handlePreviewInput" placeholder="直接在这里输入内容..." spellcheck="false"></div>
+                        @input="handlePreviewInput" placeholder="直接在这里输入内容..." spellcheck="false"
+                        @paste="handleEditorPaste" @dragover.prevent @drop="handleEditorDrop"></div>
                 </div>
             </div>
 
@@ -1052,6 +1061,39 @@
     <script>
         const { createApp, ref, onMounted, computed, nextTick, watch } = Vue;
         const DEFAULT_REPO = "dogEleven/tofutodo";
+
+        // Images: stored in a private "<repo>-attachments" repo, fetched with the token, cached in Cache Storage
+        const ATTACH_PLACEHOLDER = 'tofu-uploading:';
+        const IMAGE_CACHE = 'tofutodo-images-v1';
+        const IMAGE_MAX_SIZE = 2000;
+        const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        const IMAGE_TYPES = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml' };
+        const pendingImageUrls = new Map(); // placeholder id -> local object URL while uploading
+        const resolvedImageUrls = new Map(); // GitHub file URL -> object URL
+
+        const parseGithubFileUrl = (url) => {
+            const m = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:raw|blob)\/([^/]+)\/([^?#]+)/)
+                || url.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/([^?#]+)/);
+            return m ? { owner: m[1], repo: m[2], ref: m[3], path: m[4] } : null;
+        };
+        const escapeAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+        marked.use({
+            renderer: {
+                // marked >= 13 passes a token object; older versions pass (href, title, text)
+                image(hrefOrToken, title, text) {
+                    const t = hrefOrToken && typeof hrefOrToken === 'object' ? hrefOrToken : { href: hrefOrToken, title, text };
+                    const href = t.href || '';
+                    const isPending = href.startsWith(ATTACH_PLACEHOLDER);
+                    if (!isPending && !parseGithubFileUrl(href)) return false;
+                    const src = isPending
+                        ? pendingImageUrls.get(href.slice(ATTACH_PLACEHOLDER.length))
+                        : resolvedImageUrls.get(href);
+                    const titleAttr = t.title ? ` title="${escapeAttr(t.title)}"` : '';
+                    return `<img data-gh-src="${escapeAttr(href)}" src="${escapeAttr(src || BLANK_IMG)}" alt="${escapeAttr(t.text)}"${titleAttr}>`;
+                }
+            }
+        });
 
         createApp({
             setup() {
@@ -1085,6 +1127,10 @@
                 const showPreview = ref(false);
                 const mdTextarea = ref(null);
                 const previewDiv = ref(null);
+                const imageInput = ref(null);
+                const pendingUploads = ref(0);
+                let uploadQueue = Promise.resolve();
+                const imageLoads = new Map(); // GitHub file URL -> Promise<object URL>
 
                 // Initialize Turndown
                 const turndownService = new TurndownService({
@@ -1096,6 +1142,11 @@
                     replacement: function (content) {
                         return '~~' + content + '~~'
                     }
+                });
+                // Keep the GitHub URL (not the local blob URL) when converting preview HTML back to Markdown
+                turndownService.addRule('githubImage', {
+                    filter: (node) => node.nodeName === 'IMG' && node.hasAttribute('data-gh-src'),
+                    replacement: (content, node) => `![${node.getAttribute('alt') || ''}](${node.getAttribute('data-gh-src')})`
                 });
 
                 // Config
@@ -1218,6 +1269,7 @@
                     nextTick(() => {
                         if (previewDiv.value) {
                             previewDiv.value.innerHTML = renderedMarkdown.value;
+                            hydrateImages(previewDiv.value);
                         }
                     });
                 };
@@ -1584,9 +1636,16 @@
                         syncPreviewFromMarkdown();
                     }
                 };
-                const closeEditor = () => { isEditorOpen.value = false; };
+                const closeEditor = () => {
+                    if (pendingUploads.value > 0 && !confirm('图片还在上传，现在关闭会丢失这些图片。确定关闭？')) return;
+                    isEditorOpen.value = false;
+                };
                 const saveEditor = async (closeAfterSave = true) => {
                     if (!editingTitle.value) return;
+                    if (pendingUploads.value > 0) {
+                        alert('图片还在上传，请稍候再保存。');
+                        return;
+                    }
                     try {
                         const res = await api.patch(`/issues/${editingIssue.value.number}`, {
                             title: editingTitle.value, body: editingBody.value
@@ -1610,6 +1669,226 @@
                     if (previewDiv.value) {
                         editingBody.value = turndownService.turndown(previewDiv.value.innerHTML);
                     }
+                };
+
+                // Images
+                const attachmentsRepo = computed(() => `${repo.value}-attachments`);
+
+                const readImageCache = async (url) => {
+                    try {
+                        const res = await (await caches.open(IMAGE_CACHE)).match(url);
+                        return res ? await res.blob() : null;
+                    } catch (e) { return null; }
+                };
+                const writeImageCache = async (url, blob) => {
+                    try {
+                        await (await caches.open(IMAGE_CACHE)).put(url, new Response(blob, { headers: { 'Content-Type': blob.type } }));
+                    } catch (e) { /* Cache Storage unavailable: images are simply re-fetched next time */ }
+                };
+
+                const loadGithubImage = (url) => {
+                    if (!imageLoads.has(url)) {
+                        imageLoads.set(url, (async () => {
+                            let blob = await readImageCache(url);
+                            if (!blob) {
+                                const file = parseGithubFileUrl(url);
+                                const query = file.ref === 'HEAD' ? '' : `?ref=${encodeURIComponent(file.ref)}`;
+                                const res = await axios.get(`https://api.github.com/repos/${file.owner}/${file.repo}/contents/${file.path}${query}`, {
+                                    headers: { 'Accept': 'application/vnd.github.raw', 'Authorization': `token ${token.value}` },
+                                    responseType: 'blob'
+                                });
+                                const ext = file.path.split('.').pop().toLowerCase();
+                                blob = new Blob([res.data], { type: IMAGE_TYPES[ext] || res.data.type });
+                                writeImageCache(url, blob);
+                            }
+                            const objectUrl = URL.createObjectURL(blob);
+                            resolvedImageUrls.set(url, objectUrl);
+                            return objectUrl;
+                        })().catch((e) => { imageLoads.delete(url); throw e; }));
+                    }
+                    return imageLoads.get(url);
+                };
+
+                const hydrateImages = (root) => {
+                    root.querySelectorAll('img[data-gh-src]').forEach(async (img) => {
+                        const url = img.getAttribute('data-gh-src');
+                        if (url.startsWith(ATTACH_PLACEHOLDER) || resolvedImageUrls.has(url)) return;
+                        try {
+                            img.src = await loadGithubImage(url);
+                        } catch (e) {
+                            console.error('[TofuTodo] Image load failed', url, e);
+                            img.alt = '图片加载失败';
+                        }
+                    });
+                };
+
+                const compressImage = async (file) => {
+                    if (!['image/png', 'image/jpeg', 'image/webp', 'image/bmp'].includes(file.type)) return file;
+                    try {
+                        const bitmap = await createImageBitmap(file);
+                        const scale = Math.min(1, IMAGE_MAX_SIZE / Math.max(bitmap.width, bitmap.height));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(bitmap.width * scale);
+                        canvas.height = Math.round(bitmap.height * scale);
+                        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                        bitmap.close();
+                        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85));
+                        // Browsers without WebP encoding fall back to PNG; keep the original then
+                        if (!blob || blob.type !== 'image/webp') return file;
+                        return (blob.size < file.size || scale < 1) ? blob : file;
+                    } catch (e) { return file; }
+                };
+
+                const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsDataURL(blob);
+                });
+
+                const uploadImage = async (blob) => {
+                    const ext = Object.keys(IMAGE_TYPES).find(k => IMAGE_TYPES[k] === blob.type) || 'png';
+                    const now = new Date();
+                    const path = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getTime()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+                    await axios.put(`https://api.github.com/repos/${attachmentsRepo.value}/contents/${path}`, {
+                        message: `Add ${path}`,
+                        content: await blobToBase64(blob)
+                    }, { headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${token.value}` } });
+                    const url = `https://github.com/${attachmentsRepo.value}/raw/HEAD/${path}`;
+                    // Seed the caches so the image we just uploaded is never downloaded again
+                    writeImageCache(url, blob);
+                    resolvedImageUrls.set(url, URL.createObjectURL(blob));
+                    return url;
+                };
+
+                const alertUploadError = (e) => {
+                    const status = e.response?.status;
+                    if (status === 404) {
+                        alert(`图片上传失败：找不到仓库 ${attachmentsRepo.value}，或 Token 没有它的权限。\n请先在 GitHub 新建这个私有仓库，并给 Token 加上它的 Contents 读写权限。`);
+                    } else if (status === 403) {
+                        alert(`图片上传失败：Token 没有 ${attachmentsRepo.value} 的 Contents 写权限。`);
+                    } else {
+                        alert('图片上传失败: ' + (e.response?.data?.message || e.message));
+                    }
+                };
+
+                const insertImagePlaceholder = (placeholder, localUrl) => {
+                    if (showPreview.value && previewDiv.value) {
+                        const div = previewDiv.value;
+                        const sel = window.getSelection();
+                        if (!sel.rangeCount || !div.contains(sel.anchorNode)) {
+                            const end = document.createRange();
+                            end.selectNodeContents(div);
+                            end.collapse(false);
+                            sel.removeAllRanges();
+                            sel.addRange(end);
+                        }
+                        const range = sel.getRangeAt(0);
+                        range.deleteContents();
+                        const img = document.createElement('img');
+                        img.setAttribute('data-gh-src', placeholder);
+                        img.setAttribute('alt', 'image');
+                        img.src = localUrl;
+                        range.insertNode(img);
+                        range.setStartAfter(img);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        handlePreviewInput();
+                        return;
+                    }
+                    const textarea = mdTextarea.value;
+                    const text = editingBody.value;
+                    const pos = textarea ? textarea.selectionEnd : text.length;
+                    const before = text.slice(0, pos);
+                    const prefix = before && !before.endsWith('\n') ? '\n' : '';
+                    const snippet = `${prefix}![image](${placeholder})\n`;
+                    editingBody.value = before + snippet + text.slice(pos);
+                    nextTick(() => {
+                        if (!textarea) return;
+                        textarea.focus();
+                        textarea.setSelectionRange(pos + snippet.length, pos + snippet.length);
+                    });
+                };
+
+                // url = null means the upload failed and the placeholder should be removed
+                const replaceImagePlaceholder = (placeholder, url, issueId) => {
+                    if (!isEditorOpen.value || editingIssue.value?.id !== issueId) {
+                        if (url) console.warn('[TofuTodo] Editor closed before upload finished, image is at', url);
+                        return;
+                    }
+                    const img = previewDiv.value?.querySelector(`img[data-gh-src="${placeholder}"]`);
+                    if (img) {
+                        if (url) {
+                            img.setAttribute('data-gh-src', url);
+                            img.src = resolvedImageUrls.get(url);
+                        } else {
+                            img.remove();
+                        }
+                    }
+                    if (showPreview.value && img) {
+                        handlePreviewInput();
+                    } else if (url) {
+                        editingBody.value = editingBody.value.split(placeholder).join(url);
+                    } else {
+                        editingBody.value = editingBody.value.replace(new RegExp(`!\\[[^\\]]*\\]\\(${placeholder}\\)\\n?`), '');
+                    }
+                };
+
+                const handleImageFiles = (files) => {
+                    const images = [...files].filter(f => f.type.startsWith('image/'));
+                    if (!images.length) return false;
+                    const issueId = editingIssue.value?.id;
+                    images.forEach((file) => {
+                        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        const placeholder = ATTACH_PLACEHOLDER + id;
+                        const localUrl = URL.createObjectURL(file);
+                        pendingImageUrls.set(id, localUrl);
+                        insertImagePlaceholder(placeholder, localUrl);
+                        pendingUploads.value++;
+                        // Upload one at a time: parallel commits to the same branch conflict
+                        uploadQueue = uploadQueue.then(async () => {
+                            try {
+                                const url = await uploadImage(await compressImage(file));
+                                replaceImagePlaceholder(placeholder, url, issueId);
+                            } catch (e) {
+                                console.error('[TofuTodo] Image upload failed', e);
+                                replaceImagePlaceholder(placeholder, null, issueId);
+                                alertUploadError(e);
+                            } finally {
+                                pendingImageUrls.delete(id);
+                                URL.revokeObjectURL(localUrl);
+                                pendingUploads.value--;
+                            }
+                        });
+                    });
+                    return true;
+                };
+
+                const handleEditorPaste = (e) => {
+                    const files = e.clipboardData?.files;
+                    if (files && files.length && handleImageFiles(files)) e.preventDefault();
+                };
+
+                const handleEditorDrop = (e) => {
+                    const files = e.dataTransfer?.files;
+                    if (!files || !files.length) return;
+                    e.preventDefault();
+                    if (showPreview.value && previewDiv.value && document.caretRangeFromPoint) {
+                        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                        if (range && previewDiv.value.contains(range.startContainer)) {
+                            const sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                    }
+                    handleImageFiles(files);
+                };
+
+                const pickImage = () => imageInput.value?.click();
+                const onImagePicked = (e) => {
+                    handleImageFiles(e.target.files);
+                    e.target.value = '';
                 };
 
                 const insertMarkdown = (type) => {
@@ -1732,6 +2011,8 @@
                     activeMenuId, toggleMenu, closeAllMenus, showSettingsMenu, exitApp,
                     // Editor
                     openEditor, closeEditor, saveEditor, isEditorOpen, editingTitle, editingBody, showPreview, renderedMarkdown, mdTextarea, previewDiv, insertMarkdown, handlePreviewInput,
+                    // Images
+                    imageInput, pendingUploads, pickImage, onImagePicked, handleEditorPaste, handleEditorDrop,
                     // Delete
                     deleteIssue,
                     // Priority
