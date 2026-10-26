@@ -950,8 +950,8 @@
             </div>
 
             <div v-if="syncEnabled && syncNeedsPermission" class="sync-banner">
-                本地同步需要重新授权目录访问
-                <button class="logout-btn" style="color:var(--primary); font-weight:600;" @click="grantSyncPermission">授权</button>
+                {{ syncWidgetTooOld ? '挂件需要升级到 1.2.5 才能本地同步（托盘图标 → 检查更新）' : '本地同步需要重新授权目录访问' }}
+                <button v-if="!syncWidgetTooOld" class="logout-btn" style="color:var(--primary); font-weight:600;" @click="grantSyncPermission">授权</button>
             </div>
 
             <div class="tabs">
@@ -2029,12 +2029,16 @@
                     e.target.value = '';
                 };
 
-                // Local sync: incremental export of every issue to a user-picked directory (File System Access API).
+                // Local sync: incremental export of every issue to a user-picked directory.
                 // Layout: <group>/<number>_<title>.md, images under attachments/, state in .tofutodo-sync.json
+                // Storage: the desktop widget (>= 1.2.5) writes files itself; browsers use the File System Access API
                 const SYNC_INTERVAL_MS = 60 * 60 * 1000;
                 const SYNC_STATE_FILE = '.tofutodo-sync.json';
                 const IMAGE_MD_RE = /!\[([^\]]*)\]\((https:\/\/[^)\s]+)\)/g;
-                const syncSupported = typeof window.showDirectoryPicker === 'function';
+                const electronSync = window.electronAPI?.sync || null;
+                // Widgets before 1.2.5 have no sync bridge, and their Electron denies File System Access writes
+                const syncWidgetTooOld = !!window.electronAPI && !electronSync;
+                const syncSupported = !!electronSync || typeof window.showDirectoryPicker === 'function';
                 const showSyncModal = ref(false);
                 const syncEnabled = ref(localStorage.getItem('sync_enabled') === '1');
                 const syncDirName = ref('');
@@ -2054,38 +2058,47 @@
                     .replace(/[\\/:*?"<>|\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim()
                     .replace(/[. ]+$/, '').slice(0, 80) || 'untitled';
 
-                const resolveDir = async (root, parts, create) => {
-                    let dir = root;
+                const hasSyncDir = () => electronSync ? !!syncDirName.value : !!syncDirHandle;
+
+                const resolveDir = async (parts, create) => {
+                    let dir = syncDirHandle;
                     for (const part of parts) dir = await dir.getDirectoryHandle(part, { create });
                     return dir;
                 };
-                const writeLocalFile = async (root, relPath, data) => {
+                const writeLocalFile = async (relPath, data) => {
+                    if (electronSync) {
+                        return electronSync.writeFile(relPath, data instanceof Blob ? new Uint8Array(await data.arrayBuffer()) : data);
+                    }
                     const parts = relPath.split('/');
                     const name = parts.pop();
-                    const dir = await resolveDir(root, parts, true);
+                    const dir = await resolveDir(parts, true);
                     const writable = await (await dir.getFileHandle(name, { create: true })).createWritable();
                     await writable.write(data);
                     await writable.close();
                 };
-                const localFileExists = async (root, relPath) => {
+                const localFileExists = async (relPath) => {
+                    if (electronSync) return electronSync.exists(relPath);
                     const parts = relPath.split('/');
                     const name = parts.pop();
                     try {
-                        await (await resolveDir(root, parts, false)).getFileHandle(name);
+                        await (await resolveDir(parts, false)).getFileHandle(name);
                         return true;
                     } catch (e) { return false; }
                 };
-                const removeLocalFile = async (root, relPath) => {
+                const removeLocalFile = async (relPath) => {
+                    if (electronSync) return electronSync.removeFile(relPath);
                     const parts = relPath.split('/');
                     const name = parts.pop();
                     try {
-                        await (await resolveDir(root, parts, false)).removeEntry(name);
+                        await (await resolveDir(parts, false)).removeEntry(name);
                     } catch (e) { /* already gone */ }
                 };
-                const readSyncState = async (root) => {
+                const readSyncState = async () => {
                     try {
-                        const file = await (await root.getFileHandle(SYNC_STATE_FILE)).getFile();
-                        return JSON.parse(await file.text());
+                        const text = electronSync
+                            ? await electronSync.readFile(SYNC_STATE_FILE)
+                            : await (await (await syncDirHandle.getFileHandle(SYNC_STATE_FILE)).getFile()).text();
+                        return text ? JSON.parse(text) : null;
                     } catch (e) { return null; }
                 };
 
@@ -2118,7 +2131,7 @@
                 };
 
                 // Downloads GitHub-hosted images referenced in the bodies; returns { url: local relative path }
-                const syncIssueImages = async (root, bodies) => {
+                const syncIssueImages = async (bodies) => {
                     const paths = {};
                     for (const body of bodies) {
                         for (const match of (body || '').matchAll(IMAGE_MD_RE)) {
@@ -2128,8 +2141,8 @@
                             try {
                                 const rel = ['attachments', sanitizeName(file.repo),
                                     ...file.path.split('/').map(p => sanitizeName(decodeURIComponent(p)))].join('/');
-                                if (!(await localFileExists(root, rel))) {
-                                    await writeLocalFile(root, rel, await fetchGithubImageBlob(url));
+                                if (!(await localFileExists(rel))) {
+                                    await writeLocalFile(rel, await fetchGithubImageBlob(url));
                                 }
                                 paths[url] = rel;
                             } catch (e) {
@@ -2149,8 +2162,8 @@
                     }
                 };
 
-                const syncToDirectory = async (root) => {
-                    let state = await readSyncState(root);
+                const syncToDirectory = async () => {
+                    let state = await readSyncState();
                     if (!state || state.repo !== repo.value) state = { repo: repo.value, since: null, files: {} };
                     const headers = { 'Authorization': `token ${token.value}` };
 
@@ -2167,16 +2180,16 @@
 
                     for (const issue of changed) {
                         const comments = issue.comments > 0 ? await fetchAllComments(issue.number, headers) : [];
-                        const imagePaths = await syncIssueImages(root, [issue.body, ...comments.map(c => c.body)]);
+                        const imagePaths = await syncIssueImages([issue.body, ...comments.map(c => c.body)]);
                         const localize = (md) => md.replace(IMAGE_MD_RE, (m, alt, url) => imagePaths[url] ? `![${alt}](../${imagePaths[url]})` : m);
                         const relPath = `${syncGroupOf(issue)}/${issue.number}_${sanitizeName(issue.title)}.md`;
                         const oldPath = state.files[issue.number];
-                        if (oldPath && oldPath !== relPath) await removeLocalFile(root, oldPath);
-                        await writeLocalFile(root, relPath, buildIssueMarkdown(issue, comments, localize));
+                        if (oldPath && oldPath !== relPath) await removeLocalFile(oldPath);
+                        await writeLocalFile(relPath, buildIssueMarkdown(issue, comments, localize));
                         state.files[issue.number] = relPath;
                         if (!state.since || issue.updated_at > state.since) state.since = issue.updated_at;
                     }
-                    await writeLocalFile(root, SYNC_STATE_FILE, JSON.stringify(state, null, 2));
+                    await writeLocalFile(SYNC_STATE_FILE, JSON.stringify(state, null, 2));
                     return changed.length;
                 };
 
@@ -2195,6 +2208,7 @@
                 };
 
                 const ensureSyncPermission = async (interactive) => {
+                    if (electronSync) return hasSyncDir();
                     if (!syncDirHandle) return false;
                     const opts = { mode: 'readwrite' };
                     let permission;
@@ -2211,15 +2225,19 @@
                 };
 
                 const runSync = async (manual = false) => {
-                    if (!syncSupported || !token.value || !syncDirHandle || syncRunning.value) return;
+                    if (!syncSupported || !token.value || !hasSyncDir() || syncRunning.value) return;
                     if (!(await ensureSyncPermission(manual))) {
-                        if (manual) syncMessage.value = `没有目录写入权限（${syncPermissionDetail}），请重新授权或重新选择目录。`;
+                        if (manual) {
+                            syncMessage.value = syncWidgetTooOld
+                                ? '当前挂件版本不支持本地同步，请右键托盘图标 →“检查更新”，升级到 1.2.5 或更高版本。'
+                                : `没有目录写入权限（${syncPermissionDetail}），请重新授权或重新选择目录。`;
+                        }
                         return;
                     }
                     syncRunning.value = true;
                     try {
                         let count = null;
-                        const work = async () => { count = await syncToDirectory(syncDirHandle); };
+                        const work = async () => { count = await syncToDirectory(); };
                         // The lock keeps two open tabs (or tab + widget) from writing the same directory at once
                         if (navigator.locks) {
                             await navigator.locks.request('tofutodo-sync', { ifAvailable: true }, async (lock) => { if (lock) await work(); });
@@ -2245,6 +2263,22 @@
                 };
 
                 const pickSyncDir = async () => {
+                    if (electronSync) {
+                        let picked;
+                        try {
+                            picked = await electronSync.pickDirectory();
+                        } catch (e) {
+                            syncMessage.value = `选择目录失败：${e.message}`;
+                            return;
+                        }
+                        if (!picked) return;
+                        syncDirName.value = picked.path;
+                        syncNeedsPermission.value = false;
+                        syncMessage.value = '';
+                        toggleSyncEnabled(true);
+                        runSync(true);
+                        return;
+                    }
                     try {
                         syncDirHandle = await window.showDirectoryPicker({ id: 'tofutodo-sync', mode: 'readwrite' });
                     } catch (e) {
@@ -2262,8 +2296,10 @@
                     runSync(true);
                 };
 
+                // Always surface the outcome: a silently denied request looks like a dead button
                 const grantSyncPermission = async () => {
-                    if (await ensureSyncPermission(true)) runSync(true);
+                    showSyncModal.value = true;
+                    await runSync(true);
                 };
 
                 const maybeAutoSync = () => {
@@ -2272,6 +2308,14 @@
 
                 onMounted(async () => {
                     if (!syncSupported) return;
+                    if (electronSync) {
+                        try {
+                            syncDirName.value = (await electronSync.getDirectory())?.path || '';
+                        } catch (e) { console.error('[TofuTodo] Could not read widget sync folder', e); }
+                        maybeAutoSync();
+                        setInterval(maybeAutoSync, 60 * 1000);
+                        return;
+                    }
                     try {
                         syncDirHandle = (await kvGet('syncDir')) || null;
                     } catch (e) { syncDirHandle = null; }
@@ -2381,7 +2425,7 @@
                     // Images
                     imageInput, pendingUploads, pickImage, onImagePicked, handleEditorPaste, handleEditorDrop,
                     // Local sync
-                    showSyncModal, syncSupported, syncEnabled, syncDirName, syncRunning, syncNeedsPermission, syncStatusText,
+                    showSyncModal, syncSupported, syncWidgetTooOld, syncEnabled, syncDirName, syncRunning, syncNeedsPermission, syncStatusText,
                     pickSyncDir, toggleSyncEnabled, runSync, grantSyncPermission,
                     // Delete
                     deleteIssue,

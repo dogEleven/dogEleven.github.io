@@ -47,6 +47,91 @@ function writeUpdatePreferences(preferences) {
     fs.writeFileSync(getUpdatePreferencesPath(), JSON.stringify(preferences, null, 2), 'utf8');
 }
 
+// Local sync: the page hands over files, we write them inside the folder the user picked
+const SYNC_PAGE_HOSTS = ['tofusoup.cc', 'dogeleven.github.io'];
+
+function getSyncPreferencesPath() {
+    return path.join(app.getPath('userData'), 'sync-preferences.json');
+}
+
+function readSyncDirectory() {
+    try {
+        return JSON.parse(fs.readFileSync(getSyncPreferencesPath(), 'utf8')).directory || null;
+    } catch {
+        return null;
+    }
+}
+
+function assertSyncSender(event) {
+    let host = '';
+    try {
+        host = new URL(event.senderFrame.url).hostname;
+    } catch {
+        // fall through to the error below
+    }
+    if (!SYNC_PAGE_HOSTS.includes(host)) throw new Error('Sync is only available to the TofuTodo page');
+}
+
+// Resolves a page-supplied relative path, refusing anything that escapes the sync folder
+function resolveSyncPath(relPath) {
+    const root = readSyncDirectory();
+    if (!root) throw new Error('No sync folder selected');
+    const rootResolved = path.resolve(root);
+    const full = path.resolve(rootResolved, String(relPath));
+    if (!full.startsWith(rootResolved + path.sep)) throw new Error(`Path outside sync folder: ${relPath}`);
+    return full;
+}
+
+function syncDirectoryInfo(directory) {
+    return directory ? { name: directory, path: directory } : null;
+}
+
+function registerSyncHandlers() {
+    ipcMain.handle('sync:get-directory', (event) => {
+        assertSyncSender(event);
+        return syncDirectoryInfo(readSyncDirectory());
+    });
+
+    ipcMain.handle('sync:pick-directory', async (event) => {
+        assertSyncSender(event);
+        const options = { title: '选择 TofuTodo 同步目录', properties: ['openDirectory', 'createDirectory'] };
+        const result = win && !win.isDestroyed()
+            ? await dialog.showOpenDialog(win, options)
+            : await dialog.showOpenDialog(options);
+        if (result.canceled || !result.filePaths[0]) return null;
+        const directory = result.filePaths[0];
+        fs.writeFileSync(getSyncPreferencesPath(), JSON.stringify({ directory }, null, 2), 'utf8');
+        return syncDirectoryInfo(directory);
+    });
+
+    ipcMain.handle('sync:read-file', async (event, relPath) => {
+        assertSyncSender(event);
+        try {
+            return await fs.promises.readFile(resolveSyncPath(relPath), 'utf8');
+        } catch (error) {
+            if (error.code === 'ENOENT') return null;
+            throw error;
+        }
+    });
+
+    ipcMain.handle('sync:write-file', async (event, relPath, data) => {
+        assertSyncSender(event);
+        const full = resolveSyncPath(relPath);
+        await fs.promises.mkdir(path.dirname(full), { recursive: true });
+        await fs.promises.writeFile(full, typeof data === 'string' ? data : Buffer.from(data));
+    });
+
+    ipcMain.handle('sync:exists', (event, relPath) => {
+        assertSyncSender(event);
+        return fs.existsSync(resolveSyncPath(relPath));
+    });
+
+    ipcMain.handle('sync:remove-file', async (event, relPath) => {
+        assertSyncSender(event);
+        await fs.promises.rm(resolveSyncPath(relPath), { force: true });
+    });
+}
+
 function showUpdateDialog(options) {
     if (win && !win.isDestroyed() && win.isVisible()) {
         return dialog.showMessageBox(win, options);
@@ -334,6 +419,7 @@ if (!gotTheLock) {
 
     app.whenReady().then(() => {
         configureAutoUpdater();
+        registerSyncHandlers();
         createWindow();
         setTimeout(() => checkForUpdates(false), 6000);
     });

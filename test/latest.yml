@@ -1,8 +1,8 @@
-version: 1.2.4
+version: 1.2.5
 files:
   - url: TofuTodo-Widget-Setup.exe
-    sha512: pRweA7U7OQ89pLHZSw8eM8K3rxIjY5kbT/8Hj1mCKoLfrYDefvw0JpzSocfAn+/kZerAAPsIt7ncUxgIqdOpLw==
-    size: 76427352
+    sha512: 2rjIkSYSWT1Qsfc3sNIhgP/RCac9NZaqqpooXGA8aznYsQpwsI0mxzFPgno9CU3ChJfGfUDS1DbER1NdXDYkBQ==
+    size: 76428251
 path: TofuTodo-Widget-Setup.exe
-sha512: pRweA7U7OQ89pLHZSw8eM8K3rxIjY5kbT/8Hj1mCKoLfrYDefvw0JpzSocfAn+/kZerAAPsIt7ncUxgIqdOpLw==
-releaseDate: '2026-08-12T14:29:13.984Z'
+sha512: 2rjIkSYSWT1Qsfc3sNIhgP/RCac9NZaqqpooXGA8aznYsQpwsI0mxzFPgno9CU3ChJfGfUDS1DbER1NdXDYkBQ==
+releaseDate: '2026-10-26T09:20:42.444Z'

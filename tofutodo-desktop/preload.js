@@ -4,6 +4,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   expand: () => ipcRenderer.send("expand-window"),
   collapse: () => ipcRenderer.send("collapse-window"),
   exit: () => ipcRenderer.send("exit-app"),
+  // Local sync: Electron 28 denies File System Access writes, so the main process writes files instead
+  sync: {
+    pickDirectory: () => ipcRenderer.invoke("sync:pick-directory"),
+    getDirectory: () => ipcRenderer.invoke("sync:get-directory"),
+    readFile: (relPath) => ipcRenderer.invoke("sync:read-file", relPath),
+    writeFile: (relPath, data) => ipcRenderer.invoke("sync:write-file", relPath, data),
+    exists: (relPath) => ipcRenderer.invoke("sync:exists", relPath),
+    removeFile: (relPath) => ipcRenderer.invoke("sync:remove-file", relPath),
+  },
 });
 
 window.addEventListener("DOMContentLoaded", () => {
