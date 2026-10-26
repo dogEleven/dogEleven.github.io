@@ -2180,19 +2180,40 @@
                     return changed.length;
                 };
 
+                let syncPermissionDetail = '';
+                // A real write is the ground truth: some embedders (e.g. older Electron) report 'prompt'/'denied' yet allow writes
+                const canWriteSyncDir = async () => {
+                    try {
+                        const writable = await (await syncDirHandle.getFileHandle(SYNC_STATE_FILE, { create: true }))
+                            .createWritable({ keepExistingData: true });
+                        await writable.close();
+                        return true;
+                    } catch (e) {
+                        syncPermissionDetail += `，试写：${e.name}`;
+                        return false;
+                    }
+                };
+
                 const ensureSyncPermission = async (interactive) => {
                     if (!syncDirHandle) return false;
                     const opts = { mode: 'readwrite' };
-                    let permission = await syncDirHandle.queryPermission(opts);
-                    if (permission !== 'granted' && interactive) permission = await syncDirHandle.requestPermission(opts);
-                    syncNeedsPermission.value = permission !== 'granted';
-                    return permission === 'granted';
+                    let permission;
+                    try {
+                        permission = await syncDirHandle.queryPermission(opts);
+                        if (permission !== 'granted' && interactive) permission = await syncDirHandle.requestPermission(opts);
+                    } catch (e) {
+                        permission = e.name;
+                    }
+                    syncPermissionDetail = `权限：${permission}`;
+                    const granted = permission === 'granted' || await canWriteSyncDir();
+                    syncNeedsPermission.value = !granted;
+                    return granted;
                 };
 
                 const runSync = async (manual = false) => {
                     if (!syncSupported || !token.value || !syncDirHandle || syncRunning.value) return;
                     if (!(await ensureSyncPermission(manual))) {
-                        if (manual) syncMessage.value = '没有目录写入权限，请重新授权或重新选择目录。';
+                        if (manual) syncMessage.value = `没有目录写入权限（${syncPermissionDetail}），请重新授权或重新选择目录。`;
                         return;
                     }
                     syncRunning.value = true;
